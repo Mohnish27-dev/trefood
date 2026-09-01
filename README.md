@@ -79,8 +79,8 @@ problem listed at once — see `backend/src/env.ts`.
 
 ## Current phase
 
-**Phase 2 — Student PWA, complete (against fixtures).** Next up:
-[Phase 3](docs/PHASES.md) — the vendor console.
+**Phase 3 — Vendor console, complete (against fixtures).** Next up:
+[Phase 4](docs/PHASES.md) — the admin console.
 
 Run `npm run dev:frontend` and walk the whole journey with no backend running:
 
@@ -96,3 +96,15 @@ Run `npm run dev:frontend` and walk the whole journey with no backend running:
 
 Change `order-at_gate` to any status (`order-preparing`, `order-delivered`, …) to see
 that state of the tracker.
+
+The vendor console lives alongside it:
+
+| Route | Screen |
+| :-- | :-- |
+| `/vendor/orders` | The live board — alarm, countdown rings, accept/reject, dispatch |
+| `/vendor/orders/board-1/kot` | KOT print view, 58 mm and 80 mm thermal |
+| `/vendor/menu` · `/vendor/earnings` · `/vendor/settings` | 86 toggles, statement, release valves |
+
+On the board, **Simulate order** drops a new order in so you can watch the alarm,
+the flashing card and the countdown ring. Sound is blocked by the browser until you
+tap the amber banner — that block is real, and the banner exists because of it.
