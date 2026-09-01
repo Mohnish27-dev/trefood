@@ -1,0 +1,75 @@
+# ══════════════════════════════════════════════════════════════════════
+#  TREFOOD - local stack
+#
+#    docker compose up          app + mongo, zero cloud credentials
+#    docker compose --profile tools up   ... plus mongo-express on :8081
+#
+#  This is the reproducibility contract: a machine with Docker and no
+#  Atlas account, no Supabase project and no Razorpay keys can still run
+#  the full prototype demo.
+# ══════════════════════════════════════════════════════════════════════
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: trefood-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: trefood
+      MONGO_INITDB_ROOT_PASSWORD: trefood
+      MONGO_INITDB_DATABASE: trefood
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+        NEXT_PUBLIC_DEMO_MODE: "true"
+    container_name: trefood-app
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://trefood:trefood@mongo:27017/trefood?authSource=admin
+      MONGODB_DB: trefood
+      MONGODB_MAX_POOL_SIZE: "10"
+      AUTH_PROVIDER: stub
+      PAYMENT_PROVIDER: stub
+      CRON_SECRET: local-compose-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    # Stateless: no volumes, no local writes. This is what makes
+    #   docker compose up --scale app=3
+    # correct behind a load balancer without a single code change.
+
+  # Optional DB browser. `docker compose --profile tools up`
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: trefood-mongo-express
+    profiles: ["tools"]
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://trefood:trefood@mongo:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8081:8081"
+
+volumes:
+  mongo-data:

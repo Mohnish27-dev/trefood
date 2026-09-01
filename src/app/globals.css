@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════════
+   TREFOOD — Midnight Campus design system
+
+   Dark-first, on purpose. The two moments this product must survive are
+   a dim canteen tablet at 23:00 and a cracked phone screen outdoors at
+   01:00. Both are dark-adapted eyes. A white UI is the wrong default for
+   a platform whose peak window is 22:30–02:30.
+
+   Rules encoded here, so they cannot be forgotten later:
+     · 44px minimum touch target  → --size-touch
+     · gate code is the loudest element in the product → .gate-code
+     · saffron is action, mint is good, chili is urgent, amber is closing
+   ══════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Ground & surfaces ──────────────────────────────────────────── */
+  --color-ink: #0b0d12;
+  --color-ink-deep: #06080c;
+  --color-surface: #12151d;
+  --color-surface-raised: #1a1f2a;
+  --color-surface-hover: #222836;
+  --color-line: #262c3a;
+  --color-line-strong: #38405320;
+
+  /* ── Type ───────────────────────────────────────────────────────── */
+  --color-bone: #f5f3ef;
+  --color-muted: #8b93a5;
+  --color-faint: #5a6274;
+
+  /* ── Brand & semantics ──────────────────────────────────────────── */
+  --color-saffron: #ff6b1a;
+  --color-saffron-glow: #ff8a47;
+  --color-saffron-deep: #d4520c;
+  --color-saffron-wash: #ff6b1a1a;
+
+  --color-mint: #34d399;
+  --color-mint-wash: #34d3991a;
+
+  --color-chili: #f43f5e;
+  --color-chili-wash: #f43f5e1a;
+
+  --color-amber: #fbbf24;
+  --color-amber-wash: #fbbf241a;
+
+  --color-sky: #38bdf8;
+  --color-sky-wash: #38bdf81a;
+
+  /* ── Fonts ──────────────────────────────────────────────────────── */
+  --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-mono-code), ui-monospace, "Cascadia Code", monospace;
+
+  /* ── Radii ──────────────────────────────────────────────────────── */
+  --radius-card: 1rem;
+  --radius-sheet: 1.5rem;
+
+  /* ── The 44px floor from PRD Part 2 ─────────────────────────────── */
+  --spacing-touch: 2.75rem;
+
+  /* ── Motion ─────────────────────────────────────────────────────── */
+  --animate-alarm-flash: alarm-flash 1s ease-in-out infinite;
+  --animate-gate-glow: gate-glow 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-rise: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pulse-ring: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes alarm-flash {
+    0%,
+    100% {
+      border-color: var(--color-chili);
+      box-shadow: 0 0 0 0 rgb(244 63 94 / 0.45);
+    }
+    50% {
+      border-color: #ff8fa3;
+      box-shadow: 0 0 0 10px rgb(244 63 94 / 0);
+    }
+  }
+
+  @keyframes gate-glow {
+    0%,
+    100% {
+      text-shadow:
+        0 0 24px rgb(255 107 26 / 0.55),
+        0 0 60px rgb(255 107 26 / 0.25);
+    }
+    50% {
+      text-shadow:
+        0 0 34px rgb(255 138 71 / 0.8),
+        0 0 90px rgb(255 107 26 / 0.4);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes pulse-ring {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+  --header-h: 3.5rem;
+  --bottom-nav-h: 4.25rem;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  /* Campus wifi is bad; large background images are not. A cheap radial
+     wash gives depth without a single network byte. */
+  background-image:
+    radial-gradient(60rem 40rem at 50% -10%, rgb(255 107 26 / 0.07), transparent 60%),
+    radial-gradient(40rem 30rem at 100% 0%, rgb(56 189 248 / 0.04), transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Focus is never removed, only restyled. Saffron ring at 2px is visible
+   on every surface in the palette. */
+:focus-visible {
+  outline: 2px solid var(--color-saffron);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+::selection {
+  background: var(--color-saffron);
+  color: var(--color-ink);
+}
+
+/* Scrollbars, so the vendor board does not look unfinished on a tablet. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 99px;
+  border: 2px solid var(--color-ink);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Component primitives that earn a class rather than a component
+   ══════════════════════════════════════════════════════════════════════ */
+
+@utility surface-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+/* The single loudest element in the product. Read outdoors, at 1 AM, on a
+   cracked screen, possibly in rain. Tabular so the digits never reflow,
+   mono so 0 and O cannot be confused (codes are digits only, by design). */
+@utility gate-code {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-saffron-glow);
+  animation: var(--animate-gate-glow);
+}
+
+/* Money and order numbers never reflow between polls. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surface-raised) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 0.5rem;
+}
+
+/* Safe-area padding for installed PWAs on notched devices. */
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+@utility pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0rem);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Print — KOT tickets only. 58mm and 80mm thermal.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    background-image: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Respect the user's motion preference. The alarm still flashes colour —
+   a vendor missing an order is a worse outcome than an unwanted animation —
+   but nothing else moves.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .alarm-card {
+    border-color: var(--color-chili) !important;
+  }
+}

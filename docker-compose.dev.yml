@@ -1,0 +1,21 @@
+# Dev override: run only the database in Docker and Next.js on the host,
+# so hot reload stays instant.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   npm run dev
+services:
+  mongo:
+    image: mongo:7
+    container_name: trefood-mongo-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: trefood
+      MONGO_INITDB_ROOT_PASSWORD: trefood
+      MONGO_INITDB_DATABASE: trefood
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-dev-data:/data/db
+
+volumes:
+  mongo-dev-data:
