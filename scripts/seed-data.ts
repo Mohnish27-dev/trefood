@@ -770,25 +770,6 @@ function user(partial: Pick<User, "_id" | "role" | "name" | "email"> & Partial<U
 
 export const USERS: User[] = [
   user({
-    _id: "user_student_demo",
-    role: ROLE.STUDENT,
-    name: "Aarav Kumar",
-    email: "aarav@nitp.ac.in",
-    phone: "+919876500001",
-  }),
-  user({
-    _id: "user_student_blocked",
-    role: ROLE.STUDENT,
-    name: "Rohit Sharma",
-    email: "rohit@nitp.ac.in",
-    phone: "+919876500002",
-    // F9 — refused COD cash once. COD hidden entirely at checkout for this
-    // account, so the blocked-COD path is demonstrable without waiting for it.
-    codBlocked: true,
-    codBlockedReason: "Refused to pay cash on delivery for TRF-NITP-0042",
-    strikes: 2,
-  }),
-  user({
     _id: "user_vendor_canteen",
     role: ROLE.VENDOR_OWNER,
     name: "Suresh Prasad",

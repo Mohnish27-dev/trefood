@@ -44,9 +44,30 @@ const createdLedgerIds: string[] = [];
 
 beforeAll(async () => {
   const found = await (await db.campuses()).findOne({ slug: "nit-patna" });
-  const user = await (await db.users()).findOne({ _id: "user_student_demo" });
-  if (!found || !user) throw new Error("Seed missing. Run `npm run seed` first.");
+  if (!found) throw new Error("Seed missing. Run `npm run seed` first.");
   campus = found;
+
+  const users = await db.users();
+  let user = await users.findOne({ _id: "test_student_settlement_fixture" });
+  if (!user) {
+    const fixture: User = {
+      _id: "test_student_settlement_fixture",
+      authId: null,
+      role: "STUDENT",
+      name: "Settlement Test Student",
+      email: "settlement.student@nitp.ac.in",
+      phone: "+919876500001",
+      campusId: campus._id,
+      restaurantId: null,
+      codBlocked: false,
+      codBlockedReason: null,
+      strikes: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await users.replaceOne({ _id: fixture._id }, fixture, { upsert: true });
+    user = fixture;
+  }
   student = user;
 });
 
@@ -60,6 +81,7 @@ afterAll(async () => {
   if (createdLedgerIds.length > 0) {
     await (await db.ledgerEntries()).deleteMany({ _id: { $in: createdLedgerIds } });
   }
+  await (await db.users()).deleteOne({ _id: "test_student_settlement_fixture" });
   await (await getMongoClient()).close();
 });
 

@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
 import { ROLE, type Role } from "@/lib/constants";
+import { newId } from "@/lib/ids";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@/types/user";
 
 /**
@@ -135,12 +137,63 @@ async function resolveStubUser(): Promise<User | null> {
 /**
  * Phase 8. The Supabase JWT identifies the auth user; the `users` collection
  * mirrors it with the role, phone and codBlocked flag that the domain needs.
+ * If a student signs in for the first time, auto-provisions their MongoDB record.
  */
 async function resolveSupabaseUser(): Promise<User | null> {
-  throw new AuthError(
-    "UNAUTHENTICATED",
-    "Supabase auth is not wired yet (Phase 8). Set AUTH_PROVIDER=stub for the prototype.",
-  );
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !authUser) return null;
+
+  const usersCollection = await db.users();
+
+  // 1. Look up by authId (Supabase user UUID)
+  let mongoUser = await usersCollection.findOne({ authId: authUser.id });
+
+  if (!mongoUser && authUser.email) {
+    // 2. Look up by email (in case an existing record was seeded/created without authId)
+    mongoUser = await usersCollection.findOne({ email: authUser.email });
+    if (mongoUser) {
+      await usersCollection.updateOne(
+        { _id: mongoUser._id },
+        { $set: { authId: authUser.id, updatedAt: new Date() } },
+      );
+      mongoUser.authId = authUser.id;
+    }
+  }
+
+  if (!mongoUser) {
+    // 3. Auto-provision new student record in MongoDB
+    const metaName =
+      (typeof authUser.user_metadata?.full_name === "string" && authUser.user_metadata.full_name) ||
+      (typeof authUser.user_metadata?.name === "string" && authUser.user_metadata.name) ||
+      authUser.email?.split("@")[0] ||
+      "Student";
+
+    const newStudent: User = {
+      _id: newId("usr"),
+      authId: authUser.id,
+      role: ROLE.STUDENT,
+      name: metaName,
+      email: authUser.email ?? "",
+      phone: authUser.phone ?? null,
+      campusId: "campus_nitp",
+      restaurantId: null,
+      codBlocked: false,
+      codBlockedReason: null,
+      strikes: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await usersCollection.insertOne(newStudent);
+    mongoUser = newStudent;
+  }
+
+  return mongoUser;
 }
 
 /* ------------------------------------------------------------------ */

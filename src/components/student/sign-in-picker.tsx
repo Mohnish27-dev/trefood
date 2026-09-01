@@ -22,13 +22,7 @@ export interface SignInAccount {
 }
 
 /**
- * The demo account picker.
- *
- * Grouped by role because that is how a demo is actually run: open the student
- * in one tab and the vendor in another, then watch a tap on one move the
- * other. The COD-blocked student is called out rather than hidden — it is the
- * fastest way to show the F9 screen, which is otherwise reachable only by
- * refusing to pay a rider.
+ * Demo and staff account picker for local testing and vendor/admin consoles.
  */
 export function SignInPicker({
   accounts,
@@ -41,8 +35,6 @@ export function SignInPicker({
 
   const choose = async (account: SignInAccount): Promise<void> => {
     setPending(account.userId);
-    // A successful sign-in redirects from the server, so this promise never
-    // resolves on the happy path. Only a failure comes back here.
     const result = await signInAsDemoUser({
       userId: account.userId,
       ...(redirectTo ? { redirectTo } : {}),
@@ -51,12 +43,6 @@ export function SignInPicker({
   };
 
   const groups: { heading: string; blurb: string; roles: Role[]; icon: typeof GraduationCap }[] = [
-    {
-      heading: "Students",
-      blurb: "Order, track, and confirm at the gate.",
-      roles: [ROLE.STUDENT],
-      icon: GraduationCap,
-    },
     {
       heading: "Restaurants",
       blurb: "The live board, the menu, and the earnings statement.",
@@ -71,13 +57,18 @@ export function SignInPicker({
     },
   ];
 
+  const vendorOrAdminAccounts = accounts.filter(
+    (a) => a.role !== ROLE.STUDENT,
+  );
+
+  if (vendorOrAdminAccounts.length === 0) return null;
+
   return (
     <div className="mt-8 space-y-6">
-      <p className="rounded-xl border border-line bg-surface px-3.5 py-3 text-xs leading-relaxed text-muted">
-        These are seeded demo accounts, not real authentication — they exist so the whole flow
-        can be shown before Google sign-in is wired, and they are refused outright in
-        production.
-      </p>
+      <div className="rounded-xl border border-line bg-surface px-3.5 py-3 text-xs leading-relaxed text-muted">
+        <p className="font-semibold text-bone mb-0.5">Staff & Partner Accounts</p>
+        Use these seeded accounts to test the Restaurant Order Board and the Admin Radar.
+      </div>
 
       {groups.map((group) => {
         const members = accounts.filter((account) => group.roles.includes(account.role));

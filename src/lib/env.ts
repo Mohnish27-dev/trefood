@@ -36,7 +36,16 @@ const boolFromString = (fallback: boolean) =>
 const optionalString = z
   .string()
   .optional()
-  .transform((v) => (v === "" ? undefined : v));
+  .transform((v) => (v === "" ? undefined : v?.trim()));
+
+const optionalUrl = z
+  .string()
+  .optional()
+  .transform((v) => {
+    if (v === undefined || v === null) return undefined;
+    const cleaned = v.trim().replace(/^=+/, "").trim();
+    return cleaned === "" ? undefined : cleaned;
+  });
 
 /* ------------------------------------------------------------------ */
 /* Server                                                              */
@@ -119,8 +128,8 @@ export function serverEnv(): ServerEnv {
 /* ------------------------------------------------------------------ */
 
 const clientSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000"),
-  NEXT_PUBLIC_SUPABASE_URL: optionalString,
+  NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000").transform((v) => v.trim().replace(/^=+/, "").trim()),
+  NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: optionalString,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: optionalString,
   NEXT_PUBLIC_SENTRY_DSN: optionalString,

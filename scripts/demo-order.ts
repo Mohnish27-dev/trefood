@@ -29,8 +29,26 @@ async function main(): Promise<void> {
   const method =
     process.argv[3] === "COD" ? PAYMENT_METHOD.HYBRID_COD : PAYMENT_METHOD.ONLINE_100;
 
-  const student = await (await db.users()).findOne({ _id: "user_student_demo" });
-  if (!student) throw new Error("Seed missing. Run `npm run seed` first.");
+  let student = await (await db.users()).findOne({ role: "STUDENT" });
+  if (!student) {
+    const newStudent = {
+      _id: "usr_demo_student",
+      authId: null,
+      role: "STUDENT" as const,
+      name: "Demo Student",
+      email: "student@nitp.ac.in",
+      phone: "+919876500001",
+      campusId: "campus_nitp",
+      restaurantId: null,
+      codBlocked: false,
+      codBlockedReason: null,
+      strikes: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await (await db.users()).insertOne(newStudent);
+    student = newStudent;
+  }
 
   const created = await createOrder({
     customer: student,

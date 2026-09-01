@@ -1,9 +1,10 @@
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignInPicker, type SignInAccount } from "@/components/student/sign-in-picker";
+import { StudentAuthForm } from "@/components/student/student-auth-form";
 import { getSession, listDemoUsers } from "@/server/auth/session";
 import { getRestaurantById } from "@/server/services/catalog";
 import { serverEnv } from "@/lib/env";
@@ -15,22 +16,9 @@ export const dynamic = "force-dynamic";
 const REASONS: Record<string, string> = {
   vendor: "That account is not linked to a restaurant. Pick a vendor account below.",
   admin: "That page needs an admin account.",
+  auth_failed: "Authentication could not be completed. Please try signing in again.",
 };
 
-/**
- * Sign in.
- *
- * D7 — Google sign-in now, phone captured at first checkout, phone OTP later
- * once TRAI DLT clears. All three sit behind `server/auth/session.ts`, so this
- * page renders whatever the active provider offers and nothing above it knows
- * which one is live.
- *
- * With `AUTH_PROVIDER=stub` that is the seeded account list, which is a
- * deliberate prototype affordance rather than a shortcut: the whole point of a
- * demo is switching between a normal student, a COD-blocked one, a vendor and
- * an admin in a single tap, and the stub provider refuses to run in production
- * at all.
- */
 export default async function SignInPage({
   searchParams,
 }: {
@@ -39,11 +27,11 @@ export default async function SignInPage({
   const { next, reason } = await searchParams;
   const session = await getSession();
 
-  // Already signed in and no role complaint? There is nothing to do here.
+  // Already signed in and no role complaint? Redirect immediately.
   if (session && !reason) redirect(next && next.startsWith("/") ? next : "/");
 
   const isStub = serverEnv().AUTH_PROVIDER === "stub";
-  const users = isStub ? await listDemoUsers() : [];
+  const users = await listDemoUsers();
 
   const accounts: SignInAccount[] = [];
   for (const user of users) {
@@ -81,7 +69,7 @@ export default async function SignInPage({
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           You can browse every menu without an account. Signing in is only needed to place an
-          order and to see it through to the gate.
+          order and follow it to your gate.
         </p>
       </div>
 
@@ -91,20 +79,13 @@ export default async function SignInPage({
         </p>
       ) : null}
 
-      {isStub ? (
+      {/* ── Student Authentication (Google OAuth + Email) ─────────── */}
+      <StudentAuthForm redirectTo={next ?? null} />
+
+      {/* ── Staff / Demo accounts (for Vendors & Admins) ────────────── */}
+      {(isStub || accounts.some((a) => a.role !== ROLE.STUDENT)) ? (
         <SignInPicker accounts={accounts} redirectTo={next ?? null} />
-      ) : (
-        <div className="mt-8 rounded-2xl border border-line bg-surface p-5">
-          <ShieldCheck className="size-5 text-saffron" />
-          <p className="mt-3 font-display text-sm font-semibold text-bone">
-            Google sign-in is not wired yet
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted">
-            Set <code className="font-mono text-xs text-bone">AUTH_PROVIDER=stub</code> to use
-            the seeded demo accounts, or finish the Supabase setup to enable Google.
-          </p>
-        </div>
-      )}
+      ) : null}
     </main>
   );
 }

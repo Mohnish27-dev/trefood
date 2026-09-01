@@ -57,7 +57,7 @@ async function main(): Promise<void> {
   console.log("  accounts...");
   const users = await db.users();
   for (const u of USERS) await users.replaceOne({ _id: u._id }, u, { upsert: true });
-  console.log(`    ${USERS.length} demo accounts (1 of them COD-blocked, for the F9 screen)`);
+  console.log(`    ${USERS.length} staff & partner accounts seeded`);
 
   console.log("\nSeed complete.\n");
   console.log("  Student   /c/nit-patna");

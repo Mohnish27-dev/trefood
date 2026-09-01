@@ -19,8 +19,27 @@ import type { User } from "@/types/user";
 const R = rupeesToPaise;
 
 async function demoStudent(): Promise<User> {
-  const user = await (await db.users()).findOne({ _id: "user_student_demo" });
-  if (!user) throw new Error("Seed missing. Run `npm run seed` first.");
+  const users = await db.users();
+  let user = await users.findOne({ _id: "test_student_fixture" });
+  if (!user) {
+    const studentFixture: User = {
+      _id: "test_student_fixture",
+      authId: null,
+      role: "STUDENT",
+      name: "Test Student",
+      email: "test.student@nitp.ac.in",
+      phone: "+919876500001",
+      campusId: "campus_nitp",
+      restaurantId: null,
+      codBlocked: false,
+      codBlockedReason: null,
+      strikes: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await users.replaceOne({ _id: studentFixture._id }, studentFixture, { upsert: true });
+    user = studentFixture;
+  }
   return user;
 }
 
@@ -33,6 +52,9 @@ const createdOrderIds: string[] = [];
 
 afterAll(async () => {
   for (const id of createdOrderIds) await cleanUp(id);
+  await (await db.users()).deleteMany({
+    _id: { $in: ["test_student_fixture", "test_student_blocked_fixture"] },
+  });
   await (await getMongoClient()).close();
 });
 
@@ -244,12 +266,26 @@ describe("F14 — an item 86-ed before payment", () => {
 
 describe("COD is refused for a blocked student (F9)", () => {
   it("rejects at the service layer, not just in the UI", async () => {
-    const blocked = await (await db.users()).findOne({ _id: "user_student_blocked" });
-    expect(blocked?.codBlocked).toBe(true);
-    if (!blocked) return;
+    const users = await db.users();
+    const blockedFixture: User = {
+      _id: "test_student_blocked_fixture",
+      authId: null,
+      role: "STUDENT",
+      name: "Blocked Student",
+      email: "blocked.student@nitp.ac.in",
+      phone: "+919876500002",
+      campusId: "campus_nitp",
+      restaurantId: null,
+      codBlocked: true,
+      codBlockedReason: "Refused to pay cash on delivery for TRF-NITP-0042",
+      strikes: 2,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await users.replaceOne({ _id: blockedFixture._id }, blockedFixture, { upsert: true });
 
     const created = await createOrder({
-      customer: blocked,
+      customer: blockedFixture,
       restaurantId: "rest_nit_canteen",
       zoneId: "zone_main_gate",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
