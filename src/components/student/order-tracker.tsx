@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle, Check, Loader2, Phone, Wallet } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +12,8 @@ import { Money, MoneyRow } from "@/components/shared/money";
 import { StatusBadge, StatusStepper, statusBlurb } from "@/components/shared/status";
 import { VegMark } from "@/components/shared/veg-mark";
 import { ConnectionBanner } from "@/components/shared/states";
+import { markInstallPromptEarned } from "@/components/shared/pwa";
+import { StockoutScreen } from "./stockout-screen";
 import { usePoll } from "@/hooks/use-poll";
 import { confirmReceived } from "@/server/actions/student";
 import { clientEnv } from "@/lib/env";
@@ -30,7 +33,7 @@ import type { OrderPollResponse } from "@/app/api/orders/[orderId]/poll/route";
  * "Cooking" screen while the rider stands at the gate is worse than a spinner.
  */
 export function OrderTracker({ initial }: { initial: OrderPollResponse }) {
-  const { data, connectionLost, lastSyncedAt } = usePoll<OrderPollResponse>(
+  const { data, connectionLost, lastSyncedAt, refresh } = usePoll<OrderPollResponse>(
     async () => {
       const response = await fetch(`/api/orders/${initial.orderId}/poll`, { cache: "no-store" });
       if (!response.ok) throw new Error(`Poll failed: ${response.status}`);
@@ -44,12 +47,36 @@ export function OrderTracker({ initial }: { initial: OrderPollResponse }) {
 
   const order = data ?? initial;
 
+  // The install prompt is earned, not offered on arrival: a student who has
+  // never received an order has no reason to want an icon on their home
+  // screen, and a prompt dismissed once is spent for weeks.
+  useEffect(() => {
+    if (
+      order.status === ORDER_STATUS.DELIVERED ||
+      order.status === ORDER_STATUS.DELIVERED_TO_SECURITY
+    ) {
+      markInstallPromptEarned();
+    }
+  }, [order.status]);
+
+  // F6 — a stockout outranks everything, including the gate screen. The
+  // kitchen physically cannot proceed until this is answered, so it is the one
+  // place in the student app that genuinely blocks.
+  const awaitingStockout = order.stockout !== null && !order.stockout.resolved;
+
   return (
     <>
       <ConnectionBanner visible={connectionLost} lastSyncedAt={lastSyncedAt} />
 
-      {/* ── The gate screen takes over completely at AT_GATE ──── */}
-      {order.status === ORDER_STATUS.AT_GATE && order.gateCode !== null ? (
+      {awaitingStockout && order.stockout ? (
+        <StockoutScreen
+          orderId={order.orderId}
+          itemName={order.stockout.itemName}
+          expiresAt={order.stockout.expiresAt}
+          onResolved={refresh}
+        />
+      ) : order.status === ORDER_STATUS.AT_GATE && order.gateCode !== null ? (
+        /* ── The gate screen takes over completely at AT_GATE ──── */
         <GateScreen order={order} />
       ) : (
         <StatusScreen order={order} />
@@ -194,6 +221,21 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
         <StatusBadge status={order.status} />
       </div>
 
+      {/* F11 — the gate moved while the order was in flight. Loud, because a
+          student walking to the wrong gate at 1 AM is the whole failure. */}
+      {order.reroutedFrom !== null && !order.isTerminal ? (
+        <Card className="mb-4 border-amber/40 bg-amber-wash p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-amber">
+            <AlertTriangle className="size-4" />
+            Your collection point changed
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-bone/90">
+            Your original gate closed before the rider could reach it. Collect from{" "}
+            <span className="font-semibold">{order.zoneName}</span> instead — {order.zoneInstructions}
+          </p>
+        </Card>
+      ) : null}
+
       {/* ── The honest ETA ────────────────────────────────────── */}
       {order.estimatedArrival && !order.isTerminal ? (
         <Card className="mb-4 border-saffron/25 bg-saffron-wash p-4">
@@ -227,8 +269,13 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
           ) : null}
           {order.refundablePaise > 0 ? (
             <p className="mt-3 text-sm text-bone">
-              Refund of <Money paise={order.refundablePaise} className="font-semibold" /> is on its
-              way. It takes 3–5 working days.
+              Refund of{" "}
+              <Money
+                paise={order.refund?.amountPaise ?? order.refundablePaise}
+                className="font-semibold"
+              />{" "}
+              {order.refund?.status === "PROCESSED" ? "has been sent" : "is on its way"}. It takes
+              3–5 working days to appear.
             </p>
           ) : null}
         </Card>
@@ -279,6 +326,24 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
           Call {order.restaurantName}
         </a>
       </Button>
+
+      {/* The 30-minute window. Shown only while it is genuinely open, so the
+          option never appears as a dead end. */}
+      {order.canDispute ? (
+        <Button asChild block variant="ghost" size="lg" className="mt-2">
+          <Link href={`/orders/${order.orderId}/dispute`}>
+            <AlertTriangle />
+            Something was wrong with this order
+          </Link>
+        </Button>
+      ) : null}
+
+      {order.status === ORDER_STATUS.DISPUTED ? (
+        <p className="mt-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-center text-xs leading-relaxed text-muted">
+          A person is reviewing your report and the photos you sent. You will see the outcome
+          here.
+        </p>
+      ) : null}
 
       {!order.isTerminal ? (
         <p className="mt-4 text-center text-xs leading-relaxed text-faint">

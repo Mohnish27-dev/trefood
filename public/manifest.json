@@ -1,0 +1,36 @@
+{
+  "name": "TREFOOD — Campus food, delivered to your gate",
+  "short_name": "TREFOOD",
+  "description": "Order from your campus canteens and collect at your hostel gate. Match the code on the packet, done.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0D12",
+  "theme_color": "#0B0D12",
+  "categories": ["food", "shopping"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Your orders",
+      "short_name": "Orders",
+      "url": "/orders",
+      "description": "Track an order on its way to your gate"
+    }
+  ]
+}

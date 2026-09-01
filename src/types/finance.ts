@@ -17,6 +17,8 @@ export interface LedgerEntry {
   type:
     | "REFUND_GATEWAY_RECOVERY"
     | "DISPUTE_DEBIT"
+    /** F6 — a line the kitchen could not deliver, refunded to the student. */
+    | "STOCKOUT_SHORTFALL"
     | "PENALTY"
     | "MANUAL_ADJUSTMENT"
     | "CARRY_FORWARD";

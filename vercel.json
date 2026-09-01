@@ -4,6 +4,7 @@
     { "path": "/api/cron/reconcile-payments", "schedule": "* * * * *" },
     { "path": "/api/cron/expire-unacked", "schedule": "* * * * *" },
     { "path": "/api/cron/close-stale-gates", "schedule": "* * * * *" },
+    { "path": "/api/cron/resolve-stockouts", "schedule": "* * * * *" },
     { "path": "/api/cron/retry-refunds", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/settle-daily", "schedule": "29 18 * * *" }
   ]

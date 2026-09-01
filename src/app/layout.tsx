@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 
+import { OfflineBanner, ServiceWorkerRegistrar } from "@/components/shared/pwa";
 import "./globals.css";
 
 /* Display: distinctive, high-personality grotesque for headings and the brand.
@@ -39,6 +40,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "TREFOOD",
   },
+  // iOS ignores the manifest's icon list entirely and reads the apple entry.
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   formatDetection: { telephone: false },
 };
 
@@ -56,7 +62,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${bricolage.variable} ${inter.variable} ${mono.variable}`}>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        <OfflineBanner />
+        {children}
+        <ServiceWorkerRegistrar />
+      </body>
     </html>
   );
 }

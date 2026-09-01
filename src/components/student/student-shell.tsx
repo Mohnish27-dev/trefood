@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BottomNav } from "./bottom-nav";
+import { InstallPrompt } from "@/components/shared/pwa";
 import { useCart } from "@/hooks/use-cart";
 
 /**
@@ -21,6 +22,8 @@ export function StudentShell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <div className="flex-1 pb-24">{children}</div>
+      {/* Deferred until after a delivered order, when intent peaks. */}
+      <InstallPrompt />
       <BottomNav campusSlug={campusSlug} />
     </div>
   );

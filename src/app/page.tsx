@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/states";
+import { clientEnv } from "@/lib/env";
 import { listCampuses } from "@/server/services/catalog";
 
 export const dynamic = "force-dynamic";
@@ -119,12 +120,21 @@ export default async function LandingPage() {
       {/* ── Console entry points ─────────────────────────────────── */}
       <section className="px-5 pb-20 max-w-2xl mx-auto">
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <Link href="/signin" className="text-muted hover:text-saffron transition-colors">
+            Sign in →
+          </Link>
           <Link href="/vendor/orders" className="text-muted hover:text-saffron transition-colors">
             Restaurant console →
           </Link>
           <Link href="/admin/orders" className="text-muted hover:text-saffron transition-colors">
             Admin console →
           </Link>
+          {/* The ninety-second demo. Dev only — the route 404s in production. */}
+          {clientEnv.NEXT_PUBLIC_DEMO_MODE ? (
+            <Link href="/demo" className="text-saffron hover:underline">
+              Simulation panel →
+            </Link>
+          ) : null}
         </div>
         <p className="mt-6 text-xs leading-relaxed text-faint">
           TREFOOD · Hyperlocal campus delivery. Handover at the gate, always.

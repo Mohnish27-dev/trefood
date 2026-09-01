@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
-import { estimatedArrival, gateDeadline, getOrderForCustomer } from "@/server/services/orders";
+import {
+  disputeWindowOpen,
+  estimatedArrival,
+  gateDeadline,
+  getOrderForCustomer,
+} from "@/server/services/orders";
 import { revealGateCode } from "@/server/services/gate-code";
 import { TERMINAL_STATUSES, type OrderStatus, type PaymentMethod } from "@/lib/constants";
 
@@ -47,6 +52,27 @@ export interface OrderPollResponse {
   refundablePaise: number;
   cancellationReason: string | null;
 
+  /**
+   * F6 — an item ran out mid-cook and the student has five minutes to choose.
+   * Non-null means the tracker must show a BLOCKING screen: this is the one
+   * moment the app genuinely needs an answer before anything else can happen.
+   */
+  stockout: {
+    itemName: string;
+    expiresAt: string;
+    choice: string | null;
+    resolved: boolean;
+  } | null;
+
+  /** Non-null once a refund has been raised, so the student can see where it is. */
+  refund: { amountPaise: number; status: string } | null;
+
+  /** F11 — the gate changed while the order was in flight. */
+  reroutedFrom: string | null;
+
+  /** Section 3 — the 30-minute reporting window is still open. */
+  canDispute: boolean;
+
   items: { name: string; isVeg: boolean; quantity: number; lineTotalPaise: number; addOns: string[] }[];
 }
 
@@ -89,6 +115,22 @@ export async function GET(
     cashDueOnDeliveryPaise: order.payment.cashDueOnDeliveryPaise,
     refundablePaise: order.pricing.refundableAmountPaise,
     cancellationReason: order.cancellation?.reason ?? null,
+
+    stockout: order.stockout
+      ? {
+          itemName: order.stockout.itemName,
+          expiresAt: order.stockout.expiresAt.toISOString(),
+          choice: order.stockout.choice,
+          resolved: order.stockout.resolvedAt !== null,
+        }
+      : null,
+
+    refund: order.refund
+      ? { amountPaise: order.refund.amountPaise, status: order.refund.status }
+      : null,
+
+    reroutedFrom: order.reroutedFromZoneId,
+    canDispute: disputeWindowOpen(order),
 
     items: order.items.map((i) => ({
       name: i.name,

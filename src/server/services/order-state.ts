@@ -133,7 +133,15 @@ export const TRANSITIONS: readonly TransitionRule[] = [
   ).map<TransitionRule>((from) => ({
     from,
     to: S.CANCELLED_BY_ADMIN,
-    actors: [A.ADMIN],
+    // F6 — a student who answers "cancel the whole order" when an item runs
+    // out mid-cook is exercising a PLATFORM cancellation, not a student one:
+    // the fault is the kitchen's, the refund is full, and D1 is untouched
+    // because this is vendor fault rather than change of mind. It is fired by
+    // SYSTEM on the student's instruction, and only from the two states where
+    // a stockout can actually be discovered. The vendor still cannot cancel
+    // from anywhere, which is the rule that matters.
+    actors:
+      from === S.ACCEPTED || from === S.PREPARING ? [A.ADMIN, A.SYSTEM] : [A.ADMIN],
     why: "Admin override: power cut, closure, emergency. Full refund.",
     requiresReason: true,
   })),

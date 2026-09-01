@@ -127,6 +127,24 @@ export function ceilRupeeOfBps(basePaise: Paise, bps: Bps): Paise {
   return ceilDiv(basePaise * bps, BPS_PER_UNIT * PAISE_PER_RUPEE) * PAISE_PER_RUPEE;
 }
 
+/**
+ * `base x bps`, ceiled to the PAISE rather than to the rupee.
+ *
+ * Deliberately separate from `ceilRupeeOfBps`. Everything a student or a
+ * vendor sees is whole rupees (A4), and that function enforces it. This one
+ * exists for the single place sub-rupee amounts are genuinely real: the
+ * ledger, where D3 books the gateway fee Razorpay kept on a refund. That fee
+ * is not a rupee figure and rounding it to one would either overcharge or
+ * undercharge the vendor every single time.
+ */
+export function ceilPaiseOfBps(basePaise: Paise, bps: Bps): Paise {
+  assertNonNegativePaise(basePaise, "ceilPaiseOfBps base");
+  if (!Number.isSafeInteger(bps) || bps < 0) {
+    throw new Error(`bps must be a non-negative integer, received ${bps}`);
+  }
+  return ceilDiv(basePaise * bps, BPS_PER_UNIT);
+}
+
 /* ------------------------------------------------------------------ */
 /* Aggregation                                                         */
 /* ------------------------------------------------------------------ */

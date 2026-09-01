@@ -193,6 +193,36 @@ export const DEFAULTS = {
 export const DEFAULT_TIMEZONE = "Asia/Kolkata";
 
 /* ══════════════════════════════════════════════════════════════════════
+   Stuck orders — the admin radar's whole reason to exist
+   ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Why an order needs a human right now.
+ *
+ * Lives here rather than beside the radar service because the label map is
+ * rendered by a Client Component. A `server-only` module cannot export a
+ * runtime value into the browser bundle — it would drag the Mongo driver in
+ * with it — so the enum and its copy sit in the one place both sides can read.
+ */
+export const STUCK_REASON = {
+  ACK_OVERDUE: "ACK_OVERDUE",
+  GATE_OVERDUE: "GATE_OVERDUE",
+  AT_GATE_NOT_TAPPED: "AT_GATE_NOT_TAPPED",
+  PAYMENT_HANGING: "PAYMENT_HANGING",
+  STOCKOUT_UNANSWERED: "STOCKOUT_UNANSWERED",
+} as const;
+
+export type StuckReason = (typeof STUCK_REASON)[keyof typeof STUCK_REASON];
+
+export const STUCK_LABEL: Record<StuckReason, string> = {
+  ACK_OVERDUE: "Vendor has not accepted",
+  GATE_OVERDUE: "Waiting at the gate past grace",
+  AT_GATE_NOT_TAPPED: "No 'rider at gate' tap",
+  PAYMENT_HANGING: "Payment never confirmed",
+  STOCKOUT_UNANSWERED: "Stockout unanswered",
+};
+
+/* ══════════════════════════════════════════════════════════════════════
    Copy discipline — DECISIONS.md section 2
    Riders have no phones. There is no live tracking, and there never will be.
    Say "Live Order Status", never "Live Rider Tracking".

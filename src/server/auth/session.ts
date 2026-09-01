@@ -107,10 +107,10 @@ export class AuthError extends Error {
 /**
  * Prototype provider.
  *
- * Reads a seeded user id from a cookie, defaulting to the demo student. This
- * is NOT authentication and never pretends to be: it exists so the whole
- * ordering flow is demonstrable before Supabase is wired, and it is refused
- * outright in production.
+ * Reads a seeded user id from a cookie set by the sign-in screen. This is NOT
+ * authentication and never pretends to be: it exists so the whole ordering
+ * flow is demonstrable before Supabase is wired, and it is refused outright in
+ * production.
  */
 async function resolveStubUser(): Promise<User | null> {
   if (serverEnv().NODE_ENV === "production") {
@@ -121,7 +121,14 @@ async function resolveStubUser(): Promise<User | null> {
   }
 
   const cookieStore = await cookies();
-  const userId = cookieStore.get(DEMO_USER_COOKIE)?.value ?? "user_student_demo";
+  const userId = cookieStore.get(DEMO_USER_COOKIE)?.value;
+
+  // No cookie means genuinely signed out, not "fall back to the demo student".
+  // Browsing needs no account at all (ARCH section 4, step 1) and auth is only
+  // required at checkout, so a null session here is the normal state — and it
+  // is what makes signing in and out something a person can actually observe.
+  if (!userId) return null;
+
   return (await db.users()).findOne({ _id: userId });
 }
 
