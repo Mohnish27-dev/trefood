@@ -79,8 +79,9 @@ problem listed at once — see `backend/src/env.ts`.
 
 ## Current phase
 
-**Phase 3 — Vendor console, complete (against fixtures).** Next up:
-[Phase 4](docs/PHASES.md) — the admin console.
+**Phase 4 — Admin console, complete (against fixtures).** All three UIs now exist as
+skeletons. Next up: a design pass over them, then
+[Phase 5](docs/PHASES.md) — the data layer.
 
 Run `npm run dev:frontend` and walk the whole journey with no backend running:
 
@@ -108,3 +109,13 @@ The vendor console lives alongside it:
 On the board, **Simulate order** drops a new order in so you can watch the alarm,
 the flashing card and the countdown ring. Sound is blocked by the browser until you
 tap the amber banner — that block is real, and the banner exists because of it.
+
+The admin console is desktop-only (it says so below 1024px):
+
+| Route | Screen |
+| :-- | :-- |
+| `/admin/orders` | Live radar, with stuck-order highlighting |
+| `/admin/campuses/campus-nitp/zones` | Leaflet geofence editor and gate pins |
+| `/admin/vendors` · `/admin/students` | KYC and commission · strikes and COD blocks |
+| `/admin/disputes` · `/admin/settlements` | Evidence and rulings · payouts and UTRs |
+| `/admin/audit` | Append-only log — no edit or delete control anywhere |

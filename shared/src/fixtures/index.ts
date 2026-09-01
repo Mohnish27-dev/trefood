@@ -9,3 +9,4 @@ export * from "./campus.js";
 export * from "./restaurants.js";
 export * from "./menu.js";
 export * from "./orders.js";
+export * from "./admin.js";

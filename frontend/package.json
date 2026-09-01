@@ -20,6 +20,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "leaflet": "^1.9.4",
+    "leaflet-draw": "^1.0.4",
     "lucide-react": "^0.552.0",
     "next": "16.3.4",
     "posthog-js": "^1.297.4",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.20",
+    "@types/leaflet-draw": "^1.0.13",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

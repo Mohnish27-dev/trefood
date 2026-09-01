@@ -27,6 +27,9 @@ export * from "./constants.js";
 // Pure clock maths for the curfew guard. Enforced authoritatively in the backend.
 export * from "./curfew.js";
 
+// Coordinate formatting — the one documented exception to the toFixed ban.
+export * from "./geo.js";
+
 // Domain types, shaped exactly like the MongoDB documents.
 export * from "./types/index.js";
 
