@@ -79,5 +79,8 @@ problem listed at once — see `backend/src/env.ts`.
 
 ## Current phase
 
-**Phase 0 — Foundation, complete.** Next up: [Phase 1](docs/PHASES.md) — type
-contracts and `money.ts` in `@trefood/shared`, fixtures, and the design system.
+**Phase 1 — Type contracts & design system, complete.** Next up:
+[Phase 2](docs/PHASES.md) — the student PWA, built step by step against the fixtures.
+
+Run `npm run dev:frontend` and open **`/dev/kitchen-sink`** to see every shared
+primitive and all 18 order states rendered from fixtures, with no backend running.

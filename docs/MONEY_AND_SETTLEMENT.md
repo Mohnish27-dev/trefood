@@ -38,8 +38,16 @@ vendorReceivable   = commissionBase − platformCommission
 payableByStudent   = commissionBase − discount
 convenienceFee     = CEIL_TO_RUPEE(onlineChargeAmount × 2.36%)  <- A3, NON-REFUNDABLE
 grandTotal         = payableByStudent + convenienceFee
-refundableAmount   = grandTotal − convenienceFee                <- D2
+refundableAmount   = onlinePaidAmount − convenienceFee          <- D2
 ```
+
+> **On `refundableAmount`.** D2 says "the amount **paid**, minus the non-refundable
+> convenience fee", so the base is `onlinePaidAmount` — not `grandTotal`. For
+> `ONLINE_100` the two are identical, because the student paid the whole bill online.
+> For `HYBRID_COD` they differ sharply: only the ₹23 token ever reached the gateway,
+> so only ₹23 can come back. There is no cash to refund because no cash was collected.
+> An earlier draft of this file wrote `grandTotal − convenienceFee` unconditionally,
+> which would have promised a COD student ₹225 that TREFOOD never held.
 
 > **Note on discount:** because coupons are platform-funded (A1), the discount is
 > subtracted *after* `commissionBase` is fixed. The vendor is paid on the full base;
@@ -124,7 +132,7 @@ important financial property of the platform — do not let a future feature bre
 ### Refund amount
 
 ```
-refundAmount = order.refundableAmount     <- grandTotal MINUS the convenience fee
+refundAmount = order.refundableAmount     <- what was PAID ONLINE, minus the convenience fee
 ```
 
 **Worked micro-example (your own case):**
@@ -203,7 +211,9 @@ For any `DELIVERED` order, all of the following must hold exactly:
 1.  commissionBase === subtotal + packagingFee + deliveryFee
 2.  platformCommission + vendorReceivable === commissionBase
 3.  grandTotal === commissionBase − discount + convenienceFee
-4.  refundableAmount === grandTotal − convenienceFee
+4.  refundableAmount === onlinePaidAmount − convenienceFee
+        (for ONLINE_100 this is identical to grandTotal − convenienceFee;
+         for HYBRID_COD it is the token alone — no cash was ever collected)
 5.  IF method = HYBRID_COD:
         onlinePaidAmount  === platformCommission + convenienceFee
         cashDueOnDelivery === vendorReceivable

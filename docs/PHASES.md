@@ -209,7 +209,7 @@ primitives — so that three UI phases can be built in parallel without divergin
    [SYSTEM_ARCHITECTURE_AND_FLOWS.md §7](SYSTEM_ARCHITECTURE_AND_FLOWS.md#7-data-model-mongodb-collections)
    verbatim. Every money field ends in `Paise` and is typed `number` (integer paise).
    Every enum is a `SCREAMING_SNAKE` string-literal union.
-2. **`shared/src/constants.ts`.** `OrderStatus` union covering all 17 states in the FSM,
+2. **`shared/src/constants.ts`.** `OrderStatus` union covering all 18 states in the FSM,
    the status display order for the stepper, terminal-state list, role list, and
    every timer from [DECISIONS.md §4](DECISIONS.md#4-open-assumptions-defaults-chosen-flip-these-in-admin-config)
    (`vendorAckSeconds` 180/240, `gateGraceSeconds` 900, curfew buffer 10 min).
@@ -595,7 +595,7 @@ against both worked examples to the exact rupee.
    payableByStudent   = commissionBase − discount                    (A1: platform-funded)
    convenienceFee     = CEIL_TO_RUPEE(onlineChargeAmount × gatewayFeePct)
    grandTotal         = payableByStudent + convenienceFee
-   refundableAmount   = grandTotal − convenienceFee                  (D2)
+   refundableAmount   = onlinePaidAmount − convenienceFee            (D2)
    ```
 2. **Both payment shapes** produced by the same call: `ONLINE_100` charges
    `grandTotal` online; `HYBRID_COD` charges `platformCommission + convenienceFee`
@@ -612,7 +612,7 @@ against both worked examples to the exact rupee.
    1. commissionBase === subtotal + packagingFee + deliveryFee
    2. platformCommission + vendorReceivable === commissionBase
    3. grandTotal === commissionBase − discount + convenienceFee
-   4. refundableAmount === grandTotal − convenienceFee
+   4. refundableAmount === onlinePaid − convenienceFee   (COD: the token alone)
    5. HYBRID_COD:  onlinePaid === platformCommission + convenienceFee
                    cashDue    === vendorReceivable
    6. ONLINE_100:  onlinePaid === grandTotal ; cashDue === 0

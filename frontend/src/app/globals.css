@@ -46,6 +46,35 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── TREFOOD design tokens ─────────────────────────────────────────────
+     Brand, food marks, and order-status colours. Defined once here so the
+     student PWA, the vendor console and the admin console cannot drift. */
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+
+  /* FSSAI convention: a green square for veg, a red-brown one for non-veg.
+     Indian students read these marks faster than they read the item name, so
+     they are a first-class token rather than an ad-hoc colour. */
+  --color-veg: var(--veg);
+  --color-non-veg: var(--non-veg);
+
+  /* Order status. `gate` is the loudest colour in the system on purpose: it
+     marks the one moment the student must physically act. */
+  --color-status-pending: var(--status-pending);
+  --color-status-cooking: var(--status-cooking);
+  --color-status-ready: var(--status-ready);
+  --color-status-transit: var(--status-transit);
+  --color-status-gate: var(--status-gate);
+  --color-status-done: var(--status-done);
+  --color-status-failed: var(--status-failed);
+
+  /* The gate code, read outdoors at 1 AM on a cracked screen at arm's length. */
+  --text-gate-code: 4.5rem;
+  --text-gate-code--line-height: 1;
+  --text-gate-code--letter-spacing: 0.15em;
+  --text-gate-code--font-weight: 800;
 }
 
 :root {
@@ -73,6 +102,20 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+
+  /* ── TREFOOD ───────────────────────────────────────────────────────── */
+  --brand: oklch(0.62 0.19 32);            /* warm terracotta */
+  --brand-foreground: oklch(0.99 0 0);
+  --veg: oklch(0.55 0.15 145);
+  --non-veg: oklch(0.52 0.19 30);
+  --status-pending: oklch(0.65 0.02 260);
+  --status-cooking: oklch(0.70 0.16 65);
+  --status-ready: oklch(0.65 0.14 150);
+  --status-transit: oklch(0.62 0.15 240);
+  --status-gate: oklch(0.60 0.22 28);
+  --status-done: oklch(0.55 0.15 145);
+  --status-failed: oklch(0.58 0.20 25);
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -107,6 +150,23 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+
+  /* ── TREFOOD ─────────────────────────────────────────────────────────
+     Lightness is raised across the board. Most TREFOOD traffic is nocturnal
+     (docs say 22:30–02:30 is a demand cluster), so dark mode is the common
+     case here, not an afterthought. */
+  --brand: oklch(0.70 0.17 32);
+  --brand-foreground: oklch(0.16 0 0);
+  --veg: oklch(0.70 0.16 145);
+  --non-veg: oklch(0.66 0.19 30);
+  --status-pending: oklch(0.62 0.02 260);
+  --status-cooking: oklch(0.78 0.15 65);
+  --status-ready: oklch(0.74 0.14 150);
+  --status-transit: oklch(0.70 0.14 240);
+  --status-gate: oklch(0.72 0.20 28);
+  --status-done: oklch(0.70 0.16 145);
+  --status-failed: oklch(0.68 0.19 25);
+
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -126,5 +186,19 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  /**
+   * Minimum touch target, mandated by docs/MASTER_PROMPT_PRD.md Part 2.
+   *
+   * 44×44 CSS pixels is not a guideline here. These screens are used one-handed,
+   * walking, outdoors, often at night — the same physical conditions that make
+   * the gate code huge. Any interactive element smaller than this is a defect.
+   */
+  .touch-target {
+    min-block-size: 44px;
+    min-inline-size: 44px;
   }
 }
