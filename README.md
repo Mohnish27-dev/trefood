@@ -79,8 +79,20 @@ problem listed at once — see `backend/src/env.ts`.
 
 ## Current phase
 
-**Phase 1 — Type contracts & design system, complete.** Next up:
-[Phase 2](docs/PHASES.md) — the student PWA, built step by step against the fixtures.
+**Phase 2 — Student PWA, complete (against fixtures).** Next up:
+[Phase 3](docs/PHASES.md) — the vendor console.
 
-Run `npm run dev:frontend` and open **`/dev/kitchen-sink`** to see every shared
-primitive and all 18 order states rendered from fixtures, with no backend running.
+Run `npm run dev:frontend` and walk the whole journey with no backend running:
+
+| Route | Screen |
+| :-- | :-- |
+| `/` | Campus picker (remembers your choice) |
+| `/c/nit-patna` | Restaurant list, filtered by delivery point |
+| `/c/nit-patna/r/nit-canteen` | Menu, add-ons, 86-ed items |
+| `/cart` · `/checkout` | Cart and the curfew guard |
+| `/orders` · `/orders/order-at_gate` | History and the **gate screen** |
+| `/account` | Profile and push-permission banner |
+| `/dev/kitchen-sink` | Every primitive and all 18 order states |
+
+Change `order-at_gate` to any status (`order-preparing`, `order-delivered`, …) to see
+that state of the tracker.

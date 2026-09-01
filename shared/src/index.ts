@@ -24,6 +24,9 @@ export * from "./money.js";
 // The vocabulary: statuses, roles, timers, pricing defaults.
 export * from "./constants.js";
 
+// Pure clock maths for the curfew guard. Enforced authoritatively in the backend.
+export * from "./curfew.js";
+
 // Domain types, shaped exactly like the MongoDB documents.
 export * from "./types/index.js";
 
