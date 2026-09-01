@@ -40,6 +40,11 @@ of one rule:
 > is drawn. Every UI phase renders from typed fixtures that are shaped exactly like
 > the real documents in [SYSTEM_ARCHITECTURE_AND_FLOWS.md §7](SYSTEM_ARCHITECTURE_AND_FLOWS.md#7-data-model-mongodb-collections).**
 
+Those types live in **`@trefood/shared`**, imported by both services. That is what
+makes the frontend/backend split survivable: one definition of `IOrder`, one
+`OrderStatus` union, one money module. Without it the two halves drift, and the first
+symptom is a student seeing a price the server never computed.
+
 Without that rule, frontend-first means building screens against imagined data and
 rewriting them all in Phase 7. With it, wiring a screen to real data is a change of
 import path, not a rewrite.
@@ -51,15 +56,28 @@ Two constraints survive the reordering untouched, because breaking them breaks m
 2. **UI phases never compute a price.** They render `pricing.grandTotalPaise` from a
    fixture. The number is produced by `pricing.ts` in Phase 8 and by nothing else,
    ever. A UI phase that adds two money fields together has introduced the exact
-   drift that [PROJECT_STRUCTURE.md §1](PROJECT_STRUCTURE.md#1-the-one-rule-that-shapes-everything)
+   drift that [PROJECT_STRUCTURE.md §1](PROJECT_STRUCTURE.md#1-the-two-rules-that-shape-everything)
    exists to prevent.
+
+### What the frontend/backend split changed
+
+The repo is an npm-workspaces monorepo: `shared/`, `backend/` (Express, :4000),
+`frontend/` (Next.js, :3000). Two things follow, and they apply to every phase below:
+
+- **Server Components and Server Actions do not touch MongoDB.** Reads are HTTP calls
+  through `frontend/src/api-client`; writes are `POST`/`PATCH` to a backend route.
+  Where an earlier draft of these docs said "Server Action", read "backend route
+  called through the api-client".
+- **Every rule and every secret lives in `backend/`.** A phase that adds a business
+  rule adds it to `backend/src/services/`, and exposes it through a thin route.
 
 ### Dependency graph
 
 ```
-   P0 Foundation
+   P0 Foundation  (workspaces: shared · backend · frontend)
       │
    P1 Contracts + Design System ────────────────┐
+      │  types/money/constants -> @trefood/shared
       │                                          │
       ├── P2 Student UI ──┐                      │
       ├── P3 Vendor UI ───┤ (parallel, fixtures) │
@@ -107,54 +125,73 @@ Two constraints survive the reordering untouched, because breaking them breaks m
 
 # PHASE 0 — Foundation & Environment
 
-**Goal.** The repository boots, connects to every external service, and fails loudly
-when it cannot.
+**Goal.** Both services boot, connect to every external service, and fail loudly when
+they cannot.
 
 **Depends on.** Nothing.
 
 ### Build
 
-1. **Scaffold.**
-   ```bash
-   npx create-next-app@latest trefood --typescript --tailwind --app --src-dir
-   npx shadcn@latest init
-   npm i mongodb @supabase/supabase-js @supabase/ssr razorpay zod web-push \
-         leaflet react-leaflet date-fns
-   npm i -D @types/leaflet @types/web-push vitest
-   mkdir -p docs && mv *.md docs/
-   ```
-2. **TypeScript strict.** `strict: true`, `noUncheckedIndexedAccess: true`. Add an
-   ESLint rule banning `any` and banning non-null `!` on anything crossing an I/O
-   boundary.
-3. **`lib/env.ts`.** A Zod schema over every variable in
-   [PROJECT_STRUCTURE.md §5](PROJECT_STRUCTURE.md#5-environment-variables), parsed at
-   module load, throwing on failure. Split it into a public schema and a server-only
-   schema so a `NEXT_PUBLIC_`-less secret can never be imported client-side.
-   Commit `.env.local.example` with every key present and every value blank.
-4. **`server/db/client.ts`.** The cached `globalThis` Mongo client, `maxPoolSize: 10`.
-   This is not an optimisation — it is the free-tier ceiling described in
-   [FAILURES_AND_EDGE_CASES.md §5.5](FAILURES_AND_EDGE_CASES.md#5-operational-runbook--things-that-will-actually-happen-in-week-1).
-5. **Accounts provisioned.** MongoDB Atlas cluster + IP allowlist; Supabase project
+1. **Workspaces monorepo.** Root `package.json` with
+   `"workspaces": ["shared", "backend", "frontend"]`, and a `tsconfig.base.json`
+   holding the strictness every package inherits.
+2. **`shared/` — `@trefood/shared`.** ESM, built with `tsc` to `dist/`, consumed by
+   both services. At this phase it holds only the environment helpers; Phase 1 fills
+   it with types, money and constants.
+3. **`backend/` — `@trefood/backend`.** Express 5 + TypeScript.
+   - `src/env.ts` — a Zod schema over **every secret in the system**, validated
+     eagerly at import.
+   - `src/app.ts` — the app factory: helmet, a CORS **allowlist** with credentials,
+     JSON parsing that **preserves the raw body** for later webhook HMAC verification,
+     and one error boundary that answers 400 for a Zod failure and a generic 500 for
+     everything else.
+   - `src/db/client.ts` — the Mongo pool, `maxPoolSize: 10`. This is the free-tier
+     ceiling from
+     [FAILURES_AND_EDGE_CASES.md §5.5](FAILURES_AND_EDGE_CASES.md#5-operational-runbook--things-that-will-actually-happen-in-week-1),
+     not an optimisation.
+   - `src/index.ts` — boot order: **env → Sentry → Mongo pool → bind port**, plus
+     graceful SIGTERM draining. The port binds last on purpose: a process that accepts
+     traffic before its pool is open serves 500s during every deploy.
+   - `/health` (liveness, no DB) and `/health/ready` (pings Mongo, 503 on failure).
+     Two routes, not one: an orchestrator must not restart a healthy process because
+     Atlas blipped for two seconds.
+4. **`frontend/` — `@trefood/frontend`.** Next.js 16, App Router, Tailwind, shadcn.
+   - `src/lib/env.ts` — `NEXT_PUBLIC_*` only. Nothing here is worth stealing.
+   - `src/api-client/` — the typed fetch wrapper. The **only** way the UI reaches the
+     backend, so that `credentials: "include"`, `cache: "no-store"` and `ApiError`
+     happen on every call instead of on the ones someone remembered.
+5. **TypeScript strict**, in `tsconfig.base.json`: `strict`, plus
+   `noUncheckedIndexedAccess` — which makes `items[0]` a `T | undefined` and is what
+   stops a silent `undefined` entering a money path.
+6. **Lint enforces the engineering rules**, in both services: `any` is an error, the
+   non-null `!` is an error, `.toFixed()` is banned in money paths, and the frontend
+   is forbidden from importing `mongodb` or `razorpay` — so the split cannot be undone
+   by accident.
+7. **Accounts provisioned.** MongoDB Atlas cluster + IP allowlist; Supabase project
    (auth + a `menu-images` storage bucket); Razorpay **test mode** keys; Sentry
    project; PostHog project; VAPID keypair via `npx web-push generate-vapid-keys`.
-6. **Observability wired.** Sentry in `app/layout.tsx` plus the server runtime.
-   PostHog client-side only.
-7. **Repo hygiene.** `vitest` configured and running one trivial test. A `typecheck`
-   script. A CI workflow running `typecheck` + `test` on every push.
-8. **Deploy the empty app to Vercel** on day one. A deploy pipeline discovered to be
-   broken in Phase 9 costs a day; discovered now it costs ten minutes.
+8. **Observability wired.** Sentry in the backend boot and on all three Next runtimes;
+   PostHog in the browser. Both with `sendDefaultPii: false` and session replay off —
+   order payloads carry a student's name, phone, and gate code.
+9. **Repo hygiene.** Vitest in `shared` and `backend`, a `verify` script
+   (typecheck + lint + test across all packages), and CI running it on every push.
 
 ### Exit gate
 
-`npm run dev` boots · a `/api/health` route pings Mongo and returns `{ ok: true }` ·
-`npm run typecheck` is clean · a deliberately deleted env var crashes the app at boot
-with a readable message · the blank app is live on a Vercel URL.
+`npm run dev` starts both services · `/health/ready` returns a Mongo latency ·
+the frontend server-renders a page whose data came from the backend over HTTP ·
+`npm run verify` is clean · deleting a secret crashes the **backend** at boot with
+every missing key listed at once · CORS refuses an origin that is not on the
+allowlist · no backend secret exists anywhere under `frontend/`.
 
 ### Do not
 
-Do not skip `lib/env.ts` because "it's just three variables right now". A missing
+Do not skip the env schemas because "it is just three variables right now". A missing
 `RAZORPAY_WEBHOOK_SECRET` found at 1 AM during a payment surge is not the moment to
 learn it was never set.
+
+Do not give the frontend a MongoDB connection "just for one read". That is the split
+being undone, and it will be undone one convenient exception at a time.
 
 ---
 
@@ -167,19 +204,20 @@ primitives — so that three UI phases can be built in parallel without divergin
 
 ### Build
 
-1. **`src/types/`.** Transcribe `IOrder`, `ICampus`, `IRestaurant`, `IMenuItem`,
+1. **`shared/src/types/`.** Transcribe `IOrder`, `ICampus`, `IRestaurant`, `IMenuItem`,
    `IUser`, `IDispute`, `ILedgerEntry`, `ISettlement` from
    [SYSTEM_ARCHITECTURE_AND_FLOWS.md §7](SYSTEM_ARCHITECTURE_AND_FLOWS.md#7-data-model-mongodb-collections)
    verbatim. Every money field ends in `Paise` and is typed `number` (integer paise).
    Every enum is a `SCREAMING_SNAKE` string-literal union.
-2. **`lib/constants.ts`.** `OrderStatus` union covering all 17 states in the FSM,
+2. **`shared/src/constants.ts`.** `OrderStatus` union covering all 17 states in the FSM,
    the status display order for the stepper, terminal-state list, role list, and
    every timer from [DECISIONS.md §4](DECISIONS.md#4-open-assumptions-defaults-chosen-flip-these-in-admin-config)
    (`vendorAckSeconds` 180/240, `gateGraceSeconds` 900, curfew buffer 10 min).
-3. **`lib/money.ts`.** `ceilToRupee`, `formatINR`, `paiseToRupees`, and a
-   `Paise` branded type. **`toFixed` must not appear in this file or any money path.**
+3. **`shared/src/money.ts`.** `ceilToRupee`, `formatINR`, `paiseToRupees`, and a
+   `Paise` branded type. In `shared` because the backend computes with it and the
+   frontend formats with it, and they must round identically. **`toFixed` must not appear in this file or any money path.**
    Unit-test it now — it is the smallest file with the highest blast radius.
-4. **`tests/fixtures/`.** Hand-written, fully typed fixtures: one campus (NIT Patna
+4. **`shared/src/fixtures/`.** Hand-written, fully typed fixtures: one campus (NIT Patna
    with 5 zones incl. a 21:30 girls' hostel, a 22:00 boys' hostel and a 24×7 main
    gate), three restaurants (one open, one closed, one with 86-ed items), a full menu
    with add-on groups, and **one order document per FSM state**. The last of these is
@@ -191,7 +229,7 @@ primitives — so that three UI phases can be built in parallel without divergin
    status-stepper colours, and a **44×44 px minimum touch target** utility. Dark
    surfaces matter: the gate screen is read outdoors at 1 AM.
 6. **shadcn primitives** installed unmodified into `components/ui/`.
-7. **`components/shared/`.** `MoneyDisplay` (takes paise, never a float),
+7. **`frontend/src/components/shared/`.** `MoneyDisplay` (takes paise, never a float),
    `StatusStepper`, `EmptyState`, `ErrorState`, `LoadingSkeleton`, `VegMark`.
    Build the empty/error/loading trio **now**, so no later phase can "add them later".
 8. **Copy rules encoded.** A lint rule or a code-review checklist item banning the
@@ -222,7 +260,7 @@ payment — so the flow can be walked on a real phone before a rupee of backend 
 Build the screens in this order. Each step is independently viewable.
 
 ### 2.1 Shell & navigation
-`(student)/layout.tsx` — bottom nav, cart badge, and the **sticky delivery-point
+`frontend/src/app/(student)/layout.tsx` — bottom nav, cart badge, and the **sticky delivery-point
 header**. Mobile-first at 360 px.
 
 ### 2.2 Campus selector
@@ -246,8 +284,8 @@ rules enforced in the UI. **Unavailable items are struck through, never hidden**
 student should see the item exists and is out today.
 
 ### 2.6 Cart
-`hooks/use-cart.ts` — `localStorage`, storing **item IDs and quantities only, never
-prices**. One restaurant per cart, enforced hard, with a "Clear cart and start over?"
+`frontend/src/hooks/use-cart.ts` — `localStorage`, storing **item IDs and quantities
+only, never prices**. One restaurant per cart, enforced hard, with a "Clear cart and start over?"
 prompt on a cross-restaurant add.
 
 ### 2.7 Checkout (visual)
@@ -294,7 +332,7 @@ actually arrive.
 **Depends on.** P1. *(Parallel with P2.)*
 
 ### 3.1 Shell
-`(vendor)/layout.tsx` — role-gated shell, tablet-first, audio-alarm provider mounted
+`frontend/src/app/(vendor)/layout.tsx` — role-gated shell, tablet-first, audio-alarm provider mounted
 at the layout so it survives navigation.
 
 ### 3.2 The order board
@@ -304,7 +342,7 @@ orders. This is the screen the business runs on; give it the most design attenti
 ### 3.3 The three-way new-order defence
 [Flow B](SYSTEM_ARCHITECTURE_AND_FLOWS.md#5-flow-b--vendor-fulfils-an-order) demands
 all three, because a missed order is lost revenue and a broken promise:
-- `hooks/use-order-alarm.ts` — looping audio that stops **only on interaction**,
+- `frontend/src/hooks/use-order-alarm.ts` — looping audio that stops **only on interaction**,
   escalating in volume at 1:30.
 - A red full-card flash plus a **3:00 countdown ring**, turning amber at 3:00 with
   "auto-cancel in 60s".
@@ -315,7 +353,7 @@ Accept with a prep-time picker (15 / 20 / 30 / custom, clamped 5–60 min). Reje
 a mandatory reason from a fixed list.
 
 ### 3.5 KOT print view
-`orders/[orderId]/kot/page.tsx` — a print stylesheet for **58 mm and 80 mm** thermal
+`frontend/src/app/(vendor)/vendor/orders/[orderId]/kot/page.tsx` — a print stylesheet for **58 mm and 80 mm** thermal
 paper, including the delivery zone name and its handover instructions. Verify against
 a real printer, or at minimum a print-preview at those exact widths.
 
@@ -413,12 +451,12 @@ fixtures inside a real database.
 
 ### Build
 
-1. **`server/db/collections.ts`** — typed accessors for all 13 collections in
+1. **`backend/src/db/collections.ts`** — typed accessors for all 13 collections in
    [§7](SYSTEM_ARCHITECTURE_AND_FLOWS.md#7-data-model-mongodb-collections):
    `campuses`, `users`, `restaurants`, `menuCategories`, `menuItems`, `orders`,
    `coupons`, `ledgerEntries`, `settlements`, `webhookEvents`, `auditLogs`,
    `pushSubscriptions`, `disputes`.
-2. **`server/db/indexes.ts`** — created on boot, idempotently. The three that are not
+2. **`backend/src/db/indexes.ts`** — created on boot, idempotently. The three that are not
    optional:
    - `webhookEvents.eventId` **unique** — the whole idempotency guarantee rests here.
    - `settlements.{restaurantId, settlementDate}` **unique** — this is F15.
@@ -427,12 +465,13 @@ fixtures inside a real database.
    Plus `campuses.slug`, `users.authId`, `restaurants.{campusId,isOpen}`,
    `orders.orderNumber`, `orders.{customerId,createdAt}`,
    `orders.{restaurantId,status}`, `auditLogs.{orderId,at}`, `disputes.orderId`.
-3. **Zod schemas** in `lib/validation/`, one per write boundary, mirroring the types
-   from P1 exactly.
+3. **Zod schemas** in `shared/src/api/contracts.ts`, one per write boundary, mirroring
+   the types from P1 exactly — so the frontend validates a form against the same
+   schema the backend validates the request with.
 4. **Seed script** — inserts the P1 fixture campus, zones, restaurants and menus into
    a real Atlas database. This script is used for the rest of the build and for every
    integration test.
-5. **`server/services/audit.ts`** — append-only writer. Insert only. No update path,
+5. **`backend/src/services/audit.ts`** — append-only writer. Insert only. No update path,
    no delete path, not even a private one.
 
 ### Exit gate
@@ -459,26 +498,31 @@ without touching a single call site.
 ### Build
 
 1. **Supabase Google OAuth** + `app/auth/callback/route.ts`.
-2. **`server/auth/providers.ts`** — the provider interface. Google implements it now;
+2. **`backend/src/auth/providers.ts`** — the provider interface. Google implements it now;
    phone-OTP implements the same interface later once TRAI DLT clears
    ([D7](DECISIONS.md#1-locked-decisions-confirmed-by-product-owner)). Call sites
    depend on the interface, never on Supabase directly.
-3. **`server/auth/session.ts`** — `getSession`, `requireRole`, `requireOwnership`.
+3. **`backend/src/auth/session.ts`** — `getSession`, `requireRole`, `requireOwnership`,
+   as Express middleware. The backend verifies the Supabase JWT itself; it never
+   trusts a role the frontend claims.
 4. **User mirror** — a `users` document created on first login, mirroring the Supabase
    identity with `role`, `phone`, `campusId`, `codBlocked`.
 5. **First-checkout profile capture** — name + phone, stored once, reused forever.
    Browsing stays fully anonymous; auth is required **only at checkout**.
-6. **`middleware.ts`** — route-group gating for `(vendor)` and `(admin)`.
-7. **The layered-authorisation rule, enforced by convention and review:** middleware
-   gates the route group; **every Server Action independently re-checks the role *and*
-   the resource ownership** (`order.restaurantId === session.restaurantId`). A
-   client-supplied `restaurantId` is never trusted.
+6. **`frontend/src/middleware.ts`** — route-group gating for `(vendor)` and `(admin)`.
+   This is routing, so a student never *sees* the vendor console. It is not
+   authorisation.
+7. **The layered-authorisation rule:** frontend middleware gates the route group;
+   **every backend route independently re-checks the role *and* the resource
+   ownership** (`order.restaurantId === session.restaurantId`). A client-supplied
+   `restaurantId` is never trusted. The split helps here: the frontend owns no
+   database, so a missed check there leaks a rendering, not a record.
 
 ### Exit gate
 
 Google sign-in works end to end · a `STUDENT` hitting `/vendor` is bounced by
-middleware · a `VENDOR_STAFF` calling an admin Server Action directly is rejected by
-the action itself, with middleware bypassed · browsing works logged out, and checkout
+middleware · a `VENDOR_STAFF` calling an admin backend route directly with curl is rejected by the
+route itself, with the frontend bypassed entirely · browsing works logged out, and checkout
 prompts login.
 
 ### Do not
@@ -505,12 +549,12 @@ land the first real campus.
    validated server-side against the campus floor.
 4. **Menu management wired** — categories, items, add-on groups, availability, and
    **image upload to Supabase Storage** with the returned URL string stored in Mongo.
-5. **`server/services/curfew.ts`** — zone availability by clock. Curfews are
+5. **`backend/src/services/curfew.ts`** — zone availability by clock. Curfews are
    minutes-from-midnight integers, always compared in the **campus timezone**, never
    in UTC and never in server-local time. A `01:00` curfew means the next day.
 6. **Student browse wired** — campus list, zone-filtered restaurant list, and menu now
-   read from Mongo via Server Components. Cart still `localStorage`, still IDs and
-   quantities only.
+   come from backend routes, fetched through the api-client. Cart still
+   `localStorage`, still IDs and quantities only.
 7. **`curfew.test.ts`** — including midnight-crossing curfews and the case where a
    21:25 arrival is blocked by a 21:30 curfew because of the 10-minute buffer.
 
@@ -540,7 +584,7 @@ against both worked examples to the exact rupee.
 
 ### Build
 
-1. **`server/services/pricing.ts`** — a **pure** function. Inputs in, integer paise
+1. **`backend/src/services/pricing.ts`** — a **pure** function. Inputs in, integer paise
    out. No database calls, no session, no side effects, no branching on user identity.
    Implements [MONEY_AND_SETTLEMENT.md §2](MONEY_AND_SETTLEMENT.md#2-the-pricing-formula)
    exactly:
@@ -558,10 +602,11 @@ against both worked examples to the exact rupee.
    online and leaves `vendorReceivable` as cash at the gate.
 3. **Coupon validator** — caps a coupon at 10% of `commissionBase` unless a
    loss-leading promo is deliberately configured.
-4. **One call site each for cart preview and order creation.** Both call this
-   function. If they ever diverge, a student is charged something other than what they
+4. **One call site each for cart preview and order creation.** Both are backend routes
+   and both call this function. The frontend renders the returned numbers and computes
+   nothing. If they ever diverge, a student is charged something other than what they
    were shown.
-5. **`tests/unit/pricing.test.ts`** — all seven invariants from
+5. **`backend/tests/pricing.test.ts`** — all seven invariants from
    [MONEY_AND_SETTLEMENT.md §7](MONEY_AND_SETTLEMENT.md#7-reconciliation-invariants-assert-these-in-tests):
    ```
    1. commissionBase === subtotal + packagingFee + deliveryFee
@@ -581,7 +626,7 @@ against both worked examples to the exact rupee.
 ### Exit gate
 
 `pricing.test.ts` green including the fuzz run · both worked examples reproduce to the
-rupee · `grep -rn "toFixed" src/` returns nothing in any money path · the checkout
+rupee · `grep -rn "toFixed" backend/src frontend/src shared/src` returns nothing · the checkout
 screen shows a server-computed total.
 
 ### Do not
@@ -600,13 +645,13 @@ captured against an order the system does not know about.
 
 ### Build
 
-1. **`server/services/payments.ts`** — Razorpay Orders, Refunds, and signature
-   verification.
+1. **`backend/src/services/payments.ts`** — Razorpay Orders, Refunds, and signature
+   verification. Razorpay is never touched from the frontend; lint forbids the import.
 2. **Order created as `PAYMENT_PENDING` in Mongo *before* the gateway opens.** An
    abandoned payment must leave a traceable record — this is what makes F1/F2
    recoverable.
 3. **Razorpay Checkout** on the student side for both `ONLINE_100` and `HYBRID_COD`.
-4. **`app/api/webhooks/razorpay/route.ts`** — in this exact order, and no other:
+4. **`backend/src/routes/webhooks/razorpay.ts`** — in this exact order, and no other:
    ```
    1. verify HMAC with crypto.timingSafeEqual   -> 400 before parsing if invalid
    2. insert eventId into webhookEvents (unique) -> dup key means already done, 200
@@ -619,7 +664,7 @@ captured against an order the system does not know about.
 6. **Server-side recompute at submit** — the client posts item IDs and quantities
    only. If the recomputed total differs from what the student was shown, checkout
    stops and the cart re-renders with the change highlighted (F13/F14).
-7. **Reconciliation cron** `/api/cron/reconcile-payments` — the F1/F2 protocol,
+7. **Reconciliation cron** `/cron/reconcile-payments` — the F1/F2 protocol,
    sharing **the same code path** as the webhook so whichever wins the race promotes
    the order exactly once.
 8. **Refund path** — `refundableAmount` only, never `grandTotal`
@@ -649,7 +694,7 @@ tap to `DELIVERED`.
 
 ### Build
 
-1. **`server/services/order-state.ts`** — the FSM. A single
+1. **`backend/src/services/order-state.ts`** — the FSM. A single
    `transition(order, to, actor, reason)` that:
    - validates the transition is legal for the current state,
    - validates the **actor's right** to fire it (see the transition table in
@@ -658,19 +703,19 @@ tap to `DELIVERED`.
    - persists — **atomically**.
    **Nothing else in the codebase may write `order.status`.** Enforce it with a lint
    rule or a review checklist item.
-2. **`server/services/orders.ts`** — `createOrder` writing full snapshots
+2. **`backend/src/services/orders.ts`** — `createOrder` writing full snapshots
    (`customerSnapshot`, `restaurantSnapshot`, `deliveryZoneSnapshot`, item lines,
    frozen `pricing`). An order must be readable in six months without any referenced
    document still existing.
 3. **Order numbers** — `TRF-NITP-8921`, human-quotable at a gate.
-4. **Vendor board wired live** — `/api/vendor/orders/poll`, 5 s, pausing on
+4. **Vendor board wired live** — backend `/vendor/orders/poll`, 5 s, pausing on
    `visibilitychange`. The P3 alarm now fires on real orders.
-5. **Student tracker wired live** — `/api/orders/[id]/poll`, 8 s, stopping at a
+5. **Student tracker wired live** — backend `/orders/:id/poll`, 8 s, stopping at a
    terminal state. ETA from `acceptedAt + prepMinutes + campus.transitMinutes`.
 6. **Admin live radar wired** — 10 s, pausing on tab hidden.
 7. **Accept/Reject, Mark Ready, Dispatch, At Gate** all routed through the FSM.
 8. **KOT auto-print on accept.**
-9. **`tests/unit/order-state.test.ts`** — every legal transition succeeds and every
+9. **`backend/tests/order-state.test.ts`** — every legal transition succeeds and every
    illegal one throws. Specifically: a student cannot confirm before `AT_GATE`; a
    vendor cannot cancel after `ACCEPTED`; only the webhook may fire
    `PAYMENT_PENDING → PLACED`.
@@ -679,12 +724,12 @@ tap to `DELIVERED`.
 
 A real order runs cart → pay → vendor board → accept → KOT → ready → dispatch →
 at gate → delivered · every transition has an audit row with actor, role, from, to,
-reason and timestamp · `order-state.test.ts` is green · `grep -rn "status" src/app/`
-finds no direct status mutation.
+reason and timestamp · `order-state.test.ts` is green · no file outside `order-state.ts`
+writes `order.status`.
 
 ### Do not
 
-Do not let a route handler set a status "just this once, it's simpler". That is how
+Do not let a route set a status "just this once, it's simpler". That is how
 the audit trail acquires holes.
 
 ---
@@ -698,7 +743,7 @@ a real gate.
 
 ### Build
 
-1. **`server/services/gate-code.ts`** — 4 digits, **server-generated**, unrelated to
+1. **`backend/src/services/gate-code.ts`** — 4 digits, **server-generated**, unrelated to
    and underivable from the order number. Digits only, by design: no 0/O ambiguity for
    a code written in marker under a hostel light.
 2. **Reveal rules, enforced server-side:**
@@ -747,7 +792,7 @@ handled, each with a passing test.
 | :-- | :-- |
 | **F1/F2** | Reconciliation cron (landed in P9) — verify the amount check and the shared code path. |
 | **F3** | Webhook arriving on an `EXPIRED_NO_ACK` / `PAYMENT_FAILED` order: **never** promote — refund immediately and notify. Money must never sit captured against a dead order. |
-| **F4** | `/api/cron/expire-unacked` — the 0:00 / 1:30 / 3:00 / 4:00 escalation, auto-refund, and **three expiries in one day auto-flips `isOpen = false`** with an admin alert. |
+| **F4** | `/cron/expire-unacked` — the 0:00 / 1:30 / 3:00 / 4:00 escalation, auto-refund, and **three expiries in one day auto-flips `isOpen = false`** with an admin alert. |
 | **F5** | Vendor reject → `REJECTED_BY_VENDOR` + full auto-refund. |
 | **F6** | 86-after-acceptance: push + blocking three-choice screen (swap / drop line / cancel) with a **5-minute timer defaulting to "remove it, deliver rest"**. Cheaper substitute refunds the difference; **a pricier one is absorbed by the vendor — never charge twice.** |
 | **F7** | Prepaid no-show → `DELIVERED_TO_SECURITY` after grace, guard-handoff push. No refund. |
@@ -756,24 +801,24 @@ handled, each with a passing test.
 | **F10** | Took the food, never tapped → auto-close as `DELIVERED` at grace expiry. |
 | **F11** | Both curfew layers (P7 guard + P11 re-route) verified together. |
 | **F12/F13/F14** | Idempotency key and server recompute (landed in P9) — test explicitly. |
-| **F16** | `/api/cron/retry-refunds` — 3 retries with backoff, then an admin alert and a manual-refund queue entry. |
+| **F16** | `/cron/retry-refunds` — 3 retries with backoff, then an admin alert and a manual-refund queue entry. |
 | **F17** | Push blocked or undelivered → persistent in-app banner when permission is not granted, plus the vendor phoning the student. **Push is never the only channel for `AT_GATE`.** |
 | **F18** | No `AT_GATE` tap after 2× prep time → nag banner on the vendor board + admin radar flag. |
 
-**Cron infrastructure.** All routes under `/api/cron/*` gated by a `CRON_SECRET`
-header — a shared secret, not obscurity. `vercel.json` schedules per
-[PROJECT_STRUCTURE.md §6](PROJECT_STRUCTURE.md#6-cron-schedules-verceljson), remembering
-that **Vercel Cron runs in UTC** (`29 18` = 23:59 IST) and that every campus-local
-comparison goes through the campus timezone. On a Hobby plan, merge the three
-per-minute jobs into one `/api/cron/tick`.
+**Cron infrastructure.** All routes under `backend/src/routes/cron/` gated by a
+`CRON_SECRET` header — a shared secret, not obscurity. Schedules are listed in
+[PROJECT_STRUCTURE.md §6](PROJECT_STRUCTURE.md#6-scheduled-jobs). What *fires* them is
+a deployment decision, not a code decision; whatever does, every campus-local
+comparison must go through the campus timezone and never the server clock. If your
+scheduler limits frequency, merge the three per-minute jobs into one `/cron/tick`.
 
-**Dispute flow.** `server/services/disputes.ts` — 30-minute window, **mandatory** photo
+**Dispute flow.** `backend/src/services/disputes.ts` — 30-minute window, **mandatory** photo
 to Supabase Storage, admin queue with the full order timeline, ruling audit-logged with
 the admin identity and a written reason.
 
 ### Exit gate
 
-Every F-case above has a passing test · an unauthenticated call to any `/api/cron/*`
+Every F-case above has a passing test · an unauthenticated call to any `/cron/*`
 route returns 401 · a refund forced to fail three times lands in the admin queue with
 the Razorpay error payload attached · three simulated expiries close the restaurant.
 
@@ -794,12 +839,12 @@ vendor's HR problem, handled by dispute + ledger debit.
 
 ### Build
 
-1. **`server/services/ledger.ts`** — append-only adjustments. The one that must exist
+1. **`backend/src/services/ledger.ts`** — append-only adjustments. The one that must exist
    from day one is `REFUND_GATEWAY_RECOVERY`: on every vendor-fault refund, Razorpay
    keeps its fee, and that loss is booked as a **negative entry against the vendor**
    ([D3](DECISIONS.md#1-locked-decisions-confirmed-by-product-owner)). This is the
    incentive that makes free rejection cost something.
-2. **`server/services/settlement.ts`** — the nightly run:
+2. **`backend/src/services/settlement.ts`** — the nightly run:
    ```
    grossPrepaid = SUM(vendorReceivable) WHERE method = ONLINE_100 AND status = DELIVERED
    adjustments  = SUM(ledgerEntries)                    -- negative
@@ -812,14 +857,14 @@ vendor's HR problem, handled by dispute + ledger debit.
    and the payout is generated *from* that document, never recomputed.
 4. **Idempotency** — enforced by the unique `(restaurantId, settlementDate)` index
    from P5. A second run for the same day is a no-op (F15).
-5. **`/api/cron/settle-daily`** at 23:59 campus-local (`29 18 * * *` UTC).
+5. **`/cron/settle-daily`** at 23:59 campus-local.
 6. **Vendor statement** — earnings screen wired: gross, commission, adjustments with
    their notes, net payable, downloadable.
 7. **Admin settlement screen wired** — per-vendor CSV export, mark-as-paid with UTR.
 8. **Nightly invariant assertion** — re-check all seven §7 invariants across every
    order created that day and alert on any violation. **Silent rupee drift is how
    platforms lose money invisibly.**
-9. **`tests/unit/settlement.test.ts`** — running twice changes nothing; negative
+9. **`backend/tests/settlement.test.ts`** — running twice changes nothing; negative
    payouts carry forward; COD orders contribute exactly ₹0; sub-₹100 rolls forward.
 
 ### Exit gate
@@ -850,7 +895,7 @@ faster than the integration. Automate at 50+.
    lists. **Never caches order state.** Order reads are always network-first. A stale
    "Cooking" screen while the rider waits at the gate is worse than a spinner.
 3. **Offline fallback page** — "You are offline — your placed orders are safe."
-4. **Web Push (VAPID)** — `server/services/notifications.ts`, `pushSubscriptions` per
+4. **Web Push (VAPID)** — `backend/src/services/notifications.ts`, `pushSubscriptions` per
    device, fan-out on order accepted, at gate, and cancelled.
 5. **The iOS caveat** — Web Push works on iOS 16.4+ **only after the PWA is added to
    the home screen**. The install prompt is therefore a feature, not a nicety.
@@ -870,7 +915,7 @@ PostHog funnel shows a complete real order.
 
 ### Do not
 
-Do not cache anything under `/api/orders/`. Do not rely on push as the only channel
+Do not cache anything under the api-client's order reads — it sets `cache: "no-store"` for exactly this reason. Do not rely on push as the only channel
 for `AT_GATE` (F17).
 
 ---
@@ -895,9 +940,10 @@ for `AT_GATE` (F17).
    - Every financial action audit-logged: price edits, commission overrides, manual
      cancellations, dispute rulings, settlement runs.
    - Cron routes secret-gated.
-   - `import "server-only"` on every module reading a secret; grep the client bundle
-     for every secret name and confirm zero hits.
-2. **Full integration test** — `tests/integration/order-lifecycle.test.ts`, cart to
+   - Grep the built frontend for every backend secret name and confirm zero hits.
+     The split makes this cheap to guarantee: the secrets are not in that package at
+     all.
+2. **Full integration test** — `backend/tests/integration/order-lifecycle.test.ts`, cart to
    `DELIVERED` for both payment methods against a real test database.
 3. **Load sanity** — simulate an exam-week spike and watch Atlas connection counts.
    The free-tier ceiling is real; the cached global client with `maxPoolSize: 10` is
@@ -948,17 +994,20 @@ defect regardless of which phase introduced it.
 
 1. All money is **integer paise**. Format to rupees only at render.
 2. The **server recomputes every price**. A client-supplied price is a security bug.
-3. **Exactly one pricing function.** Cart preview and order creation call the same one.
+3. **Exactly one pricing function**, in `backend/src/services/pricing.ts`. Cart preview
+   and order creation call the same one. The frontend computes no money.
 4. Orders store **snapshots**, not references.
 5. Every webhook is **signature-verified and idempotent**, in that order.
 6. Every state transition writes an **append-only audit entry**.
 7. **One guarded FSM function** owns `order.status`.
 8. Cron routes are **secret-gated**.
-9. Every Server Action re-checks **role AND ownership**.
+9. Every backend route re-checks **role AND ownership**. Frontend middleware is routing.
 10. **Never cache order state** in the service worker.
 11. Gate codes are **server-generated** and released only at `AT_GATE`.
 12. **The COD invariant is sacred:** `codOnlineToken === platformCommission` and
     `cashDueOnDelivery === vendorReceivable`. Any change that breaks it is rejected.
+13. **The frontend never reaches past the backend.** No MongoDB driver, no Razorpay
+    SDK, no secret. If the UI needs data, there is a route for it.
 
 And the twelve things in
 [PRD Part 7](MASTER_PROMPT_PRD.md#part-7--what-not-to-build) are never built in any

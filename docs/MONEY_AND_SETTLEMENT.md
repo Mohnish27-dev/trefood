@@ -158,7 +158,8 @@ which is exactly the incentive you want: a vendor who rejects freely pays for it
 
 ## 6. Daily Settlement Engine
 
-Runs at **23:59 campus-local time** via a Vercel Cron hitting a protected route.
+Runs at **23:59 campus-local time**, via a scheduler hitting the protected
+`/cron/settle-daily` route on the backend.
 
 ```
 For each restaurant, for the settlement day:

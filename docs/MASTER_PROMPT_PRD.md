@@ -68,24 +68,33 @@ support entirely. It is the single largest cost saving in the architecture.
 
 | Layer | Choice | Notes |
 | :-- | :-- | :-- |
-| Framework | **Next.js 16, App Router** | Server Components for reads, Server Actions for writes, Route Handlers for webhooks and cron |
+| Repo | **npm workspaces monorepo** | `shared` (types + money), `backend` (API), `frontend` (UI). Two independently runnable services |
+| Frontend | **Next.js 16, App Router** | UI only. Holds no business rules and never touches MongoDB — it calls the backend through `src/api-client` |
+| Backend | **Express 5 + TypeScript** | Owns MongoDB, every business rule, Razorpay, and the cron routes. Every secret lives here |
 | Language | **TypeScript, strict mode** | `strict: true`, no `any`, no non-null `!` on external data |
 | UI | **Tailwind CSS + shadcn/ui** | Mobile-first. Minimum 44×44px touch targets |
 | Database | **MongoDB Atlas** (free tier) | Documents only. Cached global client, `maxPoolSize: 10` |
-| Auth | **Supabase Auth** — Google OAuth | Behind `src/server/auth/` so the OTP provider drops in later (D7) |
+| Auth | **Supabase Auth** — Google OAuth | Behind `backend/src/auth/` so the OTP provider drops in later (D7) |
 | Payments | **Razorpay** | Orders API, Refunds API, signed webhooks |
 | Images | **Supabase Storage** | **Not MongoDB.** The 512 MB Atlas tier is for documents. Mongo stores the URL string only |
 | Maps | **Leaflet + OpenStreetMap** | Admin geofence drawing and a static gate pin. No API key, no billing |
 | Realtime | **Interval polling** | 5 s vendor board, 8 s student tracker. Not websockets — they die on serverless |
 | Notifications | **Web Push (VAPID)** | Free. SMS/WhatsApp deferred to post-DLT |
 | Observability | **Sentry + PostHog** | Errors and funnels |
-| Hosting | **Vercel** | Vercel Cron for the scheduled jobs |
+| Hosting | **Two deployables** | Frontend and backend deploy and scale independently. Scheduling the cron routes is a deployment decision — see PROJECT_STRUCTURE.md §6 |
 
 **Three corrections to the original stack plan, already applied above:** images move
 out of MongoDB to Supabase Storage; maps drop to Leaflet/OSM; Supabase Realtime is
 replaced by polling, because Realtime watches Postgres rows and the order data lives
 in MongoDB where it would emit nothing. Rationale for each is in
 [DECISIONS.md §3](DECISIONS.md).
+
+**A fourth change, decided after those:** the frontend and backend are now separate
+services in one repo, so they can be deployed and scaled independently. The practical
+consequence for the build is that Server Components and Server Actions no longer read
+or write MongoDB directly — every read is an HTTP call through `frontend/src/api-client`,
+and every rule lives behind `backend/src/services/`. The upside is that the frontend
+holds no secret at all.
 
 ---
 
@@ -158,8 +167,9 @@ in MongoDB where it would emit nothing. Rationale for each is in
    only at render.
 2. **The server recomputes every price.** The client posts item IDs and quantities.
    A client-supplied price is a security bug.
-3. **Exactly one pricing function**, in `src/server/services/pricing.ts`. Cart preview
-   and order creation must call the same function, or they will drift.
+3. **Exactly one pricing function**, in `backend/src/services/pricing.ts`. Cart preview
+   and order creation must call the same function, or they will drift. The frontend
+   never computes a total — it renders what the API returns.
 4. **Orders store snapshots**, not references. A restaurant renaming itself must not
    rewrite last month's orders.
 5. **Every webhook is signature-verified** with `crypto.timingSafeEqual`, and made
@@ -170,8 +180,8 @@ in MongoDB where it would emit nothing. Rationale for each is in
 7. **State transitions go through one guarded function.** No route handler mutates
    `order.status` directly.
 8. **Cron routes are protected by a shared secret header.**
-9. **Every Server Action re-checks role AND resource ownership.** Middleware alone is
-   not authorisation.
+9. **Every backend route re-checks role AND resource ownership.** Frontend middleware
+   is routing, not authorisation.
 10. **Never cache order state in the service worker.** A stale "Cooking" screen while
     the rider waits at the gate is worse than a spinner.
 11. **Gate codes are server-generated**, unrelated to the order number, and released to
@@ -188,7 +198,7 @@ Ship in this sequence. Each phase is independently demonstrable.
 
 | Phase | Deliverable | Done when |
 | :-- | :-- | :-- |
-| **0. Foundation** | Next.js 16 + TS + Tailwind + shadcn, Mongo client singleton, env validation, Sentry | App boots, DB pings, types compile clean |
+| **0. Foundation** | Workspaces monorepo, Express backend + Next frontend, Mongo client, env validation, Sentry | Both services boot, DB pings, types compile clean |
 | **1. Data & admin** | All collections, indexes, campus CRUD, geofence editor, zone editor | An admin can create NIT Patna with 5 real gates |
 | **2. Vendor & menu** | Vendor CRUD, KYC, menu categories, items, add-ons, image upload | A canteen with a real menu exists and is browsable |
 | **3. Student browse** | Campus + zone selection, restaurant list, menu, cart | A student can fill a cart. No payment yet |

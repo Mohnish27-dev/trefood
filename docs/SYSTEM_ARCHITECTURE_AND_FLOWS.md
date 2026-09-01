@@ -16,19 +16,30 @@
    └──────────┬──────────┘  └──────────┬──────────┘  └──────────┬──────────┘
               │                        │                        │
               └────────────────────────┼────────────────────────┘
-                                       │  HTTPS
+                                       │
                           ┌────────────▼─────────────┐
-                          │   NEXT.JS 16 APP ROUTER  │
+                          │  FRONTEND  ·  Next.js    │   @trefood/frontend
+                          │  UI ONLY                 │   port 3000
+                          │  no rules · no database  │
                           │  ┌────────────────────┐  │
-                          │  │ Server Components  │  │  read paths
-                          │  │ Server Actions     │  │  write paths
-                          │  │ Route Handlers     │  │  webhooks, cron, push
+                          │  │   src/api-client   │  │  the only way out
+                          │  └────────────────────┘  │
+                          └────────────┬─────────────┘
+                                       │  HTTPS  (CORS allowlist,
+                                       │          credentialed)
+                          ┌────────────▼─────────────┐
+                          │  BACKEND  ·  Express     │   @trefood/backend
+                          │                          │   port 4000
+                          │  ┌────────────────────┐  │
+                          │  │  routes/           │  │  thin adapters:
+                          │  │  · api  · webhooks │  │  authenticate, parse,
+                          │  │  · cron            │  │  call a service, reply
                           │  └────────────────────┘  │
                           │  ┌────────────────────┐  │
                           │  │  SERVICE LAYER     │  │  <- all business rules
                           │  │  pricing · orders  │  │     live here, never
-                          │  │  settlement · auth │  │     in components
-                          │  └────────────────────┘  │
+                          │  │  settlement · auth │  │     in a route or a
+                          │  └────────────────────┘  │     component
                           └───┬──────┬──────┬────┬───┘
                               │      │      │    │
           ┌───────────────────┘      │      │    └──────────────────┐
@@ -40,8 +51,29 @@
    │ data         │  │                  │ │ · Webhooks     │ │              │
    └──────────────┘  └──────────────────┘ └────────────────┘ └──────────────┘
 
+   Every secret lives in the backend. The frontend holds only NEXT_PUBLIC_ values.
+
    NO rider app.  NO rider GPS.  NO Google Maps.  (see DECISIONS.md §2)
 ```
+
+### The seam between the two services
+
+`@trefood/shared` is imported by both and is what stops them drifting: domain types,
+the `OrderStatus` union, money arithmetic, and the request/response schemas. Without
+one definition of `IOrder`, the frontend's idea of an order and the backend's would
+diverge silently, and the first symptom would be a student seeing a price the server
+never computed.
+
+Three consequences of the boundary, each of which is a rule elsewhere in this repo:
+
+1. **Every frontend→backend call goes through `frontend/src/api-client`.** It owns
+   `credentials: "include"` (the session cookie is cross-origin now), `cache:
+   "no-store"` (order state must never be served stale), and turning a non-2xx into a
+   thrown `ApiError` so no caller can render an error body as data.
+2. **CORS is real access control.** `CORS_ORIGINS` is an explicit allowlist, never
+   `*` — which would be illegal alongside credentialed requests anyway.
+3. **The frontend cannot import `mongodb` or `razorpay`.** Enforced by lint, so the
+   split cannot be undone by accident.
 
 ### Why each boundary sits where it does
 
@@ -50,8 +82,10 @@
 | Identity | Supabase Auth | Google OAuth for free, JWT that Next.js middleware can verify cheaply. |
 | Domain data | MongoDB Atlas | Flexible menus, embedded price snapshots, GeoJSON zones in one document. |
 | Images | Supabase Storage | Keeps the 512 MB Mongo tier for documents only. Mongo stores the URL string. |
-| Business rules | `src/server/services/**` | Server Actions and Route Handlers are thin adapters. Rules are testable without HTTP. |
-| Money math | `src/server/services/pricing.ts` | Exactly one function computes a price. Cart preview and order creation call the *same* function. |
+| Business rules | `backend/src/services/**` | Routes are thin adapters. Rules are testable without HTTP, without a session, and without React. |
+| Money math | `backend/src/services/pricing.ts` | Exactly one function computes a price. Cart preview and order creation call the *same* function. |
+| Shared vocabulary | `shared/src/**` | Types, money helpers and API contracts both services must agree on exactly. |
+| Secrets | `backend/.env` | The browser cannot reach the process that holds them. There is no bundler step that could leak one. |
 
 ---
 
@@ -65,9 +99,14 @@
 | `ADMIN` | Campus config, vendor KYC, dispute rulings, manual cancel | Change commission below the campus floor |
 | `SUPER_ADMIN` | Everything, including commission overrides and audit log export | — |
 
-**Enforcement is layered.** Middleware gates the route group; every Server Action
-re-checks the role *and* the resource ownership (`order.restaurantId === session.restaurantId`).
-Never trust a client-supplied `restaurantId`.
+**Enforcement is layered, and the authoritative layer is the backend.** Frontend
+middleware gates a route group so a student never *sees* the vendor console — but that
+is routing, not authorisation. Every backend route re-checks the role *and* the
+resource ownership (`order.restaurantId === session.restaurantId`). Never trust a
+client-supplied `restaurantId`.
+
+The split makes this harder to get wrong: the frontend has no database access, so a
+missed check there leaks a rendering, not a record.
 
 ---
 

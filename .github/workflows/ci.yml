@@ -20,6 +20,12 @@ jobs:
 
       - run: npm ci
 
+      # @trefood/shared must be built first: backend and frontend both consume its
+      # emitted .d.ts files. Each script below builds it too, but doing it once up
+      # front keeps the failure legible if the shared package itself is broken.
+      - name: Build shared
+        run: npm run build -w @trefood/shared
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -29,7 +35,6 @@ jobs:
       - name: Test
         run: npm run test
 
-# `next build` is deliberately not run here. The build imports src/lib/env.server.ts,
-# which refuses to start without real secrets — and putting real secrets in CI to make
-# a build pass is a worse trade than letting Vercel be the build gate. Vercel builds
-# every push with the real environment; CI proves the code is sound.
+# The backend build is not run here: `typecheck` already compiles the same files with
+# the same config, so a second tsc pass would add time and no signal. The frontend
+# build is not run because it needs real NEXT_PUBLIC_* values to inline.

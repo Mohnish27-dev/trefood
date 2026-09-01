@@ -1,21 +1,30 @@
 # TREFOOD — Project Structure & Conventions
 
-> The shape of the repository, what belongs in each folder, and the rules that keep
+> The shape of the repository, what belongs in each package, and the rules that keep
 > business logic out of the UI. Governed by [DECISIONS.md](DECISIONS.md).
+>
+> **Updated for the frontend/backend split.** TREFOOD is an npm-workspaces monorepo
+> with three packages and two independently runnable services.
 
 ---
 
-## 1. The One Rule That Shapes Everything
+## 1. The Two Rules That Shape Everything
 
-**Business logic lives in `src/server/services/`. Nothing else contains a rule.**
+**Rule 1 — Business logic lives in `backend/src/services/`. Nothing else contains a rule.**
 
-Server Actions, Route Handlers, and Components are *adapters* — they authenticate,
-parse, call a service, and render. A service function must be callable from a unit
-test with no HTTP, no session, and no React.
+Routes and components are *adapters* — they authenticate, parse, call a service, and
+render. A service function must be callable from a unit test with no HTTP, no session,
+and no React.
 
 The reason is concrete: the cart preview screen and the order-creation path must
 compute an identical price. If pricing logic lives in a component, they will drift,
 and a student will be charged something other than what they were shown.
+
+**Rule 2 — The frontend never reaches past the backend.**
+
+No MongoDB driver, no Razorpay SDK, no secret. If the UI needs data, there is a route
+for it, and it is called through `frontend/src/api-client`. This is enforced by lint
+(`no-restricted-imports` on `mongodb` and `razorpay`), not by discipline.
 
 ---
 
@@ -23,128 +32,137 @@ and a student will be charged something other than what they were shown.
 
 ```
 trefood/
+├── package.json                         # npm workspaces root
+├── tsconfig.base.json                   # strictness shared by all three packages
+│
 ├── docs/                                # these planning documents
-│   ├── DECISIONS.md
-│   ├── MASTER_PROMPT_PRD.md
-│   ├── SYSTEM_ARCHITECTURE_AND_FLOWS.md
-│   ├── MONEY_AND_SETTLEMENT.md
-│   ├── FAILURES_AND_EDGE_CASES.md
-│   └── PROJECT_STRUCTURE.md
 │
-├── public/
-│   ├── manifest.json                    # PWA manifest
-│   ├── sw.js                            # service worker (never caches order state)
-│   ├── sounds/new-order.mp3             # the vendor alarm
-│   └── icons/                           # maskable PWA icons, 192 / 512
+├── shared/                              # ══ @trefood/shared ══
+│   │                                    # imported by BOTH services.
+│   │                                    # no db, no session, no React, no DOM.
+│   ├── src/
+│   │   ├── index.ts                     #   the public surface
+│   │   ├── env-error.ts                 #   readable env failures, used by both
+│   │   ├── env-optional.ts              #   blank .env value means "not set"
+│   │   ├── money.ts                     # ★ paise arithmetic, ceilToRupee, formatINR
+│   │   ├── constants.ts                 #   OrderStatus, roles, timers
+│   │   ├── types/                       #   order, campus, restaurant, user
+│   │   └── api/contracts.ts             #   request/response Zod schemas
+│   └── tests/
 │
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx                   # root: fonts, providers, Sentry, PostHog
-│   │   ├── page.tsx                     # campus picker / redirect
-│   │   │
-│   │   ├── (student)/                   # ── STUDENT PWA ──────────────────
-│   │   │   ├── layout.tsx               #   bottom nav, zone header, cart badge
-│   │   │   ├── c/[campusSlug]/
-│   │   │   │   ├── page.tsx             #   restaurant list, filtered by zone
-│   │   │   │   └── r/[restaurantSlug]/page.tsx
-│   │   │   ├── cart/page.tsx
-│   │   │   ├── checkout/page.tsx        #   curfew guard + payment choice
-│   │   │   ├── orders/
-│   │   │   │   ├── page.tsx             #   history
-│   │   │   │   └── [orderId]/page.tsx   #   tracker + GATE SCREEN
-│   │   │   └── account/page.tsx
-│   │   │
-│   │   ├── (vendor)/vendor/             # ── VENDOR CONSOLE ───────────────
-│   │   │   ├── layout.tsx               #   role gate + audio alarm provider
-│   │   │   ├── orders/page.tsx          #   THE live board
-│   │   │   ├── orders/[orderId]/kot/page.tsx   # thermal print view
-│   │   │   ├── menu/page.tsx            #   items, 86 toggles, add-ons
-│   │   │   ├── earnings/page.tsx
-│   │   │   └── settings/page.tsx        #   hours, prep time, fees, zones served
-│   │   │
-│   │   ├── (admin)/admin/               # ── ADMIN CONSOLE ────────────────
-│   │   │   ├── layout.tsx               #   desktop-only shell
-│   │   │   ├── campuses/[id]/zones/page.tsx    # Leaflet geofence editor
-│   │   │   ├── vendors/page.tsx         #   KYC queue
-│   │   │   ├── orders/page.tsx          #   live radar
-│   │   │   ├── disputes/page.tsx
-│   │   │   ├── settlements/page.tsx     #   nightly runs + CSV
-│   │   │   ├── students/page.tsx        #   strikes, COD blocks
-│   │   │   └── audit/page.tsx
-│   │   │
-│   │   ├── auth/callback/route.ts       # Supabase OAuth callback
-│   │   │
-│   │   └── api/
-│   │       ├── webhooks/razorpay/route.ts    # signature + idempotency
-│   │       ├── cron/
-│   │       │   ├── reconcile-payments/route.ts   # F1/F2, every minute
-│   │       │   ├── expire-unacked/route.ts       # F4, every minute
-│   │       │   ├── close-stale-gates/route.ts    # F7/F10, every minute
-│   │       │   ├── retry-refunds/route.ts        # F16, every 15 min
-│   │       │   └── settle-daily/route.ts         # 23:59 campus time
-│   │       ├── orders/[id]/poll/route.ts     # student tracker, 8 s
-│   │       ├── vendor/orders/poll/route.ts   # vendor board, 5 s
-│   │       └── push/subscribe/route.ts
-│   │
-│   ├── components/
-│   │   ├── ui/                          # shadcn primitives, unmodified
-│   │   ├── student/                     # RestaurantCard, GateCodeDisplay, ...
-│   │   ├── vendor/                      # OrderBoardCard, PrepTimePicker, ...
-│   │   ├── admin/                        # ZoneMapEditor, SettlementTable, ...
-│   │   └── shared/                      # StatusStepper, MoneyDisplay, EmptyState
-│   │
-│   ├── server/                          # ══ EVERYTHING IMPORTANT ══
+├── backend/                             # ══ @trefood/backend ══  (Express, :4000)
+│   │                                    # owns MongoDB and every business rule.
+│   ├── src/
+│   │   ├── index.ts                     #   boot: env → Sentry → Mongo → listen
+│   │   ├── app.ts                       #   Express app factory (testable, no port)
+│   │   ├── env.ts                       # ★ every secret in the system
 │   │   ├── db/
-│   │   │   ├── client.ts                # cached global Mongo client, maxPoolSize 10
-│   │   │   ├── collections.ts           # typed collection accessors
-│   │   │   └── indexes.ts               # every index, created on boot
+│   │   │   ├── client.ts                #   Mongo pool, maxPoolSize 10
+│   │   │   ├── collections.ts           #   typed collection accessors
+│   │   │   └── indexes.ts               #   every index, created on boot
 │   │   ├── auth/
-│   │   │   ├── session.ts               # getSession, requireRole, requireOwnership
-│   │   │   └── providers.ts             # Google now; OTP slots in here later (D7)
-│   │   ├── services/
+│   │   │   ├── session.ts               #   requireRole, requireOwnership
+│   │   │   └── providers.ts             #   Google now; OTP slots in later (D7)
+│   │   ├── services/                    # ══ ALL BUSINESS RULES ══
 │   │   │   ├── pricing.ts               # ★ THE ONLY PLACE MONEY IS COMPUTED
-│   │   │   ├── orders.ts                # createOrder, guarded transitions
+│   │   │   ├── orders.ts                #   createOrder, guarded transitions
 │   │   │   ├── order-state.ts           # ★ the FSM: legal transitions + guards
-│   │   │   ├── payments.ts              # Razorpay orders, verify, refund
-│   │   │   ├── settlement.ts            # nightly run, idempotent
-│   │   │   ├── ledger.ts                # append-only adjustments
-│   │   │   ├── curfew.ts                # zone availability by clock
-│   │   │   ├── gate-code.ts             # generate, reveal, verify
-│   │   │   ├── notifications.ts         # web push fan-out
+│   │   │   ├── payments.ts              #   Razorpay orders, verify, refund
+│   │   │   ├── settlement.ts            #   nightly run, idempotent
+│   │   │   ├── ledger.ts                #   append-only adjustments
+│   │   │   ├── curfew.ts                #   zone availability by clock
+│   │   │   ├── gate-code.ts             #   generate, reveal, verify
+│   │   │   ├── notifications.ts         #   web push fan-out
 │   │   │   ├── disputes.ts
-│   │   │   └── audit.ts                 # append-only, never updates
-│   │   └── actions/                     # Server Actions — thin adapters only
-│   │       ├── student.ts
-│   │       ├── vendor.ts
-│   │       └── admin.ts
-│   │
-│   ├── lib/
-│   │   ├── money.ts                     # paise arithmetic, ceilToRupee, formatINR
-│   │   ├── razorpay.ts                  # SDK singleton
-│   │   ├── supabase/                    # browser + server clients
-│   │   ├── validation/                  # Zod schemas per boundary
-│   │   └── constants.ts                 # enums, status lists, timers
-│   │
-│   ├── types/
-│   │   ├── order.ts  campus.ts  restaurant.ts  user.ts  money.ts
-│   │
-│   ├── hooks/
-│   │   ├── use-poll.ts                  # visibility-aware interval polling
-│   │   ├── use-order-alarm.ts           # looping audio until interaction
-│   │   └── use-cart.ts                  # localStorage cart, IDs + qty only
-│   │
-│   └── middleware.ts                    # route-group role gating
+│   │   │   └── audit.ts                 #   append-only, never updates
+│   │   ├── routes/                      # thin adapters over services
+│   │   │   ├── health.ts                #   /health, /health/ready
+│   │   │   ├── campuses.ts  restaurants.ts  orders.ts  vendor.ts  admin.ts
+│   │   │   ├── webhooks/razorpay.ts     #   signature + idempotency
+│   │   │   └── cron/                    #   CRON_SECRET header required
+│   │   │       ├── reconcile-payments.ts    # F1/F2, every minute
+│   │   │       ├── expire-unacked.ts        # F4, every minute
+│   │   │       ├── close-stale-gates.ts     # F7/F10, every minute
+│   │   │       ├── retry-refunds.ts         # F16, every 15 min
+│   │   │       └── settle-daily.ts          # 23:59 campus time
+│   │   └── middleware/
+│   │       ├── error-handler.ts         #   one error boundary, 400 vs 500
+│   │       ├── require-role.ts
+│   │       └── rate-limit.ts
+│   ├── tests/
+│   │   ├── app.test.ts                  #   mounts createApp() with no port, no DB
+│   │   ├── pricing.test.ts              # ★ the 7 invariants
+│   │   ├── order-state.test.ts          # ★ every legal + illegal transition
+│   │   ├── settlement.test.ts           #   idempotency, negative carry-forward
+│   │   ├── curfew.test.ts               #   incl. curfews crossing midnight
+│   │   └── integration/order-lifecycle.test.ts
+│   └── .env.example                     # ★ every secret lives here, nowhere else
 │
-├── tests/
-│   ├── unit/pricing.test.ts             # ★ the 7 invariants
-│   ├── unit/order-state.test.ts         # ★ every legal + illegal transition
-│   ├── unit/settlement.test.ts          # idempotency, negative carry-forward
-│   ├── unit/curfew.test.ts              # incl. curfews crossing midnight
-│   └── integration/order-lifecycle.test.ts
-│
-├── .env.local.example
-├── vercel.json                          # cron schedules
-└── README.md
+└── frontend/                            # ══ @trefood/frontend ══  (Next.js, :3000)
+    │                                    # UI only. no rules, no database.
+    ├── public/
+    │   ├── manifest.json                #   PWA manifest
+    │   ├── sw.js                        #   service worker (never caches order state)
+    │   ├── sounds/new-order.mp3         #   the vendor alarm
+    │   └── icons/                       #   maskable PWA icons, 192 / 512
+    ├── src/
+    │   ├── api-client/                  # ★ the ONLY way to reach the backend
+    │   │   └── index.ts                 #   credentials, no-store, ApiError
+    │   ├── app/
+    │   │   ├── layout.tsx               #   fonts, providers, Sentry, PostHog
+    │   │   ├── page.tsx                 #   campus picker / redirect
+    │   │   │
+    │   │   ├── (student)/               # ── STUDENT PWA ──────────────────
+    │   │   │   ├── layout.tsx           #   bottom nav, zone header, cart badge
+    │   │   │   ├── c/[campusSlug]/
+    │   │   │   │   ├── page.tsx         #   restaurant list, filtered by zone
+    │   │   │   │   └── r/[restaurantSlug]/page.tsx
+    │   │   │   ├── cart/page.tsx
+    │   │   │   ├── checkout/page.tsx    #   curfew guard + payment choice
+    │   │   │   ├── orders/
+    │   │   │   │   ├── page.tsx         #   history
+    │   │   │   │   └── [orderId]/page.tsx   # tracker + GATE SCREEN
+    │   │   │   └── account/page.tsx
+    │   │   │
+    │   │   ├── (vendor)/vendor/         # ── VENDOR CONSOLE ───────────────
+    │   │   │   ├── layout.tsx           #   role gate + audio alarm provider
+    │   │   │   ├── orders/page.tsx      #   THE live board
+    │   │   │   ├── orders/[orderId]/kot/page.tsx   # thermal print view
+    │   │   │   ├── menu/page.tsx        #   items, 86 toggles, add-ons
+    │   │   │   ├── earnings/page.tsx
+    │   │   │   └── settings/page.tsx    #   hours, prep time, fees, zones served
+    │   │   │
+    │   │   ├── (admin)/admin/           # ── ADMIN CONSOLE ────────────────
+    │   │   │   ├── layout.tsx           #   desktop-only shell
+    │   │   │   ├── campuses/[id]/zones/page.tsx    # Leaflet geofence editor
+    │   │   │   ├── vendors/page.tsx     #   KYC queue
+    │   │   │   ├── orders/page.tsx      #   live radar
+    │   │   │   ├── disputes/page.tsx
+    │   │   │   ├── settlements/page.tsx #   nightly runs + CSV
+    │   │   │   ├── students/page.tsx    #   strikes, COD blocks
+    │   │   │   └── audit/page.tsx
+    │   │   │
+    │   │   └── auth/callback/route.ts   #   Supabase OAuth callback
+    │   │
+    │   ├── components/
+    │   │   ├── ui/                      #   shadcn primitives, unmodified
+    │   │   ├── student/                 #   RestaurantCard, GateCodeDisplay, ...
+    │   │   ├── vendor/                  #   OrderBoardCard, PrepTimePicker, ...
+    │   │   ├── admin/                   #   ZoneMapEditor, SettlementTable, ...
+    │   │   └── shared/                  #   StatusStepper, MoneyDisplay, EmptyState
+    │   │
+    │   ├── lib/
+    │   │   ├── env.ts                   #   NEXT_PUBLIC_* only — no secrets
+    │   │   ├── supabase/                #   browser + server clients
+    │   │   └── utils.ts
+    │   │
+    │   ├── hooks/
+    │   │   ├── use-poll.ts              #   visibility-aware interval polling
+    │   │   ├── use-order-alarm.ts       #   looping audio until interaction
+    │   │   └── use-cart.ts              #   localStorage cart, IDs + qty only
+    │   │
+    │   └── middleware.ts                #   route-group role gating
+    └── .env.local.example               #   every value here ships to the browser
 ```
 
 ---
@@ -153,11 +171,14 @@ trefood/
 
 | File | Why it is load-bearing |
 | :-- | :-- |
-| `server/services/pricing.ts` | Every rupee in the system originates here. Pure function: inputs in, integers out. No DB calls, no session, no side effects — so it is trivially testable and impossible to accidentally branch on user identity. |
-| `server/services/order-state.ts` | The FSM. Exposes one `transition(order, to, actor, reason)` that validates legality, checks the actor's right to fire it, writes the audit entry, and persists — atomically. Nothing else may write `order.status`. |
-| `server/db/client.ts` | Serverless opens a connection pool per function instance. Without a cached `globalThis` client you will exhaust the Atlas free tier during the first exam-week surge. |
-| `app/api/webhooks/razorpay/route.ts` | Verify signature → insert event ID (unique index) → act. In that order. Reversing it means a replayed webhook double-processes an order. |
-| `lib/money.ts` | Paise-only arithmetic. If `Number.prototype.toFixed` appears anywhere in a money path, that is a bug. |
+| `backend/services/pricing.ts` | Every rupee in the system originates here. Pure function: inputs in, integers out. No DB calls, no session, no side effects — so it is trivially testable and impossible to accidentally branch on user identity. |
+| `backend/services/order-state.ts` | The FSM. Exposes one `transition(order, to, actor, reason)` that validates legality, checks the actor's right to fire it, writes the audit entry, and persists — atomically. Nothing else may write `order.status`. |
+| `backend/src/env.ts` | Every secret in TREFOOD. Validates eagerly and throws, and `index.ts` imports it before binding a port — so a missing secret kills the process at boot with every problem listed at once. |
+| `backend/src/app.ts` | Captures the **raw request body** for webhook HMAC verification. Re-serialising a parsed object changes key order and whitespace, the signature stops matching, and the bug looks like a Razorpay outage. |
+| `backend/db/client.ts` | `maxPoolSize: 10` is the Atlas free-tier ceiling, not a tuning knob. Connection count is now a function of how many backend instances you run. |
+| `backend/routes/webhooks/razorpay.ts` | Verify signature → insert event ID (unique index) → act. In that order. Reversing it means a replayed webhook double-processes an order. |
+| `shared/money.ts` | Paise-only arithmetic. If `Number.prototype.toFixed` appears anywhere in a money path, that is a bug — and a lint error. |
+| `frontend/api-client/index.ts` | The only path to the backend. Owns `credentials: "include"`, `cache: "no-store"`, and turning a non-2xx into a thrown `ApiError` so no caller can render an error body as data. |
 
 ---
 
@@ -169,75 +190,87 @@ trefood/
 - Booleans read as assertions: `isOpen`, `isAvailable`, `codBlocked`.
 - Enums are `SCREAMING_SNAKE` string literals, never numbers, so a database dump is readable.
 - Snapshot fields end in `Snapshot` (see the order document).
-- Server-only modules start with `import "server-only";`.
+- Backend and shared are ESM with `NodeNext` resolution: **relative imports carry a
+  `.js` extension** (`import { x } from "./env.js"`) even though the source is `.ts`.
 
 ---
 
 ## 5. Environment Variables
 
+The split gives each service its own file, and the division is the point: **every
+secret is in `backend/.env`, and `frontend/.env.local` holds nothing worth stealing.**
+
+### `backend/.env` — copy from `backend/.env.example`
+
 ```bash
-# ── Database ──────────────────────────────────────────
+NODE_ENV=development
+PORT=4000
+CORS_ORIGINS=http://localhost:3000   # real access control, not boilerplate
+
 MONGODB_URI=
 MONGODB_DB=trefood
 
-# ── Supabase: auth + image storage ────────────────────
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=          # server only, never NEXT_PUBLIC
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 
-# ── Razorpay ──────────────────────────────────────────
 RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=                # server only
-RAZORPAY_WEBHOOK_SECRET=            # server only
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
 
-# ── Web Push (generate with: npx web-push generate-vapid-keys)
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:ops@trefood.in
 
-# ── Cron protection ───────────────────────────────────
-CRON_SECRET=                        # required header on every /api/cron/* route
+CRON_SECRET=                         # openssl rand -hex 32, min 32 chars
 
-# ── Observability ─────────────────────────────────────
-NEXT_PUBLIC_SENTRY_DSN=
-NEXT_PUBLIC_POSTHOG_KEY=
-NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
-
-# ── App ───────────────────────────────────────────────
-NEXT_PUBLIC_APP_URL=https://trefood.in
+SENTRY_DSN=                          # optional
 ```
 
-Validate these with Zod at boot in `lib/env.ts` and fail loudly. A missing
-`RAZORPAY_WEBHOOK_SECRET` discovered at 1 AM during a payment surge is not the moment
-to learn it was never set.
+### `frontend/.env.local` — copy from `frontend/.env.local.example`
 
-**Anything without the `NEXT_PUBLIC_` prefix must never be imported into a Client
-Component.** Enforce it with `import "server-only"` in every module that reads a secret.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:4000   # the seam between the services
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=       # public half only
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=        # public half only
+
+NEXT_PUBLIC_SENTRY_DSN=              # optional
+NEXT_PUBLIC_POSTHOG_KEY=             # optional
+NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+```
+
+Both are validated with Zod at import time and fail loudly, listing every problem at
+once. A blank line for an optional key means "not set" — see `shared/env-optional.ts`.
+
+> **`NEXT_PUBLIC_*` values are inlined at build time, not read at runtime.** Changing
+> `NEXT_PUBLIC_API_URL` means rebuilding the frontend, not restarting it.
 
 ---
 
-## 6. Cron Schedules (`vercel.json`)
+## 6. Scheduled Jobs
 
-```json
-{
-  "crons": [
-    { "path": "/api/cron/reconcile-payments",  "schedule": "* * * * *" },
-    { "path": "/api/cron/expire-unacked",      "schedule": "* * * * *" },
-    { "path": "/api/cron/close-stale-gates",   "schedule": "* * * * *" },
-    { "path": "/api/cron/retry-refunds",       "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/settle-daily",        "schedule": "29 18 * * *" }
-  ]
-}
-```
+The cron routes live in `backend/src/routes/cron/`, gated by a `CRON_SECRET` header —
+a shared secret, not obscurity.
 
-> `29 18` UTC is 23:59 IST. **Vercel Cron runs in UTC** — every schedule here is
-> converted, and every campus-local comparison in code must go through the campus
-> timezone, never the server clock.
+| Route | Schedule | Purpose |
+| :-- | :-- | :-- |
+| `/cron/reconcile-payments` | every minute | F1/F2 — the webhook that never came |
+| `/cron/expire-unacked` | every minute | F4 — vendor never acknowledged |
+| `/cron/close-stale-gates` | every minute | F7/F10 — grace timer expiry |
+| `/cron/retry-refunds` | every 15 min | F16 — refund API failures |
+| `/cron/settle-daily` | 23:59 campus-local | the nightly settlement run |
 
-> Vercel's Hobby plan limits cron frequency. If per-minute jobs are not available on
-> your plan, merge the three minute-jobs into one `/api/cron/tick` route that runs all
-> three checks in sequence. They are all fast indexed queries, so batching them costs
-> nothing.
+**What triggers them is a deployment decision, not a code decision** — a host
+scheduler, a system crontab hitting the URLs, or an in-process scheduler. Whatever
+fires them, every campus-local comparison in code must go through the campus timezone,
+never the server clock.
+
+> The three per-minute jobs are all fast indexed queries. If your scheduler limits
+> frequency, merge them into one `/cron/tick` route that runs all three in sequence;
+> batching them costs nothing.
 
 ---
 
@@ -264,16 +297,30 @@ Test in this order. The first two are non-negotiable before touching Razorpay.
 ## 8. Getting Started
 
 ```bash
-npx create-next-app@latest trefood --typescript --tailwind --app --src-dir
-cd trefood
-npx shadcn@latest init
-npm i mongodb @supabase/supabase-js @supabase/ssr razorpay zod web-push \
-      leaflet react-leaflet date-fns
-npm i -D @types/leaflet @types/web-push vitest
+npm install
 
-mkdir -p docs && mv *.md docs/ 2>/dev/null   # keep planning docs together
-cp .env.local.example .env.local             # then fill it in
+cp backend/.env.example        backend/.env          # then fill it in
+cp frontend/.env.local.example frontend/.env.local   # then fill it in
+
+npm run dev            # builds shared, then runs both services
 ```
 
-Then work Phase 0 → Phase 10 in order, per
-[MASTER_PROMPT_PRD.md Part 5](MASTER_PROMPT_PRD.md).
+| Command | Does |
+| :-- | :-- |
+| `npm run dev` | Backend on :4000 and frontend on :3000, together |
+| `npm run dev:backend` / `npm run dev:frontend` | One at a time |
+| `npm run verify` | typecheck + lint + test across all three packages. What CI runs. |
+| `npm run build` | Builds all three in dependency order |
+
+Check it is alive:
+
+```bash
+curl http://localhost:4000/health/ready    # {"ok":true,"db":{...}}
+```
+
+> **`@trefood/shared` must be built before the others can typecheck** — they consume
+> its emitted `.d.ts` files. Every root script does this for you; if you run a
+> workspace script directly and see "cannot find module @trefood/shared", run
+> `npm run build -w @trefood/shared` first.
+
+Then work Phase 0 → Phase 15 in order, per [PHASES.md](PHASES.md).

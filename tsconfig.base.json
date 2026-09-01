@@ -1,0 +1,21 @@
+{
+  "$comment": "Compiler options common to every workspace. Each package extends this and adds its own module/target settings.",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "target": "ES2022",
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
