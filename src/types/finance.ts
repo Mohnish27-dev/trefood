@@ -62,6 +62,9 @@ export interface Coupon {
   _id: string;
   code: string;
   campusId: string | null;
+  /** Nullable: when set, coupon is scoped to that specific restaurant only. */
+  restaurantId?: string | null;
+  description?: string | null;
   /** A1 — platform-funded by default, so the vendor is paid on the pre-discount base. */
   fundedBy: "PLATFORM" | "VENDOR";
   type: "FLAT" | "PERCENT";

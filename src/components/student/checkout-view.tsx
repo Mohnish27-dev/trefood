@@ -17,6 +17,8 @@ import { placeOrder } from "@/server/actions/student";
 import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+import { CouponSection } from "@/components/student/coupon-section";
+
 export interface CheckoutZone {
   id: string;
   name: string;
@@ -48,7 +50,7 @@ export function CheckoutView({
   codBlockedReason: string | null;
   initialPhone: string;
 }) {
-  const { lines, clear, campusSlug } = useCart();
+  const { lines, couponCode, setCouponCode, removeCoupon, clear, campusSlug } = useCart();
   const { status, data, reload } = useCartQuote();
   const router = useRouter();
 
@@ -119,6 +121,7 @@ export function CheckoutView({
       // rather than creating a twin.
       idempotencyKey: crypto.randomUUID(),
       phone: phone.replace(/\s/g, ""),
+      couponCode: couponCode || undefined,
     });
 
     if (result.status === "success") {
@@ -274,6 +277,17 @@ export function CheckoutView({
         </div>
       </section>
 
+      {/* ── Coupons & Offers ──────────────────────────────────── */}
+      <div className="mb-5">
+        <CouponSection
+          appliedCoupon={data.appliedCoupon}
+          availableCoupons={data.availableCoupons}
+          couponError={data.couponError}
+          onApplyCoupon={(code) => setCouponCode(code)}
+          onRemoveCoupon={() => removeCoupon()}
+        />
+      </div>
+
       {/* ── Bill ──────────────────────────────────────────────── */}
       <Card className="mb-5 p-4">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-faint">
@@ -283,6 +297,9 @@ export function CheckoutView({
         <MoneyRow label="Item total" paise={quote.subtotalPaise} />
         <MoneyRow label="Packaging" paise={quote.packagingFeePaise} />
         <MoneyRow label="Delivery" paise={quote.deliveryFeePaise} />
+        {quote.discountPaise > 0 ? (
+          <MoneyRow label="Discount" paise={quote.discountPaise} negative />
+        ) : null}
         <MoneyRow
           label="Convenience fee"
           paise={quote.convenienceFeePaise}

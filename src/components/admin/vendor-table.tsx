@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, Percent, Ticket, Trash2, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -21,11 +22,13 @@ import {
 import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
 import {
+  deleteVendorAccount,
   reviewVendorKyc,
   saveCommissionOverride,
   savePayoutDetails,
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
+import { AddVendorDialog, type CampusOption } from "@/components/admin/add-vendor-dialog";
 
 export interface AdminVendorRow {
   restaurantId: string;
@@ -59,48 +62,64 @@ export interface AdminVendorRow {
  * CSV is generated from them and a typo in an IFSC is a payment that vanishes
  * for a fortnight.
  */
-export function AdminVendorTable({ vendors }: { vendors: AdminVendorRow[] }) {
+export function AdminVendorTable({
+  vendors,
+  campuses = [],
+}: {
+  vendors: AdminVendorRow[];
+  campuses?: CampusOption[];
+}) {
   const pending = vendors.filter((vendor) => vendor.kycStatus === "PENDING");
   const rest = vendors.filter((vendor) => vendor.kycStatus !== "PENDING");
 
-  if (vendors.length === 0) {
-    return (
-      <Card>
-        <EmptyState
-          icon={Building2}
-          title="No restaurants yet"
-          description="Run the seed, or onboard a canteen. Each one needs KYC approval before students can see it."
-        />
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {pending.length > 0 ? (
-        <section>
-          <h2 className="mb-2.5 flex items-center gap-2 font-display text-sm font-semibold text-bone">
-            Waiting on KYC
-            <Badge tone="warning">{pending.length}</Badge>
-          </h2>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {pending.map((vendor) => (
-              <VendorCard key={vendor.restaurantId} vendor={vendor} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section>
-        <h2 className="mb-2.5 font-display text-sm font-semibold text-bone">
-          {pending.length > 0 ? "Everyone else" : "Restaurants"}
-        </h2>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {rest.map((vendor) => (
-            <VendorCard key={vendor.restaurantId} vendor={vendor} />
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-xl font-semibold text-bone">Vendors & KYC</h1>
+          <p className="mt-1 text-sm text-muted">
+            Onboard new campus canteens and manage verification and commission overrides.
+          </p>
         </div>
-      </section>
+        {campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
+      </div>
+
+      {vendors.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={Building2}
+            title="No restaurants yet"
+            description="Onboard a new canteen using the Add Vendor button above."
+          />
+        </Card>
+      ) : (
+        <>
+          {pending.length > 0 ? (
+            <section>
+              <h2 className="mb-2.5 flex items-center gap-2 font-display text-sm font-semibold text-bone">
+                Waiting on KYC
+                <Badge tone="warning">{pending.length}</Badge>
+              </h2>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {pending.map((vendor) => (
+                  <VendorCard key={vendor.restaurantId} vendor={vendor} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section>
+            <h2 className="mb-2.5 font-display text-sm font-semibold text-bone">
+              {pending.length > 0 ? "Everyone else" : "Restaurants"}
+            </h2>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {rest.map((vendor) => (
+                <VendorCard key={vendor.restaurantId} vendor={vendor} />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -141,10 +160,19 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
         </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <KycDialog vendor={vendor} />
-        <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
-        <PayoutDialog vendor={vendor} />
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
+        <div className="flex flex-wrap gap-2">
+          <KycDialog vendor={vendor} />
+          <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
+          <PayoutDialog vendor={vendor} />
+          <Button asChild size="sm" variant="secondary" className="gap-1.5">
+            <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
+              <Ticket className="size-3.5 text-saffron" />
+              Add Coupon
+            </Link>
+          </Button>
+        </div>
+        <DeleteVendorDialog vendor={vendor} />
       </div>
     </Card>
   );
@@ -409,6 +437,59 @@ function PayoutDialog({ vendor }: { vendor: AdminVendorRow }) {
           <Button disabled={submitting} onClick={() => void submit()}>
             {submitting ? <Loader2 className="animate-spin" /> : null}
             Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteVendorDialog({ vendor }: { vendor: AdminVendorRow }) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleDelete = async (): Promise<void> => {
+    setSubmitting(true);
+    const result = await deleteVendorAccount({ restaurantId: vendor.restaurantId });
+    setSubmitting(false);
+
+    if (result.status === "error") {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(result.message);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted hover:text-chili hover:bg-chili-wash/30"
+          title="Delete restaurant and vendor account"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete {vendor.name}?</DialogTitle>
+          <DialogDescription>
+            This will permanently remove this restaurant, all of its menu items and categories,
+            and the linked vendor account. This action is irreversible.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter>
+          <Button variant="ghost" disabled={submitting} onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" disabled={submitting} onClick={() => void handleDelete()}>
+            {submitting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+            Delete Restaurant
           </Button>
         </DialogFooter>
       </DialogContent>

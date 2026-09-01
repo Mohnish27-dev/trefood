@@ -5,15 +5,19 @@ import {
   ACTOR,
   DEFAULTS,
   ORDER_STATUS,
+  ROLE,
   TERMINAL_STATUSES,
   type OrderStatus,
   type StuckReason,
 } from "@/lib/constants";
-import type { Paise } from "@/lib/money";
+import { rupeesToPaise, type Paise } from "@/lib/money";
+import { newId } from "@/lib/ids";
+import { hashPassword } from "@/server/auth/passwords";
 import { writeAudit } from "./audit";
 import type { Campus, CampusSettings, DeliveryZone, GeoPolygon } from "@/types/campus";
 import type { Restaurant } from "@/types/restaurant";
 import type { Order } from "@/types/order";
+import type { User } from "@/types/user";
 
 /**
  * Admin read and write paths.
@@ -296,6 +300,164 @@ export async function updatePayoutDetails(params: {
   }
 
   return updated;
+}
+
+export interface CreateVendorDirectParams {
+  ownerName: string;
+  email: string;
+  phone: string;
+  password: string;
+  restaurantName: string;
+  campusId: string;
+  cuisines: string[];
+  description?: string | undefined;
+  packagingFeeRupees: number;
+  minOrderRupees: number;
+  prepMinutes: number;
+  fssai?: string | null | undefined;
+  gstin?: string | null | undefined;
+  accountName?: string | null | undefined;
+  accountNumber?: string | null | undefined;
+  ifsc?: string | null | undefined;
+  upiId?: string | null | undefined;
+  actorId: string;
+}
+
+export async function createVendorDirectly(params: CreateVendorDirectParams): Promise<{
+  ok: true;
+  restaurant: Restaurant;
+  user: User;
+} | { ok: false; message: string }> {
+  const usersCollection = await db.users();
+  const normalizedEmail = params.email.toLowerCase().trim();
+
+  // Check duplicate email
+  const existingUser = await usersCollection.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    return { ok: false, message: "A user with this email address already exists." };
+  }
+
+  // Verify campus
+  const campusesCollection = await db.campuses();
+  const campus = await campusesCollection.findOne({ _id: params.campusId });
+  if (!campus) {
+    return { ok: false, message: "The selected campus does not exist." };
+  }
+
+  const restaurantId = newId("rest");
+  const baseSlug = params.restaurantName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  const slug = `${baseSlug || "restaurant"}-${restaurantId.slice(-4)}`;
+  const userId = newId("usr");
+  const now = new Date();
+
+  // Auto-serve all campus gates by default
+  const servedZoneIds = campus.zones.map((z) => z.id);
+
+  const restaurant: Restaurant = {
+    _id: restaurantId,
+    campusId: params.campusId,
+    slug,
+    name: params.restaurantName.trim(),
+    cuisines: params.cuisines.length > 0 ? params.cuisines : ["Campus Food"],
+    phone: params.phone.trim(),
+    description: params.description?.trim() || `${params.restaurantName.trim()} on ${campus.name}.`,
+    imageUrl: null,
+    bannerUrl: null,
+    packagingFeePaise: rupeesToPaise(params.packagingFeeRupees),
+    minOrderPaise: rupeesToPaise(params.minOrderRupees),
+    prepMinutes: Math.max(1, params.prepMinutes),
+    foodGstBps: 0,
+    commissionBpsOverride: null,
+    servedZoneIds,
+    opensMinutes: 7 * 60, // 07:00
+    closesMinutes: 23 * 60 + 30, // 23:30
+    isOpen: true,
+    isApproved: true,
+    rating: null,
+    ratingCount: 0,
+    kyc: {
+      status: "APPROVED",
+      ownerName: params.ownerName.trim(),
+      ownerPhone: params.phone.trim(),
+      gstin: params.gstin?.trim() || null,
+      fssai: params.fssai?.trim() || null,
+      reviewedAt: now,
+      reviewedBy: params.actorId,
+      rejectionReason: null,
+    },
+    payout: {
+      accountName: params.accountName?.trim() || params.ownerName.trim(),
+      accountNumber: params.accountNumber?.trim() || "000000000000",
+      ifsc: params.ifsc?.trim().toUpperCase() || "SBIN0000000",
+      upiId: params.upiId?.trim() || null,
+    },
+    expiryCountToday: 0,
+    autoClosedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const user: User = {
+    _id: userId,
+    authId: null,
+    role: ROLE.VENDOR_OWNER,
+    name: params.ownerName.trim(),
+    email: normalizedEmail,
+    phone: params.phone.trim(),
+    passwordHash: hashPassword(params.password),
+    campusId: params.campusId,
+    restaurantId,
+    codBlocked: false,
+    codBlockedReason: null,
+    strikes: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await (await db.restaurants()).insertOne(restaurant);
+  await usersCollection.insertOne(user);
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: restaurantId,
+    from: "NONE",
+    to: "CREATED",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Vendor onboarded: ${restaurant.name} (Owner: ${params.ownerName} / ${normalizedEmail})`,
+  });
+
+  return { ok: true, restaurant, user };
+}
+
+export async function deleteVendor(params: {
+  restaurantId: string;
+  actorId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const restaurantsCollection = await db.restaurants();
+  const restaurant = await restaurantsCollection.findOne({ _id: params.restaurantId });
+  if (!restaurant) return { ok: false, message: "That restaurant does not exist." };
+
+  await restaurantsCollection.deleteOne({ _id: params.restaurantId });
+  await (await db.users()).deleteMany({ restaurantId: params.restaurantId });
+  await (await db.menuItems()).deleteMany({ restaurantId: params.restaurantId });
+  await (await db.menuCategories()).deleteMany({ restaurantId: params.restaurantId });
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: params.restaurantId,
+    from: restaurant.name,
+    to: "DELETED",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Restaurant ${restaurant.name} removed by admin`,
+  });
+
+  return { ok: true };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

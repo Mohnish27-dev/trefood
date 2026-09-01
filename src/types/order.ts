@@ -167,6 +167,10 @@ export interface Order {
 
   /** F11 — set when a curfew forced a reroute in flight. */
   reroutedFromZoneId: string | null;
+
+  /** Applied coupon code and identifier for audit and receipt */
+  couponCode?: string | null;
+  couponId?: string | null;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -35,6 +35,7 @@ const placeOrderSchema = z.object({
   // F12 — client-generated per checkout attempt. A double-tap returns the first order.
   idempotencyKey: z.string().min(8).max(64),
   phone: z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number"),
+  couponCode: z.string().optional(),
 });
 
 export type PlaceOrderState =
@@ -102,6 +103,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
     lines: data.lines,
     method: data.method,
     idempotencyKey: data.idempotencyKey,
+    couponCode: data.couponCode,
   });
 
   if (!created.ok) {

@@ -28,6 +28,8 @@ import type { User } from "@/types/user";
  * Selected by AUTH_PROVIDER. Nothing above this file knows which is active.
  */
 
+import { VENDOR_SESSION_COOKIE, verifyVendorSessionToken } from "@/server/auth/passwords";
+
 export const DEMO_USER_COOKIE = "trefood_demo_user";
 
 export interface Session {
@@ -40,6 +42,13 @@ export interface Session {
 /* ------------------------------------------------------------------ */
 
 export async function getSession(): Promise<Session | null> {
+  // 1. Direct vendor session (bypasses Supabase)
+  const vendorUser = await resolveVendorUser();
+  if (vendorUser) {
+    return { user: vendorUser, role: vendorUser.role };
+  }
+
+  // 2. Supabase or Stub session
   const provider = serverEnv().AUTH_PROVIDER;
   const user = provider === "supabase" ? await resolveSupabaseUser() : await resolveStubUser();
   return user ? { user, role: user.role } : null;
@@ -105,6 +114,21 @@ export class AuthError extends Error {
 /* ------------------------------------------------------------------ */
 /* Providers                                                           */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Direct vendor provider.
+ * Reads and verifies the signed vendor session cookie.
+ */
+async function resolveVendorUser(): Promise<User | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(VENDOR_SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const userId = verifyVendorSessionToken(token);
+  if (!userId) return null;
+
+  return (await db.users()).findOne({ _id: userId });
+}
 
 /**
  * Prototype provider.

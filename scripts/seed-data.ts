@@ -16,6 +16,7 @@
 
 import { DEFAULTS, ROLE, ZONE_TYPE } from "@/lib/constants";
 import { rupeesToPaise } from "@/lib/money";
+import { hashPassword } from "@/server/auth/passwords";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 import type { User } from "@/types/user";
@@ -770,43 +771,12 @@ function user(partial: Pick<User, "_id" | "role" | "name" | "email"> & Partial<U
 
 export const USERS: User[] = [
   user({
-    _id: "user_vendor_canteen",
-    role: ROLE.VENDOR_OWNER,
-    name: "Suresh Prasad",
-    email: "owner@nitcanteen.in",
-    phone: "+919430000001",
-    restaurantId: "rest_nit_canteen",
-  }),
-  user({
-    _id: "user_vendor_tandoori",
-    role: ROLE.VENDOR_OWNER,
-    name: "Imran Ali",
-    email: "owner@tandoorinights.in",
-    phone: "+919430000002",
-    restaurantId: "rest_tandoori_nights",
-  }),
-  user({
-    _id: "user_vendor_wrap",
-    role: ROLE.VENDOR_OWNER,
-    name: "Deepak Yadav",
-    email: "owner@wraproll.in",
-    phone: "+919430000003",
-    restaurantId: "rest_wrap_roll",
-  }),
-  user({
-    _id: "user_vendor_amul",
-    role: ROLE.VENDOR_OWNER,
-    name: "Nisha Gupta",
-    email: "owner@amulparlour.in",
-    phone: "+919430000004",
-    restaurantId: "rest_amul_parlour",
-  }),
-  user({
     _id: "user_admin",
     role: ROLE.SUPER_ADMIN,
     name: "TREFOOD Ops",
     email: "ops@trefood.in",
     phone: "+919000000000",
+    passwordHash: hashPassword("admin123"),
     campusId: null,
   }),
 ];

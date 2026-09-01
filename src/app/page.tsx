@@ -123,12 +123,6 @@ export default async function LandingPage() {
           <Link href="/signin" className="text-muted hover:text-saffron transition-colors">
             Sign in →
           </Link>
-          <Link href="/vendor/orders" className="text-muted hover:text-saffron transition-colors">
-            Restaurant console →
-          </Link>
-          <Link href="/admin/orders" className="text-muted hover:text-saffron transition-colors">
-            Admin console →
-          </Link>
           {/* The ninety-second demo. Dev only — the route 404s in production. */}
           {clientEnv.NEXT_PUBLIC_DEMO_MODE ? (
             <Link href="/demo" className="text-saffron hover:underline">

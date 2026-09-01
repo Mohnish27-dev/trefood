@@ -32,9 +32,16 @@ export interface CartState {
   restaurantSlug: string | null;
   campusSlug: string | null;
   lines: CartLine[];
+  couponCode?: string | null;
 }
 
-const EMPTY: CartState = { restaurantId: null, restaurantSlug: null, campusSlug: null, lines: [] };
+const EMPTY: CartState = {
+  restaurantId: null,
+  restaurantSlug: null,
+  campusSlug: null,
+  lines: [],
+  couponCode: null,
+};
 
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
@@ -149,6 +156,7 @@ export function useCart() {
         restaurantSlug: params.restaurantSlug,
         campusSlug: params.campusSlug,
         lines,
+        couponCode: current.couponCode ?? null,
       });
       return { ok: true };
     },
@@ -165,6 +173,16 @@ export function useCart() {
     write(lines.length === 0 ? EMPTY : { ...current, lines });
   }, []);
 
+  const setCouponCode = useCallback((couponCode: string | null): void => {
+    const current = read();
+    write({ ...current, couponCode: couponCode ? couponCode.trim().toUpperCase() : null });
+  }, []);
+
+  const removeCoupon = useCallback((): void => {
+    const current = read();
+    write({ ...current, couponCode: null });
+  }, []);
+
   const clear = useCallback((): void => write(EMPTY), []);
 
   /** Replace the whole cart — used by "clear and start over" and by reorder. */
@@ -174,6 +192,7 @@ export function useCart() {
       restaurantSlug: string;
       campusSlug: string;
       lines: CartLine[];
+      couponCode?: string | null;
     }): void => write(params),
     [],
   );
@@ -200,6 +219,8 @@ export function useCart() {
     itemCount,
     add,
     setQuantity,
+    setCouponCode,
+    removeCoupon,
     clear,
     replaceWith,
     dropItems,

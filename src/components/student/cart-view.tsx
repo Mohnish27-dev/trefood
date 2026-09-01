@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useCartQuote } from "@/hooks/use-cart-quote";
 
+import { CouponSection } from "@/components/student/coupon-section";
+
 /**
  * The cart.
  *
@@ -25,7 +27,7 @@ import { useCartQuote } from "@/hooks/use-cart-quote";
  * HIGHLIGHTED rather than silently re-totalled.
  */
 export function CartView() {
-  const { lines, campusSlug, setQuantity, clear, dropItems } = useCart();
+  const { lines, campusSlug, setQuantity, setCouponCode, removeCoupon, clear, dropItems } = useCart();
   const { status, data, reload } = useCartQuote();
 
   if (lines.length === 0 || status === "empty") {
@@ -148,6 +150,15 @@ export function CartView() {
           );
         })}
       </Card>
+
+      {/* ── Coupons & Offers ──────────────────────────────────── */}
+      <CouponSection
+        appliedCoupon={data.appliedCoupon}
+        availableCoupons={data.availableCoupons}
+        couponError={data.couponError}
+        onApplyCoupon={(code) => setCouponCode(code)}
+        onRemoveCoupon={() => removeCoupon()}
+      />
 
       {/* ── Bill ──────────────────────────────────────────────── */}
       <Card className="mt-4 p-4">

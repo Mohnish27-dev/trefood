@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
+  // allowedDevOrigins: ["brute-heap-ashamed.ngrok-free.dev"],
+
   // Menu images live in Supabase Storage, never in Mongo (DECISIONS.md section 3).
   images: {
     remotePatterns: [

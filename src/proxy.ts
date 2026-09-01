@@ -15,6 +15,7 @@ import { createServerClient } from "@supabase/ssr";
  */
 
 const DEMO_SESSION_COOKIE = "trefood_demo_user";
+const VENDOR_SESSION_COOKIE = "trefood_vendor_session";
 
 /**
  * Route groups that are pointless to render without any session at all.
@@ -63,8 +64,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   const hasDemoCookie = request.cookies.has(DEMO_SESSION_COOKIE);
+  const hasVendorCookie = request.cookies.has(VENDOR_SESSION_COOKIE);
 
-  if (isGuarded && !hasSupabaseUser && !hasDemoCookie) {
+  if (isGuarded && !hasSupabaseUser && !hasDemoCookie && !hasVendorCookie) {
     const signIn = new URL("/signin", request.url);
     signIn.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(signIn);
