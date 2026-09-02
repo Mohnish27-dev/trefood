@@ -55,9 +55,7 @@ export const VENDOR_ACTIVE_STATUSES: readonly OrderStatus[] = [
 ];
 
 /**
- * The six steps a student sees. Deliberately NOT the full status list —
- * a student never needs to distinguish ACCEPTED from PREPARING, and the
- * failure statuses get their own dedicated screens rather than a step.
+ * The steps a student sees on the tracker.
  */
 export const STUDENT_STEPPER: readonly {
   key: string;
@@ -65,10 +63,17 @@ export const STUDENT_STEPPER: readonly {
   statuses: readonly OrderStatus[];
 }[] = [
   { key: "placed", label: "Placed", statuses: [ORDER_STATUS.PLACED] },
-  { key: "accepted", label: "Accepted", statuses: [ORDER_STATUS.ACCEPTED] },
-  { key: "cooking", label: "Cooking", statuses: [ORDER_STATUS.PREPARING, ORDER_STATUS.READY] },
-  { key: "dispatched", label: "On the way", statuses: [ORDER_STATUS.OUT_FOR_DELIVERY] },
-  { key: "at_gate", label: "At gate", statuses: [ORDER_STATUS.AT_GATE] },
+  {
+    key: "accepted",
+    label: "Accepted",
+    statuses: [
+      ORDER_STATUS.ACCEPTED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.READY,
+      ORDER_STATUS.OUT_FOR_DELIVERY,
+      ORDER_STATUS.AT_GATE,
+    ],
+  },
   {
     key: "delivered",
     label: "Delivered",
