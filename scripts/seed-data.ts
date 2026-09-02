@@ -153,7 +153,7 @@ export const CAMPUS: Campus = {
    Accounts — the admin, and nothing else.
    ══════════════════════════════════════════════════════════════════════ */
 
-export const ADMIN_EMAIL = "mohnishpamnani08@gmail.com";
+export const ADMIN_EMAIL = "zaid0072khan@gmail.com";
 
 function user(partial: Pick<User, "_id" | "role" | "name" | "email"> & Partial<User>): User {
   return {
@@ -174,9 +174,8 @@ export const USERS: User[] = [
   user({
     _id: "user_admin",
     role: ROLE.SUPER_ADMIN,
-    name: "Mohnish",
+    name: "Zaid Khan",
     email: ADMIN_EMAIL,
-    passwordHash: hashPassword("admin123"),
     campusId: null,
   }),
 ];
@@ -207,5 +206,5 @@ export const LEGACY_DEMO_USER_EMAILS = ["aarav@nitp.ac.in"];
 /** Orders placed by the /demo panel and the demo-order script. */
 export const LEGACY_DEMO_ORDER_KEY_PATTERN = "^demo-";
 
-/** The pre-real-auth admin login, replaced by ADMIN_EMAIL above. */
-export const LEGACY_ADMIN_EMAIL = "ops@trefood.in";
+/** The pre-real-auth admin logins, replaced by ADMIN_EMAIL above. */
+export const LEGACY_ADMIN_EMAILS = ["ops@trefood.in", "mohnishpamnani08@gmail.com"];

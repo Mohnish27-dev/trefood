@@ -14,6 +14,7 @@ import {
   VENDOR_SESSION_COOKIE,
   verifyPassword,
 } from "@/server/auth/passwords";
+import { ROLE } from "@/lib/constants";
 
 export type AuthActionState =
   | { status: "idle" }
@@ -68,11 +69,12 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
   const password = parsed.data.password;
   const target = parsed.data.redirectTo;
 
-  // 1. Check for direct vendor login in MongoDB
+  // 1. Check for direct vendor login in MongoDB (vendors only, bypasses Supabase)
   const usersCollection = await db.users();
   const dbUser = await usersCollection.findOne({ email });
 
-  if (dbUser && dbUser.passwordHash) {
+  const isVendor = dbUser?.role === ROLE.VENDOR_OWNER || dbUser?.role === ROLE.VENDOR_STAFF;
+  if (dbUser && dbUser.passwordHash && isVendor) {
     const isValid = verifyPassword(password, dbUser.passwordHash);
     if (!isValid) {
       return { status: "error", message: "Invalid email or password." };

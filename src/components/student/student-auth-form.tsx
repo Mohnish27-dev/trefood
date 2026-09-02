@@ -165,6 +165,8 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
     );
   }
 
+  const isAdminRedirect = Boolean(redirectTo && /^\/admin(\/|$)/.test(redirectTo));
+
   return (
     <div className="mt-6 space-y-6">
       {/* ── Quick Unlock Banner (if profile exists and switched to standard login) ── */}
@@ -204,7 +206,7 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
           }`}
         >
           <GraduationCap className="size-4 shrink-0" />
-          <span>Customer</span>
+          <span>{isAdminRedirect ? "Admin / Customer" : "Customer"}</span>
         </button>
 
         <button
@@ -336,11 +338,13 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
             ) : null}
 
             <div>
-              <Label htmlFor="student-email">Student / College Email</Label>
+              <Label htmlFor="student-email">
+                {isAdminRedirect ? "Admin Email" : "Email Address"}
+              </Label>
               <Input
                 id="student-email"
                 type="email"
-                placeholder="e.g. student@nitp.ac.in"
+                placeholder={isAdminRedirect ? "zaid0072khan@gmail.com" : "e.g. student@nitp.ac.in"}
                 value={studentEmail}
                 onChange={(e) => setStudentEmail(e.target.value)}
                 required
@@ -384,9 +388,9 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
                 {loading
                   ? "Please wait..."
                   : studentMode === "signin"
-                    ? "Sign in as Customer"
+                    ? (isAdminRedirect ? "Sign in to Admin Console" : "Sign in")
                     : studentMode === "signup"
-                      ? "Create Student Account"
+                      ? "Create Account"
                       : "Send Magic Login Link"}
               </span>
             </Button>
