@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Loader2, Phone, Wallet } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Phone, Truck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -102,6 +102,10 @@ function StatusScreen({
     order.status === ORDER_STATUS.OUT_FOR_DELIVERY ||
     order.status === ORDER_STATUS.AT_GATE;
 
+  const isOut =
+    order.status === ORDER_STATUS.OUT_FOR_DELIVERY ||
+    order.status === ORDER_STATUS.AT_GATE;
+
   const isDelivered =
     order.status === ORDER_STATUS.DELIVERED ||
     order.status === ORDER_STATUS.DELIVERED_TO_SECURITY ||
@@ -153,6 +157,25 @@ function StatusScreen({
         </Card>
       ) : null}
 
+      {/* ── On the way banner ─────────────────────────────────── */}
+      {isOut ? (
+        <Card className="border-saffron/40 bg-saffron-wash/20 p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron/15 text-saffron">
+              <Truck className="size-5" />
+            </span>
+            <div>
+              <p className="font-display text-sm font-semibold text-bone">
+                Your order is on the way!
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                The delivery rider is heading to {order.zoneName}. They will call you when they reach the gate.
+              </p>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       {/* ── Failed / Cancelled State ──────────────────────────── */}
       {isFailure(order.status) ? (
         <Card className="border-chili/30 bg-chili-wash p-4">
@@ -190,8 +213,15 @@ function StatusScreen({
             <GateCodeDisplay code={order.gateCode} label="Share or match this OTP at pickup" />
           </div>
           <p className="text-xs leading-relaxed text-muted max-w-sm mx-auto">
-            The rider will call you upon arriving at <strong className="text-bone">{order.zoneName}</strong>.
-            Show or match this OTP to collect your food.
+            {isOut ? (
+              <>
+                The rider is on the way to <strong className="text-bone">{order.zoneName}</strong> and will call you upon arrival. Show or match this OTP to collect your food.
+              </>
+            ) : (
+              <>
+                Your food is being prepared. Keep this OTP ready for when the rider calls at <strong className="text-bone">{order.zoneName}</strong>.
+              </>
+            )}
           </p>
 
           {/* COD Notice */}
