@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { BrandLogo } from "@/components/shared/logo";
 import { SignInPicker, type SignInAccount } from "@/components/student/sign-in-picker";
 import { StudentAuthForm } from "@/components/student/student-auth-form";
 import { getSession, listDemoUsers } from "@/server/auth/session";
@@ -66,10 +67,13 @@ export default async function SignInPage({
       </Link>
 
       <div className="mt-6">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-bone">
-          Sign in to TREFOOD
+        <div className="mb-4">
+          <BrandLogo size="lg" href="/" />
+        </div>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-bone">
+          Sign in to your account
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
+        <p className="mt-1.5 text-sm leading-relaxed text-muted">
           Choose Customer to order food or Vendor to manage your restaurant orders.
         </p>
       </div>
