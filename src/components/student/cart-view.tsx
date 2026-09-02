@@ -167,12 +167,6 @@ export function CartView() {
         </h2>
 
         <MoneyRow label="Item total" paise={quote.subtotalPaise} />
-        <MoneyRow label="Packaging" paise={quote.packagingFeePaise} />
-        <MoneyRow
-          label="Delivery to your gate"
-          paise={quote.deliveryFeePaise}
-          hint="Flat fee, goes to the restaurant"
-        />
         {quote.discountPaise > 0 ? (
           <MoneyRow label="Discount" paise={quote.discountPaise} negative />
         ) : null}

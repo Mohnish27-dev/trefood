@@ -95,9 +95,6 @@ export default async function MenuPage({
           <span>
             Min order <Money paise={restaurant.minOrderPaise} />
           </span>
-          <span>
-            Packaging <Money paise={restaurant.packagingFeePaise} />
-          </span>
         </div>
 
         {outOfStockCount > 0 ? (
