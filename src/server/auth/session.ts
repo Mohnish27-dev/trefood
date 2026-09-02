@@ -221,10 +221,14 @@ async function resolveSupabaseUser(): Promise<User | null> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Demo account switching                                              */
+/* Stub-mode account switching                                         */
 /* ------------------------------------------------------------------ */
 
-/** The accounts the /demo panel can switch between. Stub provider only. */
+/**
+ * Every account, for the stub-auth sign-in picker (AUTH_PROVIDER=stub only).
+ * Stub mode has no credential check, so this is how a developer signs in as a
+ * vendor or admin locally. Real deployments run Supabase and never render it.
+ */
 export async function listDemoUsers(): Promise<User[]> {
   return (await db.users()).find({}).sort({ role: 1, name: 1 }).toArray();
 }

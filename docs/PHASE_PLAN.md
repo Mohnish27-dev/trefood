@@ -17,14 +17,14 @@
 | :-- | :-- | :-- |
 | **Visual direction** | **Midnight Campus** — dark-first ink ground, saffron accent, glowing gate code | Owns the 22:30–02:30 window. The vendor board is readable on a dim canteen tablet; the gate code is legible outdoors at 1 AM. A light theme is a later additive concern, not a parallel one. |
 | **Data layer** | **Real MongoDB + Supabase from Phase 0** | No throwaway mock repository. Screens are built against live documents, so nothing is re-plumbed later. Costs roughly two phases of backend before the first pixel. |
-| **Demo depth** | **Fully simulated end-to-end** | The FSM, pricing engine and curfew guard are the *real* server code from day one. Only Razorpay is stubbed. A vendor tap genuinely drives the student screen. |
+| **Demo depth** | **Fully simulated end-to-end** | The FSM, pricing engine and curfew guard are the *real* server code from day one. Only PhonePe is stubbed. A vendor tap genuinely drives the student screen. |
 | **Surfaces** | **All three consoles** | Student PWA, Vendor console, Admin console. Admin is functional-but-plainer; the student gate screen and the vendor board get the polish budget. |
 
 ### What "prototype" means here, precisely
 
 This is **not** a clickable mockup. It is the real application with exactly one seam
 left open: `PaymentProvider` has a `StubPaymentProvider` implementation that captures
-instantly instead of calling Razorpay. Phase 9 swaps in `RazorpayPaymentProvider`
+instantly instead of calling PhonePe. Phase 9 swaps in `PhonePePaymentProvider`
 behind the identical interface. Every other line — pricing, state machine, curfew,
 gate codes, audit log — is production code.
 
@@ -65,7 +65,7 @@ FOUNDATION            DOMAIN               DATA
         ┌────────────────────────────┼────────────────────────────┐
         ▼                            ▼                            ▼
 ┌──────────────┐            ┌──────────────┐            ┌───────────────┐
-│ P8 Real auth │            │ P9 Razorpay  │            │ P10 Settlement│
+│ P8 Real auth │            │ P9 PhonePe   │            │ P10 Settlement│
 │    Supabase  │            │    Webhooks  │            │     Cron      │
 └──────────────┘            └──────────────┘            └───────────────┘
                                      │
@@ -153,12 +153,13 @@ commission loses the vendor in the room.
 | :-- | :-- | :-- |
 | 2.1 | `server/db/collections.ts` — typed accessors for all 13 collections | [ARCH §7](SYSTEM_ARCHITECTURE_AND_FLOWS.md) |
 | 2.2 | `server/db/indexes.ts` — every index, created idempotently on boot | Unique on `orderNumber`, on `settlements(restaurantId, date)`, on `webhookEvents.eventId` |
-| 2.3 | `scripts/seed.ts` — NIT Patna, 5 gates with real curfews, 4 restaurants, ~40 menu items with add-on groups | Idempotent; re-runnable |
+| 2.3 | `scripts/seed.ts` — NIT Patna, 5 gates with real curfews, and the admin account | Idempotent; re-runnable. **Update:** the 4 demo restaurants and ~40 scripted menu items were removed — real vendors and menus now come from `/admin/vendors` and `/vendor/menu`. The seed also strips any legacy demo catalogue it finds. |
 | 2.4 | Zod validation schemas per boundary in `lib/validation/` | Nothing enters Mongo unvalidated |
 
-**Seed data doubles as the demo script.** The gates, curfew times and menus seeded here
-are what a restaurant owner sees in the pitch, so they must be plausible: Ganga Boys
-22:00, Kaveri Girls 21:30, Academic Block 19:00, Main Gate 24×7.
+**Seed data is the campus skeleton, not a demo script.** Only the gates and curfew
+times are seeded, and they must be plausible because a restaurant owner sees them in
+the pitch: Ganga Boys 22:00, Kaveri Girls 21:30, Academic Block 19:00, Main Gate 24×7.
+Restaurants and menus are real data now, added from the admin console.
 
 > [PRD Part 8.4](MASTER_PROMPT_PRD.md) asks for the *actual* gates and coordinates.
 > The seed ships with researched placeholders flagged `// VERIFY ON CAMPUS`. Walking
@@ -277,9 +278,12 @@ Leaflet is client-only — it touches `window` on import, so the map editor load
 
 ### 7.1 The simulation loop
 
-A `/demo` control panel drives a seeded order through the entire FSM, so the whole
-flow can be shown in ninety seconds without a kitchen. Vendor taps in one tab
-genuinely move the student screen in another, through the real state machine.
+A `/demo` control panel once drove a seeded order through the entire FSM so the flow
+could be shown in ninety seconds without a kitchen. **Removed.** Once real Supabase
+auth (P8) and admin-created vendors landed, the demo panel, its server actions and the
+scripted `demo-order` were deleted — the loop is now driven by real sign-ins and real
+orders. What survives is the part that was always production code: a vendor tap in one
+tab genuinely moves the student screen in another, through the real state machine.
 
 ### 7.2 Every edge case gets a designed screen
 
@@ -329,7 +333,7 @@ Sequenced after the prototype earns its buy-in. These map to
 | Phase | Deliverable | Gate |
 | :-- | :-- | :-- |
 | **8. Real auth** | Supabase Google OAuth behind `server/auth/providers.ts`, middleware role gating, phone capture at first checkout (D7) | A real Google account can order |
-| **9. Payments** | `RazorpayPaymentProvider` replaces the stub. Signed webhooks with `timingSafeEqual`, `webhookEvents` idempotency, reconciliation cron | Both payment paths complete in Razorpay test mode |
+| **9. Payments** | `PhonePePaymentProvider` replaces the stub. Signed webhooks with `timingSafeEqual`, `webhookEvents` idempotency, reconciliation cron | Both payment paths complete in PhonePe test mode |
 | **10. Settlement** | Nightly cron, `ledgerEntries`, vendor statements, CSV export, refund retry | A day of mixed orders settles to the rupee |
 | **11. Failure hardening** | Every automatic case in [FAILURES §2](FAILURES_AND_EDGE_CASES.md) with a passing test | Each F-case has a test |
 | **12. Launch readiness** | Sentry, PostHog funnels, rate limits, Web Push VAPID, load check | [PRD Part 8](MASTER_PROMPT_PRD.md) open items closed |

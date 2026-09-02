@@ -117,8 +117,8 @@ export async function rejectOrder(input: unknown): Promise<VendorActionState> {
   });
   if (!rejected.ok) return { status: "error", message: rejected.message };
 
-  // D1/D3 — vendor fault, so the student is made whole and the gateway fee
-  // that Razorpay keeps is booked against this restaurant's next payout.
+  // D1/D3 — vendor fault, so the student is made whole and the fee that the
+  // gateway keeps is booked against this restaurant's next payout.
   const refund = await issueRefund({
     order: rejected.order,
     reason: `Rejected by vendor: ${parsed.data.reason}`,

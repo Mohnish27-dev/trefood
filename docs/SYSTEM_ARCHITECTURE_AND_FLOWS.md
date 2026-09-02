@@ -34,7 +34,7 @@
           ┌───────────────────┘      │      │    └──────────────────┐
           │                          │      │                       │
    ┌──────▼───────┐  ┌───────────────▼──┐ ┌─▼──────────────┐ ┌──────▼───────┐
-   │ MONGODB      │  │ SUPABASE         │ │ RAZORPAY       │ │ SENTRY +     │
+   │ MONGODB      │  │ SUPABASE         │ │ PhonePe       │ │ SENTRY +     │
    │ ATLAS        │  │ · Auth (Google)  │ │ · Orders API   │ │ POSTHOG      │
    │ all domain   │  │ · Storage (imgs) │ │ · Refunds API  │ │              │
    │ data         │  │                  │ │ · Webhooks     │ │              │
@@ -75,7 +75,7 @@ Never trust a client-supplied `restaurantId`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PAYMENT_PENDING: checkout, Razorpay order created
+    [*] --> PAYMENT_PENDING: checkout, PhonePe order created
 
     PAYMENT_PENDING --> PAYMENT_FAILED: gateway declined / abandoned 15 min
     PAYMENT_PENDING --> PLACED: webhook payment.captured (full OR 10% token)
@@ -108,7 +108,7 @@ stateDiagram-v2
 
 | From → To | Actor | Guard |
 | :-- | :-- | :-- |
-| `PAYMENT_PENDING → PLACED` | Razorpay webhook **only** | Valid HMAC signature; amount matches `expectedOnlineAmount`; event not already processed |
+| `PAYMENT_PENDING → PLACED` | PhonePe webhook **only** | Valid HMAC signature; amount matches `expectedOnlineAmount`; event not already processed |
 | `PLACED → ACCEPTED` | Vendor | Order belongs to vendor; within ack window; prep minutes 5–60 |
 | `PLACED → EXPIRED_NO_ACK` | Cron | `now − placedAt > 240s` and still `PLACED` |
 | `READY → OUT_FOR_DELIVERY` | Vendor | Gate code generated and displayed |
@@ -159,7 +159,7 @@ stateDiagram-v2
    COD is hidden entirely if user.codBlocked === true.
 
 8. PAY
-   Razorpay Checkout opens. Order is created in Mongo as
+   PhonePe Checkout opens. Order is created in Mongo as
    PAYMENT_PENDING *before* the gateway opens, so an abandoned
    payment leaves a traceable record.
 
@@ -275,7 +275,7 @@ releases the order before they hold the food.
 | `coupons` | Codes, caps, per-student usage | `code` unique |
 | `ledgerEntries` | Every payout adjustment, append-only | `restaurantId + createdAt` |
 | `settlements` | One immutable row per vendor per day | `restaurantId + settlementDate` **unique** |
-| `webhookEvents` | Razorpay event IDs already processed | `eventId` unique |
+| `webhookEvents` | PhonePe event IDs already processed | `eventId` unique |
 | `auditLogs` | Append-only transition trail | `orderId + at`, `actorId + at` |
 | `pushSubscriptions` | Web Push endpoints per device | `userId` |
 | `disputes` | Student complaints, photos, admin ruling | `orderId` unique, `status` |
@@ -324,8 +324,8 @@ interface IOrder {
   payment: {
     method: "ONLINE_100" | "HYBRID_COD";
     status: "PENDING" | "CAPTURED" | "FAILED" | "REFUNDED" | "PARTIALLY_REFUNDED";
-    razorpayOrderId?: string;
-    razorpayPaymentId?: string;
+    providerOrderId?: string;
+    providerPaymentId?: string;
     onlinePaidPaise: number;
     cashDueOnDeliveryPaise: number;
     cashCollected?: boolean;           // COD only, set at handoff
@@ -342,7 +342,7 @@ interface IOrder {
   };
 
   cancellation?: { reason: string; by: "VENDOR" | "ADMIN" | "SYSTEM"; at: Date };
-  refund?: { razorpayRefundId: string; amountPaise: number; status: string; at: Date };
+  refund?: { providerRefundId: string; amountPaise: number; status: string; at: Date };
 }
 ```
 
@@ -406,7 +406,7 @@ Used in exactly two places, neither of which needs a paid tier:
 
 ## 10. Security Requirements
 
-1. **Webhook signature verification** on every Razorpay call, using
+1. **Webhook signature verification** on every PhonePe call, using
    `crypto.timingSafeEqual`. Reject unsigned requests with 400 before parsing.
 2. **Webhook idempotency**: insert `eventId` into `webhookEvents` with a unique index
    *before* acting. A duplicate key error means already processed — return 200 and stop.

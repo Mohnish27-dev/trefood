@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as db from "@/server/db/collections";
 import { getMongoClient } from "@/server/db/client";
@@ -8,12 +8,15 @@ import { revealGateCode } from "@/server/services/gate-code";
 import { ACTOR, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
 import { rupeesToPaise } from "@/lib/money";
 import type { User } from "@/types/user";
+import { setUpCanteenFixture, tearDownCanteenFixture } from "./canteen-fixture";
 
 /**
  * The full path from cart to DELIVERED, for both payment methods, against a
  * real database. PROJECT_STRUCTURE.md section 7.5.
  *
- * Requires the seed to have run (`npm run seed`).
+ * Needs the campus from the seed (`npm run seed`); the restaurant it orders
+ * from is created and removed by canteen-fixture, so the test no longer depends
+ * on any seeded vendor.
  */
 
 const R = rupeesToPaise;
@@ -50,11 +53,16 @@ async function cleanUp(orderId: string): Promise<void> {
 
 const createdOrderIds: string[] = [];
 
+beforeAll(async () => {
+  await setUpCanteenFixture();
+});
+
 afterAll(async () => {
   for (const id of createdOrderIds) await cleanUp(id);
   await (await db.users()).deleteMany({
     _id: { $in: ["test_student_fixture", "test_student_blocked_fixture"] },
   });
+  await tearDownCanteenFixture();
   await (await getMongoClient()).close();
 });
 

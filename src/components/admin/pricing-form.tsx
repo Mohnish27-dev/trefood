@@ -93,7 +93,7 @@ export function PricingForm({
             label="Convenience fee"
             bps={values.gatewayFeeBps}
             onChange={(bps) => set("gatewayFeeBps", bps)}
-            hint="Pass-through to Razorpay. Never refunded — verify against your plan"
+            hint="Pass-through to the payment gateway. Never refunded — verify against your plan"
           />
           <RupeeField
             id="codfee"

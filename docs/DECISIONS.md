@@ -4,7 +4,7 @@
 > If any other document in this repo contradicts this file, **this file wins** and
 > the other document is a bug. Update this file first, then propagate.
 >
-> Last updated: 2026-09-01
+> Last updated: 2026-09-02
 
 ---
 
@@ -12,13 +12,14 @@
 
 | # | Decision | Ruling | Consequence for the build |
 | :-- | :-- | :-- | :-- |
-| D1 | **Refund policy** | Refunds exist **only on vendor/platform fault**. Never on student change-of-mind. | Razorpay Refunds API **is** integrated. A `refunds` collection, refund webhooks, and reversal states are required. |
+| D1 | **Refund policy** | Refunds exist **only on vendor/platform fault**. Never on student change-of-mind. | The gateway Refunds API (PhonePe, per D8) **is** integrated. A `refunds` collection, refund webhooks, and reversal states are required. |
 | D2 | **Refundable amount** | Refund = amount paid **minus the non-refundable convenience fee (gateway charge + its GST)**. Student paid ₹3.18 → refund is ₹3.00. | `refundableAmount` is a stored field computed at order creation, never recomputed later. |
 | D3 | **Who eats the gateway fee on a refund** | The **vendor**, via a debit on their next payout. | Requires a `ledgerEntries` collection with negative adjustment entries. |
 | D4 | **Delivery handoff** | **Student confirms the packet code.** Vendor writes a 4-digit code on the packet; student matches it at the gate and taps *Confirm Received*. | **No rider app, no rider account, no rider device in v1.** OTP direction is inverted from the original spec. |
 | D5 | **Delivery fee** | Flat fee per campus, set by admin. Student pays it; it flows to the vendor. | Single `deliveryFee` field on campus settings. No distance tiers, no per-vendor override in v1. |
 | D6 | **Commission base** | 10% is charged on **food subtotal + packaging fee + delivery fee**. | `commissionBase` is an explicit stored field. Delivery fee is *not* commission-exempt. |
 | D7 | **Student login** | **Google sign-in now**, phone captured at first checkout. Phone OTP added later once TRAI DLT registration clears. | Auth layer must be written behind an interface so the OTP provider drops in without touching call sites. |
+| D8 | **Payment gateway** | **PhonePe merchant business account** — dynamic QR + UPI; money credits **directly to the business bank account**. Razorpay is superseded and its SDK removed. Udyam registration is done; PhonePe merchant onboarding is pending the live website URL. | The `PaymentProvider` seam is unchanged: `PAYMENT_PROVIDER=stub` keeps instant capture until the merchant credentials (Merchant ID, Merchant Secret, Webhook Salt) land in env. Then `PhonePeProvider` + a signed webhook route arrive behind the identical interface, sharing one idempotent code path with the reconciliation cron. Order fields are provider-agnostic (`providerOrderId`, `providerPaymentId`, `providerRefundId`). |
 
 ---
 
@@ -62,7 +63,7 @@ so none of them block the build — but review them before go-live.
 | :-- | :-- | :-- | :-- |
 | A1 | Coupons are funded by the **platform**, not the vendor. Vendor is paid on the pre-discount base. | `PLATFORM` | `campus.settings.couponFundedBy` |
 | A2 | Food GST is **0%** — most campus canteens are below the ₹20 L registration threshold. Registered vendors get 5%. | `0` | `restaurant.foodGstPct` |
-| A3 | Payment-gateway convenience rate passed to the student. **Verify against your actual Razorpay plan before launch.** | `2.36%` (2% fee + 18% GST on the fee) | `campus.settings.gatewayFeePct` |
+| A3 | Payment-gateway convenience rate passed to the student. **Verify against your actual PhonePe merchant plan before launch.** | `2.36%` (2% fee + 18% GST on the fee) | `campus.settings.gatewayFeePct` |
 | A4 | All student-facing amounts are **whole rupees**. Commission rounds **up**; vendor receivable is the remainder. Guarantees clean cash at a dark hostel gate. | `CEIL` | `campus.settings.roundingMode` |
 | A5 | Vendor must accept within **3 minutes**, auto-expires at **4 minutes**. | `180s / 240s` | `campus.settings.vendorAckSeconds` |
 | A6 | Student has **15 minutes** at `AT_GATE` before auto-close (prepaid only). | `900s` | `campus.settings.gateGraceSeconds` |

@@ -8,7 +8,7 @@ import { ceilPaiseOfBps, ceilRupeeOfBps, formatINR, rupeesToPaise } from "@/lib/
  * Everything a student or a vendor sees is whole rupees (A4), which is what
  * `ceilRupeeOfBps` enforces. This one exists for the single place a sub-rupee
  * amount is genuinely real: the ledger entry recording the gateway fee
- * Razorpay keeps on a refund. Rounding that to a rupee would over- or
+ * the provider keeps on a refund. Rounding that to a rupee would over- or
  * under-charge the vendor on every single refund.
  */
 

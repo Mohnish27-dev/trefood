@@ -39,7 +39,7 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     from: S.PAYMENT_PENDING,
     to: S.PLACED,
     actors: [A.WEBHOOK, A.SYSTEM],
-    why: "Razorpay captured the payment. Webhook or reconciliation cron only — never a client.",
+    why: "The gateway captured the payment. Webhook or reconciliation cron only — never a client.",
   },
   {
     from: S.PAYMENT_PENDING,

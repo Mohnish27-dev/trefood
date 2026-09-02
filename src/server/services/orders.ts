@@ -331,8 +331,8 @@ export async function createOrder(params: {
     payment: {
       method: params.method,
       status: PAYMENT_STATUS.PENDING,
-      razorpayOrderId: null,
-      razorpayPaymentId: null,
+      providerOrderId: null,
+      providerPaymentId: null,
       onlinePaidPaise: 0, // set on capture, never optimistically
       cashDueOnDeliveryPaise: preview.cashDueOnDeliveryPaise,
       cashCollected: null,

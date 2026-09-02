@@ -105,7 +105,7 @@ describe("illegal transitions", () => {
   });
 
   it("rejects a client promoting its own order to PLACED", () => {
-    // Only the Razorpay webhook or the reconciliation cron may do this.
+    // Only the gateway webhook or the reconciliation cron may do this.
     // A student who could fire it would get free food.
     const result = canTransition(subject(S.PAYMENT_PENDING), { to: S.PLACED, actor: A.STUDENT });
     expect(result.ok).toBe(false);

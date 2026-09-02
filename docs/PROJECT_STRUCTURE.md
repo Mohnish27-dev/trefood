@@ -75,7 +75,7 @@ trefood/
 │   │   ├── auth/callback/route.ts       # Supabase OAuth callback
 │   │   │
 │   │   └── api/
-│   │       ├── webhooks/razorpay/route.ts    # signature + idempotency
+│   │       ├── webhooks/phonepe/route.ts    # signature + idempotency
 │   │       ├── cron/
 │   │       │   ├── reconcile-payments/route.ts   # F1/F2, every minute
 │   │       │   ├── expire-unacked/route.ts       # F4, every minute
@@ -105,7 +105,7 @@ trefood/
 │   │   │   ├── pricing.ts               # ★ THE ONLY PLACE MONEY IS COMPUTED
 │   │   │   ├── orders.ts                # createOrder, guarded transitions
 │   │   │   ├── order-state.ts           # ★ the FSM: legal transitions + guards
-│   │   │   ├── payments.ts              # Razorpay orders, verify, refund
+│   │   │   ├── payments.ts              # PhonePe orders, verify, refund
 │   │   │   ├── settlement.ts            # nightly run, idempotent
 │   │   │   ├── ledger.ts                # append-only adjustments
 │   │   │   ├── curfew.ts                # zone availability by clock
@@ -120,7 +120,7 @@ trefood/
 │   │
 │   ├── lib/
 │   │   ├── money.ts                     # paise arithmetic, ceilToRupee, formatINR
-│   │   ├── razorpay.ts                  # SDK singleton
+│   │   ├── phonepe.ts                  # signed REST calls + webhook verification
 │   │   ├── supabase/                    # browser + server clients
 │   │   ├── validation/                  # Zod schemas per boundary
 │   │   └── constants.ts                 # enums, status lists, timers
@@ -156,7 +156,7 @@ trefood/
 | `server/services/pricing.ts` | Every rupee in the system originates here. Pure function: inputs in, integers out. No DB calls, no session, no side effects — so it is trivially testable and impossible to accidentally branch on user identity. |
 | `server/services/order-state.ts` | The FSM. Exposes one `transition(order, to, actor, reason)` that validates legality, checks the actor's right to fire it, writes the audit entry, and persists — atomically. Nothing else may write `order.status`. |
 | `server/db/client.ts` | Serverless opens a connection pool per function instance. Without a cached `globalThis` client you will exhaust the Atlas free tier during the first exam-week surge. |
-| `app/api/webhooks/razorpay/route.ts` | Verify signature → insert event ID (unique index) → act. In that order. Reversing it means a replayed webhook double-processes an order. |
+| `app/api/webhooks/phonepe/route.ts` | Verify signature → insert event ID (unique index) → act. In that order. Reversing it means a replayed webhook double-processes an order. |
 | `lib/money.ts` | Paise-only arithmetic. If `Number.prototype.toFixed` appears anywhere in a money path, that is a bug. |
 
 ---
@@ -185,10 +185,10 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=          # server only, never NEXT_PUBLIC
 
-# ── Razorpay ──────────────────────────────────────────
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=                # server only
-RAZORPAY_WEBHOOK_SECRET=            # server only
+# ── PhonePe ──────────────────────────────────────────
+PHONEPE_MERCHANT_ID=
+PHONEPE_MERCHANT_SECRET=                # server only
+PHONEPE_WEBHOOK_SECRET=            # server only
 
 # ── Web Push (generate with: npx web-push generate-vapid-keys)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=
@@ -208,7 +208,7 @@ NEXT_PUBLIC_APP_URL=https://trefood.in
 ```
 
 Validate these with Zod at boot in `lib/env.ts` and fail loudly. A missing
-`RAZORPAY_WEBHOOK_SECRET` discovered at 1 AM during a payment surge is not the moment
+`PHONEPE_WEBHOOK_SECRET` discovered at 1 AM during a payment surge is not the moment
 to learn it was never set.
 
 **Anything without the `NEXT_PUBLIC_` prefix must never be imported into a Client
@@ -243,7 +243,7 @@ Component.** Enforce it with `import "server-only"` in every module that reads a
 
 ## 7. Testing Priorities
 
-Test in this order. The first two are non-negotiable before touching Razorpay.
+Test in this order. The first two are non-negotiable before touching PhonePe.
 
 1. **`pricing.test.ts`** — both worked examples from
    [MONEY_AND_SETTLEMENT.md](MONEY_AND_SETTLEMENT.md) to the exact rupee, plus all
@@ -267,7 +267,7 @@ Test in this order. The first two are non-negotiable before touching Razorpay.
 npx create-next-app@latest trefood --typescript --tailwind --app --src-dir
 cd trefood
 npx shadcn@latest init
-npm i mongodb @supabase/supabase-js @supabase/ssr razorpay zod web-push \
+npm i mongodb @supabase/supabase-js @supabase/ssr zod web-push \
       leaflet react-leaflet date-fns
 npm i -D @types/leaflet @types/web-push vitest
 

@@ -136,18 +136,18 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
 
   await (await db.orders()).updateOne(
     { _id: order._id },
-    { $set: { "payment.razorpayOrderId": intent.providerOrderId } },
+    { $set: { "payment.providerOrderId": intent.providerOrderId } },
   );
 
-  // The stub captures inline. Razorpay will not: there, the webhook (or the
-  // reconciliation cron) fires this same transition, guarded by the same FSM.
+  // The stub captures inline. PhonePe will not: there, the webhook (or the
+  // reconciliation sweep) fires this same transition, guarded by the same FSM.
   if (intent.autoCapturedPaymentId !== null) {
     await (await db.orders()).updateOne(
       { _id: order._id },
       {
         $set: {
           "payment.status": PAYMENT_STATUS.CAPTURED,
-          "payment.razorpayPaymentId": intent.autoCapturedPaymentId,
+          "payment.providerPaymentId": intent.autoCapturedPaymentId,
           "payment.onlinePaidPaise": expectedOnlinePaise,
         },
       },

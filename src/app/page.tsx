@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/states";
-import { clientEnv } from "@/lib/env";
 import { listCampuses } from "@/server/services/catalog";
 
 export const dynamic = "force-dynamic";
@@ -123,12 +122,6 @@ export default async function LandingPage() {
           <Link href="/signin" className="text-muted hover:text-saffron transition-colors">
             Sign in →
           </Link>
-          {/* The ninety-second demo. Dev only — the route 404s in production. */}
-          {clientEnv.NEXT_PUBLIC_DEMO_MODE ? (
-            <Link href="/demo" className="text-saffron hover:underline">
-              Simulation panel →
-            </Link>
-          ) : null}
         </div>
         <p className="mt-6 text-xs leading-relaxed text-faint">
           TREFOOD · Hyperlocal campus delivery. Handover at the gate, always.

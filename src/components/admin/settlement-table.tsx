@@ -54,7 +54,7 @@ export interface CampusOption {
  *
  * v1 payout is an admin with a banking app and a CSV — deliberately, per
  * MONEY section 6. At ten to twenty vendors, five minutes a night genuinely
- * beats a RazorpayX activation, and this screen is that five minutes: run the
+ * beats a payout-API activation, and this screen is that five minutes: run the
  * day, download the file, pay, come back and stamp each row with its UTR.
  *
  * Re-running a day is safe and expected. The unique index on

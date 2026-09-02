@@ -174,7 +174,7 @@ export const DEFAULTS = {
 
   /** D6 — 10% commission, as basis points. */
   commissionBps: 1_000,
-  /** A3 — 2% Razorpay fee + 18% GST on the fee. VERIFY AGAINST YOUR PLAN BEFORE LAUNCH. */
+  /** A3 — 2% gateway fee + 18% GST on the fee. VERIFY AGAINST YOUR PLAN BEFORE LAUNCH. */
   gatewayFeeBps: 236,
   /** A7 — COD handling fee lever. Ships at zero; turn it on only if COD share climbs. */
   codHandlingFeePaise: 0,
