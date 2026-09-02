@@ -218,3 +218,86 @@ export async function signOut(): Promise<void> {
 
   redirect("/signin");
 }
+
+/* ------------------------------------------------------------------ */
+/* Quick Unlock (4-Digit PIN & Biometrics) Server Sync                */
+/* ------------------------------------------------------------------ */
+
+const quickUnlockSchema = z.object({
+  pinHash: z.string().min(1).optional(),
+  pinSalt: z.string().min(1).optional(),
+  biometricEnabled: z.boolean().optional(),
+  credentialId: z.string().nullable().optional(),
+  requireOnOpen: z.boolean().optional(),
+});
+
+export async function saveQuickUnlockSettings(input: unknown): Promise<AuthActionState> {
+  const parsed = quickUnlockSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Invalid quick unlock configuration." };
+  }
+
+  const session = await (await import("@/server/auth/session")).getSession();
+  if (!session) {
+    return { status: "error", message: "You need to be signed in to save quick unlock settings." };
+  }
+
+  const usersCol = await db.users();
+  const existing = await usersCol.findOne({ _id: session.user._id });
+  if (!existing) {
+    return { status: "error", message: "User account not found." };
+  }
+
+  const currentSettings = existing.quickUnlock ?? {};
+  const updatedSettings = {
+    pinHash: parsed.data.pinHash ?? currentSettings.pinHash ?? null,
+    pinSalt: parsed.data.pinSalt ?? currentSettings.pinSalt ?? null,
+    biometricEnabled: parsed.data.biometricEnabled ?? currentSettings.biometricEnabled ?? false,
+    credentialId:
+      parsed.data.credentialId !== undefined
+        ? parsed.data.credentialId
+        : (currentSettings.credentialId ?? null),
+    requireOnOpen: parsed.data.requireOnOpen ?? currentSettings.requireOnOpen ?? true,
+    updatedAt: new Date(),
+  };
+
+  await usersCol.updateOne(
+    { _id: session.user._id },
+    { $set: { quickUnlock: updatedSettings, updatedAt: new Date() } },
+  );
+
+  return { status: "success", message: "Quick unlock settings saved successfully." };
+}
+
+export async function resetQuickUnlockSettings(): Promise<AuthActionState> {
+  const session = await (await import("@/server/auth/session")).getSession();
+  if (!session) {
+    return { status: "error", message: "You need to be signed in to reset quick unlock." };
+  }
+
+  const usersCol = await db.users();
+  await usersCol.updateOne(
+    { _id: session.user._id },
+    { $set: { quickUnlock: null, updatedAt: new Date() } },
+  );
+
+  return { status: "success", message: "Quick unlock has been reset." };
+}
+
+export async function getQuickUnlockStatus(): Promise<{
+  configured: boolean;
+  biometricEnabled: boolean;
+  requireOnOpen: boolean;
+}> {
+  const session = await (await import("@/server/auth/session")).getSession();
+  if (!session || !session.user.quickUnlock?.pinHash) {
+    return { configured: false, biometricEnabled: false, requireOnOpen: false };
+  }
+
+  return {
+    configured: Boolean(session.user.quickUnlock.pinHash),
+    biometricEnabled: Boolean(session.user.quickUnlock.biometricEnabled),
+    requireOnOpen: session.user.quickUnlock.requireOnOpen ?? true,
+  };
+}
+

@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
 import { PushPermissionCard } from "@/components/student/push-permission-card";
+import { AccountQuickUnlock } from "@/components/student/account-quick-unlock";
 import { getSession } from "@/server/auth/session";
 import { signOut } from "@/server/actions/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
@@ -174,6 +175,9 @@ export default async function AccountPage() {
             </div>
           ) : null}
         </Card>
+
+        {/* ── Quick Unlock & Biometrics ─────────────────────────── */}
+        <AccountQuickUnlock user={user} />
 
         {/* ── F17 — push is never the only channel ─────────────── */}
         <PushPermissionCard />
