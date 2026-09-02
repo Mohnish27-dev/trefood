@@ -156,8 +156,8 @@ export async function previewCart(params: {
 
   const result = computePricing({
     lines: pricingLines,
-    packagingFeePaise: restaurant.packagingFeePaise,
-    deliveryFeePaise: campus.settings.deliveryFeePaise,
+    packagingFeePaise: 0,
+    deliveryFeePaise: 0,
     discountPaise: params.discountPaise ?? 0,
     commissionBps,
     gatewayFeeBps: campus.settings.gatewayFeeBps,
