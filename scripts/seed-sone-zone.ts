@@ -3,7 +3,7 @@
  *
  * Seeds:
  * 1. The restaurant profile for Sone Zone Cafe
- * 2. The vendor account login (sonezone.nitp@trefood.in / SoneZone@2026)
+ * 2. The vendor account login (sonezoneworks@gmail.com / sonezonecafe@1995)
  * 3. All 21 categories and 140+ menu items transcribed from official menu photos.
  *
  * Usage:
@@ -21,7 +21,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_sone_zone_nitp";
 const VENDOR_USER_ID = "usr_sone_zone_vendor";
-const VENDOR_EMAIL = "sonezone.nitp@trefood.in";
+const VENDOR_EMAIL = "sonezoneworks@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -1825,7 +1825,7 @@ export async function seedSoneZone(): Promise<void> {
     name: "Sone Zone Manager",
     email: VENDOR_EMAIL,
     phone: "9876543212",
-    passwordHash: hashPassword("SoneZone@2026"),
+    passwordHash: hashPassword("sonezonecafe@1995"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -1877,7 +1877,7 @@ export async function seedSoneZone(): Promise<void> {
   console.log("\n=== Sone Zone Cafe Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / SoneZone@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / sonezonecafe@1995`);
 }
 
 async function main() {

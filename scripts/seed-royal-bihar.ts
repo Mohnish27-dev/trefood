@@ -3,7 +3,7 @@
  *
  * Seeds:
  * 1. The restaurant profile for The Royal Bihar Restaurant
- * 2. The vendor account login (royalbihar.nitp@trefood.in / RoyalBihar@2026)
+ * 2. The vendor account login (royalbiharrestaurant@gmail.com / royalbihartraefood123)
  * 3. All 15 categories and 120+ menu items transcribed from official menu photos.
  *
  * Usage:
@@ -21,7 +21,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_royal_bihar_nitp";
 const VENDOR_USER_ID = "usr_royal_bihar_vendor";
-const VENDOR_EMAIL = "royalbihar.nitp@trefood.in";
+const VENDOR_EMAIL = "royalbiharrestaurant@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -1875,7 +1875,7 @@ export async function seedRoyalBihar(): Promise<void> {
     name: "Royal Bihar Manager",
     email: VENDOR_EMAIL,
     phone: "9876543211",
-    passwordHash: hashPassword("RoyalBihar@2026"),
+    passwordHash: hashPassword("royalbihartraefood123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -1927,7 +1927,7 @@ export async function seedRoyalBihar(): Promise<void> {
   console.log("\n=== The Royal Bihar Restaurant Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / RoyalBihar@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / royalbihartraefood123`);
 }
 
 async function main() {
