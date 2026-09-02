@@ -11,6 +11,7 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -66,10 +67,16 @@ export function AdminShell({
   return (
     <div className="min-h-dvh lg:flex">
       <aside className="border-b border-line bg-surface/40 lg:min-h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2 px-4 py-4">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-saffron text-sm font-bold text-ink">
-            T
-          </span>
+        <div className="flex items-center gap-2.5 px-4 py-4">
+          <div className="relative size-8 shrink-0 overflow-hidden rounded-lg border border-saffron/30">
+            <Image
+              src="/icons/icon-192.png"
+              alt="TREFOOD Logo"
+              width={32}
+              height={32}
+              className="size-full object-cover"
+            />
+          </div>
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold leading-none text-bone">TREFOOD</p>
             <p className="mt-1 text-[11px] leading-none text-faint">Admin console</p>

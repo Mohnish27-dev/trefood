@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, WifiOff, X } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -170,9 +171,15 @@ export function InstallPrompt() {
       )}
     >
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-saffron text-lg font-bold text-ink">
-          T
-        </span>
+        <div className="relative size-11 shrink-0 overflow-hidden rounded-xl border border-saffron/30 shadow-md">
+          <Image
+            src="/icons/icon-192.png"
+            alt="TREFOOD"
+            width={44}
+            height={44}
+            className="size-full object-cover"
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-semibold text-bone">Add TREFOOD to your phone</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">

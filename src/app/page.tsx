@@ -2,6 +2,7 @@ import { ArrowRight, Clock, MapPin, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
+import { BrandLogo } from "@/components/shared/logo";
 import { EmptyState } from "@/components/shared/states";
 import { listCampuses } from "@/server/services/catalog";
 
@@ -25,7 +26,17 @@ export default async function LandingPage() {
   return (
     <main className="min-h-dvh">
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <section className="px-5 pt-16 pb-10 max-w-2xl mx-auto sm:pt-24">
+      <section className="px-5 pt-12 pb-10 max-w-2xl mx-auto sm:pt-20">
+        <div className="mb-6 flex items-center justify-between">
+          <BrandLogo size="md" />
+          <Link
+            href="/signin"
+            className="rounded-xl border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted hover:border-saffron/40 hover:text-bone"
+          >
+            Sign in
+          </Link>
+        </div>
+
         <span className="inline-flex items-center gap-2 rounded-full border border-saffron/30 bg-saffron-wash px-3 py-1 text-xs font-medium text-saffron">
           <span className="size-1.5 rounded-full bg-saffron animate-pulse-ring" />
           Live at NIT Patna
