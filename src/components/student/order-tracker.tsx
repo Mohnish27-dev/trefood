@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CountdownText } from "@/components/shared/countdown";
 import { GateCodeDisplay } from "@/components/shared/gate-code-display";
 import { Money, MoneyRow } from "@/components/shared/money";
 import { StatusBadge, StatusStepper, statusBlurb } from "@/components/shared/status";
@@ -75,32 +74,44 @@ export function OrderTracker({ initial }: { initial: OrderPollResponse }) {
           expiresAt={order.stockout.expiresAt}
           onResolved={refresh}
         />
-      ) : order.status === ORDER_STATUS.AT_GATE && order.gateCode !== null ? (
-        /* ── The gate screen takes over completely at AT_GATE ──── */
-        <GateScreen order={order} />
       ) : (
-        <StatusScreen order={order} />
+        <StatusScreen order={order} onConfirmed={refresh} />
       )}
     </>
   );
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   The gate screen — D4's payoff
+   Unified Live Status & Confirmation Screen
    ══════════════════════════════════════════════════════════════════════ */
 
-function GateScreen({ order }: { order: OrderPollResponse }) {
+function StatusScreen({
+  order,
+  onConfirmed,
+}: {
+  order: OrderPollResponse;
+  onConfirmed: () => void;
+}) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const confirm = async (): Promise<void> => {
-    if (order.gateCode === null) return;
+  const isAccepted =
+    order.status === ORDER_STATUS.ACCEPTED ||
+    order.status === ORDER_STATUS.PREPARING ||
+    order.status === ORDER_STATUS.READY ||
+    order.status === ORDER_STATUS.OUT_FOR_DELIVERY ||
+    order.status === ORDER_STATUS.AT_GATE;
+
+  const isDelivered =
+    order.status === ORDER_STATUS.DELIVERED ||
+    order.status === ORDER_STATUS.DELIVERED_TO_SECURITY ||
+    order.status === ORDER_STATUS.SETTLED;
+
+  const handleConfirmPickup = async (): Promise<void> => {
+    if (!order.gateCode) return;
     setSubmitting(true);
     setError(null);
 
-    // The code is already on screen; the student is matching it against the
-    // packet by eye. Sending it back proves the screen was actually looked at,
-    // and the server verifies it in constant time regardless.
     const result = await confirmReceived({
       orderId: order.orderId,
       enteredCode: order.gateCode,
@@ -109,122 +120,28 @@ function GateScreen({ order }: { order: OrderPollResponse }) {
     if (result.status === "error") {
       setError(result.message);
       setSubmitting(false);
+    } else {
+      onConfirmed();
     }
-    // On success the page revalidates and the poll picks up DELIVERED.
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-9rem)] flex-col bg-ink-deep px-5 py-8">
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-mint">
-          Your order is at
-        </p>
-        <h1 className="mt-2 max-w-xs font-display text-2xl font-bold leading-tight text-bone">
-          {order.zoneName}
-        </h1>
-
-        <div className="my-10">
-          <GateCodeDisplay code={order.gateCode ?? ""} label="Match this on the packet" />
-        </div>
-
-        {order.gateDeadline ? (
-          <p className="text-sm text-muted">
-            <CountdownText
-              deadline={new Date(order.gateDeadline)}
-              className="font-semibold text-bone"
-              expiredLabel="0:00"
-            />{" "}
-            left to collect
-          </p>
-        ) : null}
-
-        {/* COD — the exact cash, in the largest type on the screen after the
-            code itself. Counting change at a dark gate is how disputes start. */}
-        {order.method === PAYMENT_METHOD.HYBRID_COD && order.cashDueOnDeliveryPaise > 0 ? (
-          <Card className="mt-8 w-full max-w-sm border-amber/40 bg-amber-wash">
-            <div className="flex items-center gap-3 p-4 text-left">
-              <Wallet className="size-5 shrink-0 text-amber" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-amber">
-                  Hand over in cash
-                </p>
-                <p className="font-display text-2xl font-bold text-bone">
-                  <Money paise={order.cashDueOnDeliveryPaise} />
-                </p>
-              </div>
-            </div>
-          </Card>
-        ) : null}
-      </div>
-
-      {error ? (
-        <div
-          role="alert"
-          className="mb-4 flex gap-2.5 rounded-xl border border-chili/30 bg-chili-wash px-3.5 py-3 text-sm text-chili"
-        >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      <div className="space-y-3">
-        <Button
-          block
-          size="hero"
-          variant="success"
-          disabled={submitting}
-          onClick={() => void confirm()}
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="animate-spin" />
-              Closing your order…
-            </>
-          ) : (
-            <>
-              <Check />
-              Confirm Received
-            </>
-          )}
-        </Button>
-
-        <Button asChild block variant="outline" size="lg">
-          <a href={`tel:${order.restaurantPhone}`}>
-            <Phone />
-            Call {order.restaurantName}
-          </a>
-        </Button>
-      </div>
-
-      <p className="mt-4 text-center text-xs leading-relaxed text-faint">
-        Only tap Confirm Received once the food is in your hands. Confirming early releases
-        the order.
-      </p>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   Everything before, and after, the gate
-   ══════════════════════════════════════════════════════════════════════ */
-
-function StatusScreen({ order }: { order: OrderPollResponse }) {
-  return (
-    <div className="p-4">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="p-4 space-y-4">
+      {/* ── Header ────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-xs tracking-wider text-faint">{order.orderNumber}</p>
           <h1 className="mt-1 font-display text-xl font-semibold text-bone">
             {order.restaurantName}
           </h1>
+          <p className="mt-0.5 text-xs text-muted">Delivery to: {order.zoneName}</p>
         </div>
         <StatusBadge status={order.status} />
       </div>
 
-      {/* F11 — the gate moved while the order was in flight. Loud, because a
-          student walking to the wrong gate at 1 AM is the whole failure. */}
+      {/* ── Collection point changed alert ────────────────────── */}
       {order.reroutedFrom !== null && !order.isTerminal ? (
-        <Card className="mb-4 border-amber/40 bg-amber-wash p-4">
+        <Card className="border-amber/40 bg-amber-wash p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-amber">
             <AlertTriangle className="size-4" />
             Your collection point changed
@@ -236,27 +153,9 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
         </Card>
       ) : null}
 
-      {/* ── The honest ETA ────────────────────────────────────── */}
-      {order.estimatedArrival && !order.isTerminal ? (
-        <Card className="mb-4 border-saffron/25 bg-saffron-wash p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-saffron">
-            Expected at your gate
-          </p>
-          <p className="mt-1 font-display text-2xl font-bold text-bone">
-            {new Date(order.estimatedArrival).toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {order.zoneName} · we will alert you the moment it arrives
-          </p>
-        </Card>
-      ) : null}
-
-      {/* F4/F5 — a failed order explains itself and says where the money went. */}
+      {/* ── Failed / Cancelled State ──────────────────────────── */}
       {isFailure(order.status) ? (
-        <Card className="mb-4 border-chili/30 bg-chili-wash p-4">
+        <Card className="border-chili/30 bg-chili-wash p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-chili">
             <AlertTriangle className="size-4" />
             {order.status === ORDER_STATUS.EXPIRED_NO_ACK
@@ -281,16 +180,101 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
         </Card>
       ) : null}
 
-      {/* ── Stepper — what replaces a map ─────────────────────── */}
-      <Card className="mb-4 p-4">
+      {/* ── Accepted / In-Progress: Prominent OTP Display ─────── */}
+      {isAccepted && order.gateCode ? (
+        <Card className="border-mint/30 bg-mint-wash/10 p-5 text-center shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mint">
+            Your Pickup OTP
+          </p>
+          <div className="my-3">
+            <GateCodeDisplay code={order.gateCode} label="Share or match this OTP at pickup" />
+          </div>
+          <p className="text-xs leading-relaxed text-muted max-w-sm mx-auto">
+            The rider will call you upon arriving at <strong className="text-bone">{order.zoneName}</strong>.
+            Show or match this OTP to collect your food.
+          </p>
+
+          {/* COD Notice */}
+          {order.method === PAYMENT_METHOD.HYBRID_COD && order.cashDueOnDeliveryPaise > 0 ? (
+            <div className="mt-4 rounded-xl border border-amber/30 bg-amber-wash/30 p-3 text-left flex items-center gap-3">
+              <Wallet className="size-5 shrink-0 text-amber" />
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-amber">
+                  Cash to Pay at Gate
+                </p>
+                <p className="font-display text-lg font-bold text-bone">
+                  <Money paise={order.cashDueOnDeliveryPaise} />
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Confirm Received Action */}
+          {error ? (
+            <div
+              role="alert"
+              className="mt-4 flex gap-2.5 rounded-xl border border-chili/30 bg-chili-wash px-3.5 py-2.5 text-xs text-chili text-left"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <div className="mt-5 space-y-2">
+            <Button
+              block
+              size="hero"
+              variant="success"
+              disabled={submitting}
+              onClick={() => void handleConfirmPickup()}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Confirming pickup…
+                </>
+              ) : (
+                <>
+                  <Check />
+                  Confirm Order Picked Up
+                </>
+              )}
+            </Button>
+            <p className="text-[11px] text-faint">
+              Tap once you have received your food packet from the rider.
+            </p>
+          </div>
+        </Card>
+      ) : null}
+
+      {/* ── ETA Card (when available and active) ────────────────── */}
+      {order.estimatedArrival && !order.isTerminal ? (
+        <Card className="border-saffron/25 bg-saffron-wash p-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-saffron">
+            Expected at your gate
+          </p>
+          <p className="mt-1 font-display text-2xl font-bold text-bone">
+            {new Date(order.estimatedArrival).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {order.zoneName} · the rider will call you when they reach
+          </p>
+        </Card>
+      ) : null}
+
+      {/* ── Stepper ───────────────────────────────────────────── */}
+      <Card className="p-4">
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-faint">
           Live Order Status
         </h2>
         <StatusStepper status={order.status} />
       </Card>
 
-      {/* ── Items ─────────────────────────────────────────────── */}
-      <Card className="mb-4">
+      {/* ── Order Items ───────────────────────────────────────── */}
+      <Card>
         <div className="divide-y divide-line">
           {order.items.map((item, i) => (
             <div key={`${item.name}-${i}`} className="flex items-start gap-3 p-3.5">
@@ -320,6 +304,7 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
         </div>
       </Card>
 
+      {/* ── Call Restaurant Button ────────────────────────────── */}
       <Button asChild block variant="outline" size="lg">
         <a href={`tel:${order.restaurantPhone}`}>
           <Phone />
@@ -327,8 +312,7 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
         </a>
       </Button>
 
-      {/* The 30-minute window. Shown only while it is genuinely open, so the
-          option never appears as a dead end. */}
+      {/* ── Delivered / Dispute Window ────────────────────────── */}
       {order.canDispute ? (
         <Button asChild block variant="ghost" size="lg" className="mt-2">
           <Link href={`/orders/${order.orderId}/dispute`}>
@@ -339,16 +323,14 @@ function StatusScreen({ order }: { order: OrderPollResponse }) {
       ) : null}
 
       {order.status === ORDER_STATUS.DISPUTED ? (
-        <p className="mt-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-center text-xs leading-relaxed text-muted">
-          A person is reviewing your report and the photos you sent. You will see the outcome
-          here.
+        <p className="rounded-xl border border-line bg-surface px-3.5 py-3 text-center text-xs leading-relaxed text-muted">
+          A person is reviewing your report and the photos you sent. You will see the outcome here.
         </p>
       ) : null}
 
-      {!order.isTerminal ? (
-        <p className="mt-4 text-center text-xs leading-relaxed text-faint">
-          Your food is delivered by the restaurant&apos;s own staff, so there is no live map.
-          You will be alerted the moment it reaches your gate.
+      {isDelivered ? (
+        <p className="text-center text-xs text-mint font-medium">
+          Order completed. Thank you!
         </p>
       ) : null}
     </div>

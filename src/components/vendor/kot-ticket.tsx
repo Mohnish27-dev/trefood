@@ -141,15 +141,15 @@ export function KotTicket({ order }: { order: KotOrder }) {
 
           {order.gateCode ? (
             <div className="text-center">
-              <p className="text-[11px] font-bold uppercase">Write this on the packet</p>
+              <p className="text-[11px] font-bold uppercase">Pickup OTP / Packet Code</p>
               <p className="text-4xl font-bold tracking-[0.3em]">{order.gateCode}</p>
               <p className="mt-1 text-[11px]">
-                The student matches these four digits before confirming.
+                Write on packet. Student matches OTP to confirm pickup.
               </p>
             </div>
           ) : (
             <p className="text-center text-[11px]">
-              Gate code appears here once the order is marked packed.
+              Pickup OTP appears here once the order is accepted.
             </p>
           )}
 

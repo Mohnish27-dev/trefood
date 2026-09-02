@@ -41,22 +41,30 @@ export function generateGateCode(): string {
 /**
  * May the STUDENT see the code yet?
  *
- * Only at AT_GATE. Until the vendor taps "Rider at gate" the confirm button
- * does not exist, so a student cannot pre-confirm from their room. And
- * confirming early only hurts the student — it releases the order before they
- * are holding the food.
+ * Visible from ACCEPTED onward so the student has their pickup OTP ready
+ * when the rider calls from the gate.
  */
 export function isGateCodeVisibleToStudent(status: OrderStatus): boolean {
-  return status === ORDER_STATUS.AT_GATE;
+  return (
+    status === ORDER_STATUS.ACCEPTED ||
+    status === ORDER_STATUS.PREPARING ||
+    status === ORDER_STATUS.READY ||
+    status === ORDER_STATUS.OUT_FOR_DELIVERY ||
+    status === ORDER_STATUS.AT_GATE ||
+    status === ORDER_STATUS.DELIVERED ||
+    status === ORDER_STATUS.DELIVERED_TO_SECURITY
+  );
 }
 
 /**
  * May the VENDOR see it?
  *
- * From READY onward, which is the moment the staff writes it on the packet.
+ * From ACCEPTED onward so kitchen staff can write it on the packet / KOT ticket immediately.
  */
 export function isGateCodeVisibleToVendor(status: OrderStatus): boolean {
   return (
+    status === ORDER_STATUS.ACCEPTED ||
+    status === ORDER_STATUS.PREPARING ||
     status === ORDER_STATUS.READY ||
     status === ORDER_STATUS.OUT_FOR_DELIVERY ||
     status === ORDER_STATUS.AT_GATE ||

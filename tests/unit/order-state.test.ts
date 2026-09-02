@@ -47,20 +47,16 @@ describe("every rule in the table is firable by its declared actors", () => {
    ══════════════════════════════════════════════════════════════════════ */
 
 describe("the transitions the spec forbids explicitly", () => {
-  it("a student cannot confirm before AT_GATE", () => {
-    // This is D4's entire anti-fraud property: until the vendor taps
-    // "Rider at gate", the confirm button does not exist, so a student
-    // cannot close an order from their room.
-    for (const from of [S.PLACED, S.ACCEPTED, S.PREPARING, S.READY, S.OUT_FOR_DELIVERY] as const) {
+  it("a student cannot confirm before ACCEPTED", () => {
+    expect(() =>
+      assertTransition(subject(S.PLACED), { to: S.DELIVERED, actor: A.STUDENT }),
+    ).toThrow(TransitionError);
+
+    for (const from of [S.ACCEPTED, S.PREPARING, S.READY, S.OUT_FOR_DELIVERY, S.AT_GATE] as const) {
       expect(() =>
         assertTransition(subject(from), { to: S.DELIVERED, actor: A.STUDENT }),
-      ).toThrow(TransitionError);
+      ).not.toThrow();
     }
-
-    // ...and can at AT_GATE.
-    expect(() =>
-      assertTransition(subject(S.AT_GATE), { to: S.DELIVERED, actor: A.STUDENT }),
-    ).not.toThrow();
   });
 
   it("a vendor cannot cancel after ACCEPTED", () => {

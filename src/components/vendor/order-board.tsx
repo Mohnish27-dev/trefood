@@ -28,27 +28,21 @@ import type { VendorBoard } from "@/server/services/vendor";
 const COLUMNS: { key: string; label: string; statuses: readonly OrderStatus[]; hint: string }[] = [
   {
     key: "new",
-    label: "New",
+    label: "New Orders",
     statuses: [ORDER_STATUS.PLACED],
     hint: "Accept or reject within 4 minutes",
   },
   {
-    key: "cooking",
-    label: "Cooking",
-    statuses: [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING],
-    hint: "Tap 86 on any line that runs out",
-  },
-  {
-    key: "packed",
-    label: "Packed",
-    statuses: [ORDER_STATUS.READY],
-    hint: "Write the code on the packet",
-  },
-  {
-    key: "out",
-    label: "Out for delivery",
-    statuses: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.AT_GATE],
-    hint: "Tap 'Rider at gate' the moment they arrive",
+    key: "active",
+    label: "Active & In Progress",
+    statuses: [
+      ORDER_STATUS.ACCEPTED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.READY,
+      ORDER_STATUS.OUT_FOR_DELIVERY,
+      ORDER_STATUS.AT_GATE,
+    ],
+    hint: "Write OTP on packet. Rider calls student upon arrival at gate.",
   },
 ];
 
@@ -105,21 +99,21 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
           description="New orders land here with a chime and a 4-minute countdown. Leave this screen open and the tablet awake."
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2">
           {COLUMNS.map((column) => {
             const orders = board.orders.filter((o) => column.statuses.includes(o.status));
 
             return (
               <section key={column.key} className="min-w-0">
                 <div className="mb-2.5 flex items-center gap-2">
-                  <h2 className="font-display text-sm font-semibold text-bone">{column.label}</h2>
+                  <h2 className="font-display text-base font-semibold text-bone">{column.label}</h2>
                   <Badge tone={column.key === "new" && orders.length > 0 ? "danger" : "neutral"}>
                     {orders.length}
                   </Badge>
                 </div>
 
                 {orders.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-line px-3 py-6 text-center text-xs leading-relaxed text-faint">
+                  <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-xs leading-relaxed text-faint">
                     {column.hint}
                   </p>
                 ) : (

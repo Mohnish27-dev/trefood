@@ -5,14 +5,10 @@ import {
   Ban,
   Banknote,
   Check,
-  ChefHat,
   Loader2,
   MapPin,
   Phone,
   Printer,
-  Shield,
-  TriangleAlert,
-  Truck,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -39,14 +35,10 @@ import { VegMark } from "@/components/shared/veg-mark";
 import {
   acceptOrder,
   confirmCashCollected,
-  dispatchRider,
-  leaveWithSecurity,
-  markReady,
   raiseStockoutForOrder,
   rejectOrder,
   reportNoShow,
   rerouteToFallbackGate,
-  riderAtGate,
 } from "@/server/actions/vendor";
 import { DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -197,19 +189,37 @@ export function VendorOrderCard({
             <AcceptDialog orderId={order.orderId} busy={busy} onDone={onChanged} />
             <RejectDialog orderId={order.orderId} busy={busy} onDone={onChanged} />
           </div>
-        ) : null}
+        ) : (
+          <div className="space-y-3">
+            {/* Pickup OTP for the packet */}
+            {order.gateCode ? (
+              <GateCodeDisplay
+                code={order.gateCode}
+                size="board"
+                label="Write this OTP on packet"
+              />
+            ) : null}
 
-        {order.status === ORDER_STATUS.ACCEPTED || order.status === ORDER_STATUS.PREPARING ? (
-          <div className="space-y-2">
-            <Button
-              block
-              size="lg"
-              disabled={busy}
-              onClick={() => void run(() => markReady({ orderId: order.orderId }))}
-            >
-              {busy ? <Loader2 className="animate-spin" /> : <ChefHat />}
-              Mark packed
-            </Button>
+            {/* Call student & KOT */}
+            <div className="flex items-center justify-between gap-2">
+              <a
+                href={`tel:${order.customerPhone}`}
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface-raised px-3 text-xs font-semibold text-bone hover:border-mint/40 hover:text-mint"
+              >
+                <Phone className="size-3.5 text-mint" />
+                Call Student
+              </a>
+
+              <Link
+                href={`/vendor/orders/${order.orderId}/kot`}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line px-3 text-xs text-muted hover:text-bone"
+              >
+                <Printer className="size-3.5" />
+                KOT
+              </Link>
+            </div>
+
+            {/* Prep countdown info */}
             <div className="flex items-center justify-between gap-2 text-xs text-muted">
               <span>
                 {order.prepMinutes} min promised
@@ -227,98 +237,24 @@ export function VendorOrderCard({
                   </>
                 ) : null}
               </span>
-              <Link
-                href={`/vendor/orders/${order.orderId}/kot`}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 hover:text-bone"
-              >
-                <Printer className="size-3.5" />
-                KOT
-              </Link>
-            </div>
-          </div>
-        ) : null}
 
-        {order.status === ORDER_STATUS.READY && order.gateCode ? (
-          <div className="space-y-3">
-            {/* The write-it-down moment. The student cannot see this yet. */}
-            <GateCodeDisplay
-              code={order.gateCode}
-              size="board"
-              label="Write this on the packet"
-            />
-            <Button
-              block
-              size="lg"
-              disabled={busy}
-              onClick={() => void run(() => dispatchRider({ orderId: order.orderId }))}
-            >
-              {busy ? <Loader2 className="animate-spin" /> : <Truck />}
-              Rider has left
-            </Button>
-          </div>
-        ) : null}
-
-        {order.status === ORDER_STATUS.OUT_FOR_DELIVERY ? (
-          <div className="space-y-2">
-            {/* F18 — the tap they forgot. */}
-            {order.needsAtGateNag ? (
-              <p className="flex items-start gap-2 rounded-lg border border-amber/30 bg-amber-wash px-2.5 py-2 text-xs leading-relaxed text-amber">
-                <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-                <span>
-                  This has been out for a while. The student cannot see their code until you
-                  tap below.
-                </span>
-              </p>
-            ) : null}
-
-            <Button
-              block
-              size="hero"
-              disabled={busy}
-              onClick={() => void run(() => riderAtGate({ orderId: order.orderId }))}
-            >
-              {busy ? <Loader2 className="animate-spin" /> : <MapPin />}
-              Rider at gate
-            </Button>
-
-            <div className="flex items-center justify-between gap-2">
-              <a
-                href={`tel:${order.customerPhone}`}
-                className="inline-flex min-h-11 items-center gap-1.5 px-2 text-xs text-muted hover:text-bone"
-              >
-                <Phone className="size-3.5" />
-                Call student
-              </a>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void run(() => rerouteToFallbackGate({ orderId: order.orderId }))}
-                className="min-h-11 px-2 text-xs text-muted hover:text-amber"
+                className="text-[11px] text-muted hover:text-amber"
               >
-                Gate is shut — reroute
+                Reroute gate
               </button>
             </div>
-          </div>
-        ) : null}
 
-        {order.status === ORDER_STATUS.AT_GATE ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface-raised px-3 py-2.5">
-              <span className="text-xs text-muted">Waiting on the student</span>
-              {order.gateDeadline ? (
-                <CountdownText
-                  deadline={new Date(order.gateDeadline)}
-                  className="text-sm font-semibold text-bone"
-                  expiredLabel="grace over"
-                />
-              ) : null}
-            </div>
-
+            {/* COD or security actions if needed */}
             {isCod ? (
-              <>
+              <div className="space-y-2 pt-1 border-t border-line/60">
                 <Button
                   block
                   variant="success"
+                  size="sm"
                   disabled={busy}
                   onClick={() => void run(() => confirmCashCollected({ orderId: order.orderId }))}
                 >
@@ -348,23 +284,13 @@ export function VendorOrderCard({
                     }
                   >
                     <Ban />
-                    Refused to pay
+                    Refused
                   </Button>
                 </div>
-              </>
-            ) : (
-              <Button
-                block
-                variant="secondary"
-                disabled={busy}
-                onClick={() => void run(() => leaveWithSecurity({ orderId: order.orderId }))}
-              >
-                <Shield />
-                Left with gate security
-              </Button>
-            )}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        )}
       </div>
     </Card>
   );

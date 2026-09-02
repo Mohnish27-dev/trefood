@@ -204,10 +204,18 @@ export async function confirmReceived(input: unknown): Promise<ConfirmState> {
   const order = await getOrderForCustomer(parsed.data.orderId, user._id);
   if (!order) return { status: "error", message: "That order is not yours." };
 
-  if (order.status !== ORDER_STATUS.AT_GATE) {
+  const confirmableStatuses = [
+    ORDER_STATUS.ACCEPTED,
+    ORDER_STATUS.PREPARING,
+    ORDER_STATUS.READY,
+    ORDER_STATUS.OUT_FOR_DELIVERY,
+    ORDER_STATUS.AT_GATE,
+  ];
+
+  if (!confirmableStatuses.includes(order.status as (typeof confirmableStatuses)[number])) {
     return {
       status: "error",
-      message: "This order is not at your gate yet. The restaurant will let you know.",
+      message: "This order cannot be confirmed right now.",
     };
   }
 

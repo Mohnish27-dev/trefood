@@ -1,4 +1,4 @@
-import { Check, Clock, Flame, MapPin, PackageCheck, ShoppingBag } from "lucide-react";
+import { Check, Clock, Flame, ShoppingBag } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,27 +42,27 @@ const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
   [ORDER_STATUS.ACCEPTED]: {
     label: "Accepted",
     tone: "accent",
-    studentBlurb: "The restaurant accepted your order and started cooking.",
+    studentBlurb: "The restaurant accepted your order. The rider will call when at your gate.",
   },
   [ORDER_STATUS.PREPARING]: {
-    label: "Cooking",
+    label: "Preparing",
     tone: "accent",
-    studentBlurb: "Your food is being prepared.",
+    studentBlurb: "Your food is being prepared and will be brought to your gate.",
   },
   [ORDER_STATUS.READY]: {
     label: "Packed",
     tone: "accent",
-    studentBlurb: "Packed and waiting for the rider to leave.",
+    studentBlurb: "Packed and on the way to your gate.",
   },
   [ORDER_STATUS.OUT_FOR_DELIVERY]: {
     label: "On the way",
     tone: "accent",
-    studentBlurb: "On its way to your gate.",
+    studentBlurb: "On the way to your gate. The rider will call you upon arrival.",
   },
   [ORDER_STATUS.AT_GATE]: {
     label: "At your gate",
     tone: "success",
-    studentBlurb: "Your order has arrived. Head to the gate with the code below.",
+    studentBlurb: "Your order has arrived at the gate. Match your OTP to collect.",
   },
   [ORDER_STATUS.DELIVERED]: {
     label: "Delivered",
@@ -139,10 +139,7 @@ export function StatusBadge({ status, className }: { status: OrderStatus; classN
 
 const STEP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   placed: ShoppingBag,
-  accepted: Check,
-  cooking: Flame,
-  dispatched: PackageCheck,
-  at_gate: MapPin,
+  accepted: Flame,
   delivered: Check,
 };
 

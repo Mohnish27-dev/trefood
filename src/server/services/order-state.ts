@@ -69,7 +69,7 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     why: "Four minutes of silence. Auto-refund (F4). Cron only.",
   },
 
-  /* ── Kitchen ──────────────────────────────────────────────────── */
+  /* ── Kitchen & Gate handoff ───────────────────────────────────── */
   {
     from: S.ACCEPTED,
     to: S.PREPARING,
@@ -77,13 +77,29 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     why: "Automatic on accept.",
   },
   {
+    from: S.ACCEPTED,
+    to: S.DELIVERED,
+    actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
+    why: "Student confirmed order pickup after accept.",
+  },
+  {
+    from: S.PREPARING,
+    to: S.DELIVERED,
+    actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
+    why: "Student confirmed order pickup.",
+  },
+  {
     from: S.PREPARING,
     to: S.READY,
     actors: [A.VENDOR],
     why: "Packed. The gate code is revealed to the vendor to write on the packet.",
   },
-
-  /* ── The gate handoff (D4) ────────────────────────────────────── */
+  {
+    from: S.READY,
+    to: S.DELIVERED,
+    actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
+    why: "Student confirmed order pickup.",
+  },
   {
     from: S.READY,
     to: S.OUT_FOR_DELIVERY,
@@ -92,33 +108,51 @@ export const TRANSITIONS: readonly TransitionRule[] = [
   },
   {
     from: S.OUT_FOR_DELIVERY,
+    to: S.DELIVERED,
+    actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
+    why: "Student confirmed order pickup.",
+  },
+  {
+    from: S.OUT_FOR_DELIVERY,
     to: S.AT_GATE,
     actors: [A.VENDOR],
-    why: "Rider at gate. The most operationally critical tap in the product: it pushes the student and starts the grace timer.",
+    why: "Rider at gate.",
   },
   {
     from: S.AT_GATE,
     to: S.DELIVERED,
-    actors: [A.STUDENT],
+    actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
     why: "Student matched the packet code and tapped Confirm Received.",
   },
   {
-    from: S.AT_GATE,
-    to: S.DELIVERED,
-    actors: [A.VENDOR],
-    why: "COD fallback: vendor confirms the rider returned with the correct cash.",
+    from: S.ACCEPTED,
+    to: S.DELIVERED_TO_SECURITY,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "Prepaid, packet left with security.",
   },
   {
-    from: S.AT_GATE,
-    to: S.DELIVERED,
-    actors: [A.SYSTEM],
-    why: "F10 — student took the food and never tapped. Auto-close at 15 minutes.",
+    from: S.PREPARING,
+    to: S.DELIVERED_TO_SECURITY,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "Prepaid, packet left with security.",
   },
   {
     from: S.AT_GATE,
     to: S.DELIVERED_TO_SECURITY,
     actors: [A.SYSTEM, A.VENDOR],
     why: "F7 — prepaid, 15-minute grace elapsed. Packet left with the hostel guard.",
+  },
+  {
+    from: S.ACCEPTED,
+    to: S.NO_SHOW,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "COD student absent or refused the cash.",
+  },
+  {
+    from: S.PREPARING,
+    to: S.NO_SHOW,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "COD student absent or refused the cash.",
   },
   {
     from: S.AT_GATE,
