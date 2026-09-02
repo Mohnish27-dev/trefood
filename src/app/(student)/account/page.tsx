@@ -182,9 +182,9 @@ export default async function AccountPage() {
         <Card className="divide-y divide-line">
           <Row href="/orders" label="Your orders" hint={`${orders.length} in total`} />
           <Row
-            href={campus ? `/c/${campus.slug}` : "/"}
+            href={campus ? `/c/${campus.slug}` : "/c/nit-patna"}
             label="Browse restaurants"
-            hint={campus?.name ?? "Pick a campus"}
+            hint={campus?.name ?? "NIT Patna"}
           />
         </Card>
 

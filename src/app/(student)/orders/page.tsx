@@ -31,7 +31,7 @@ export default async function OrdersPage() {
           description="Once you order, it shows up here — including anything still on its way to your gate."
           action={
             <Button asChild variant="secondary">
-              <Link href="/">Browse restaurants</Link>
+              <Link href="/c/nit-patna">Browse restaurants</Link>
             </Button>
           }
         />

@@ -17,9 +17,10 @@ import { cn } from "@/lib/utils";
 export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
   const pathname = usePathname();
   const { itemCount } = useCart();
+  const activeCampus = campusSlug ?? "nit-patna";
 
   const items = [
-    { href: campusSlug ? `/c/${campusSlug}` : "/", label: "Browse", icon: Home },
+    { href: `/c/${activeCampus}`, label: "Browse", icon: Home },
     { href: "/cart", label: "Cart", icon: ShoppingCart, badge: itemCount },
     { href: "/orders", label: "Orders", icon: ClipboardList },
     { href: "/account", label: "Account", icon: User },

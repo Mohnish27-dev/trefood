@@ -155,7 +155,7 @@ export async function signUpWithEmail(input: unknown): Promise<AuthActionState> 
   // If email confirmation is disabled or session is created immediately:
   if (data.session) {
     const target = parsed.data.redirectTo;
-    redirect(target && /^\/(?!\/)/.test(target) ? target : "/");
+    redirect(target && /^\/(?!\/)/.test(target) ? target : "/c/nit-patna");
   }
 
   return {
@@ -177,7 +177,7 @@ export async function sendMagicLink(input: unknown): Promise<AuthActionState> {
 
   const supabase = await createSupabaseServerClient();
   const target = parsed.data.redirectTo;
-  const redirectUrl = target && /^\/(?!\/)/.test(target) ? target : "/";
+  const redirectUrl = target && /^\/(?!\/)/.test(target) ? target : "/c/nit-patna";
 
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
@@ -199,7 +199,7 @@ export async function sendMagicLink(input: unknown): Promise<AuthActionState> {
 function landingFor(role: string): string {
   if (role === "VENDOR_OWNER" || role === "VENDOR_STAFF") return "/vendor/orders";
   if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin/orders";
-  return "/";
+  return "/c/nit-patna";
 }
 
 export async function signOut(): Promise<void> {
