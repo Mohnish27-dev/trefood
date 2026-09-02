@@ -59,6 +59,17 @@ export function CheckoutView({
   const [phone, setPhone] = useState(initialPhone);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  if (isSuccess) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+        <Loader2 className="size-8 animate-spin text-saffron" />
+        <h3 className="mt-4 font-display text-base font-semibold text-bone">Order placed!</h3>
+        <p className="mt-1.5 text-sm text-muted">Taking you to your order status…</p>
+      </div>
+    );
+  }
 
   if (lines.length === 0 || status === "empty") {
     return (
@@ -125,6 +136,7 @@ export function CheckoutView({
     });
 
     if (result.status === "success") {
+      setIsSuccess(true);
       clear();
       router.push(`/orders/${result.orderId}`);
       return;
