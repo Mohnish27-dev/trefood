@@ -3,7 +3,7 @@
  *
  * Seeds:
  * 1. The restaurant profile for Wrapchik Pizza
- * 2. The vendor account login (wrapchik.nitp@trefood.in / Wrapchik@2026)
+ * 2. The vendor account login (wrapchick10@gmail.com / Wrapchicktraefood@123)
  * 3. All categories and menu items (Veg & Non-Veg Pizzas with 5 sizes, Burgers, Wraps,
  *    Sides, Crispy Chicken, Waffles, Coolers, Buckets) transcribed from official menu photos.
  *
@@ -22,7 +22,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_wrapchik_nitp";
 const VENDOR_USER_ID = "usr_wrapchik_vendor";
-const VENDOR_EMAIL = "wrapchik.nitp@trefood.in";
+const VENDOR_EMAIL = "wrapchick10@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -1307,7 +1307,7 @@ export async function seedWrapchik(): Promise<void> {
     name: "Wrapchik Manager",
     email: VENDOR_EMAIL,
     phone: "9876543210",
-    passwordHash: hashPassword("Wrapchik@2026"),
+    passwordHash: hashPassword("Wrapchicktraefood@123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -1359,7 +1359,7 @@ export async function seedWrapchik(): Promise<void> {
   console.log("\n=== Wrapchik Pizza Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Wrapchik@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Wrapchicktraefood@123`);
 }
 
 async function main() {

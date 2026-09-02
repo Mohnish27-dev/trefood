@@ -3,7 +3,7 @@
  *
  * Seeds:
  * 1. The restaurant profile for Kolkata Biryani Fast-Food Pizza House
- * 2. The vendor account login (kolkatabiryani.nitp@trefood.in / KolkataBiryani@2026)
+ * 2. The vendor account login (kolkatabiryani273@gmail.com / kolkatatraefood123)
  * 3. All categories and 40 menu items transcribed from official menu photo
  *
  * Usage:
@@ -21,7 +21,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_kolkata_biryani_nitp";
 const VENDOR_USER_ID = "usr_kolkata_biryani_vendor";
-const VENDOR_EMAIL = "kolkatabiryani.nitp@trefood.in";
+const VENDOR_EMAIL = "kolkatabiryani273@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -567,7 +567,7 @@ export async function seedKolkataBiryani(): Promise<void> {
     name: "Kolkata Biryani Manager",
     email: VENDOR_EMAIL,
     phone: "6203875025",
-    passwordHash: hashPassword("KolkataBiryani@2026"),
+    passwordHash: hashPassword("kolkatatraefood123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -619,7 +619,7 @@ export async function seedKolkataBiryani(): Promise<void> {
   console.log("\n=== Kolkata Biryani Fast-Food Pizza House Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / KolkataBiryani@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / kolkatatraefood123`);
 }
 
 async function main() {
