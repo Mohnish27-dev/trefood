@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, Ticket, Trash2, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, Percent, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -165,6 +165,12 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
           <KycDialog vendor={vendor} />
           <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
           <PayoutDialog vendor={vendor} />
+          <Button asChild size="sm" variant="secondary" className="gap-1.5">
+            <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
+              <UtensilsCrossed className="size-3.5 text-saffron" />
+              Manage Menu
+            </Link>
+          </Button>
           <Button asChild size="sm" variant="secondary" className="gap-1.5">
             <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
               <Ticket className="size-3.5 text-saffron" />
