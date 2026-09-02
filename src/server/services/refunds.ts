@@ -19,8 +19,8 @@ import type { Order } from "@/types/order";
  *
  *   D2  The refundable amount is `onlinePaid - convenienceFee`, computed ONCE
  *       at order creation and frozen on the document. It is never recomputed
- *       here. The gateway charge and its GST are never returned, because
- *       Razorpay does not return them to us either.
+ *       here. The gateway charge and its GST are never returned, because the
+ *       gateway does not return them to us either.
  *
  *   D3  The gateway fee lost on that refund is booked as a NEGATIVE ledger
  *       entry against the vendor and deducted from their next payout. That is
@@ -53,7 +53,7 @@ export async function issueRefund(params: {
   const ceiling = order.pricing.refundableAmountPaise - alreadyRefunded;
   const amountPaise = Math.max(0, Math.min(requested, ceiling));
 
-  if (amountPaise === 0 || order.payment.razorpayPaymentId === null) {
+  if (amountPaise === 0 || order.payment.providerPaymentId === null) {
     return { ok: true, amountPaise: 0, refundId: null, skipped: true };
   }
 
@@ -65,7 +65,7 @@ export async function issueRefund(params: {
 
   try {
     const result = await paymentProvider().refund({
-      paymentId: order.payment.razorpayPaymentId,
+      paymentId: order.payment.providerPaymentId,
       amountPaise,
       reason: params.reason,
     });
@@ -80,7 +80,7 @@ export async function issueRefund(params: {
       {
         $set: {
           refund: {
-            razorpayRefundId: null,
+            providerRefundId: null,
             amountPaise,
             status: "FAILED",
             attempts: (order.refund?.attempts ?? 0) + 1,
@@ -101,7 +101,7 @@ export async function issueRefund(params: {
     {
       $set: {
         refund: {
-          razorpayRefundId: refundId,
+          providerRefundId: refundId,
           amountPaise: totalRefunded,
           status,
           attempts: (order.refund?.attempts ?? 0) + 1,

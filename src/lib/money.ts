@@ -133,7 +133,7 @@ export function ceilRupeeOfBps(basePaise: Paise, bps: Bps): Paise {
  * Deliberately separate from `ceilRupeeOfBps`. Everything a student or a
  * vendor sees is whole rupees (A4), and that function enforces it. This one
  * exists for the single place sub-rupee amounts are genuinely real: the
- * ledger, where D3 books the gateway fee Razorpay kept on a refund. That fee
+ * ledger, where D3 books the gateway fee the provider kept on a refund. That fee
  * is not a rupee figure and rounding it to one would either overcharge or
  * undercharge the vendor every single time.
  */

@@ -3,7 +3,7 @@ import type { Paise } from "@/lib/money";
 /**
  * Append-only payout adjustments. MONEY_AND_SETTLEMENT.md section 5.
  *
- * D3 — on every vendor-fault refund, Razorpay keeps its original fee. That
+ * D3 — on every vendor-fault refund, the gateway keeps its original fee. That
  * loss is booked as a NEGATIVE entry against the vendor and deducted from
  * their next payout. Vendors see the line on their statement, which makes
  * rejections carry a real cost: a vendor who rejects freely pays for it.
@@ -62,6 +62,9 @@ export interface Coupon {
   _id: string;
   code: string;
   campusId: string | null;
+  /** Nullable: when set, coupon is scoped to that specific restaurant only. */
+  restaurantId?: string | null;
+  description?: string | null;
   /** A1 — platform-funded by default, so the vendor is paid on the pre-discount base. */
   fundedBy: "PLATFORM" | "VENDOR";
   type: "FLAT" | "PERCENT";

@@ -35,16 +35,11 @@ export default async function AdminVendorsPage() {
     };
   });
 
-  return (
-    <>
-      <header className="mb-5">
-        <h1 className="font-display text-xl font-semibold text-bone">Vendors & KYC</h1>
-        <p className="mt-1 text-sm text-muted">
-          A restaurant is invisible to students until its KYC is approved.
-        </p>
-      </header>
+  const campusOptions = campuses.map((campus) => ({
+    id: campus._id,
+    name: campus.name,
+    city: campus.city,
+  }));
 
-      <AdminVendorTable vendors={rows} />
-    </>
-  );
+  return <AdminVendorTable vendors={rows} campuses={campusOptions} />;
 }

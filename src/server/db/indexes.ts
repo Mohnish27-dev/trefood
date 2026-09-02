@@ -77,6 +77,7 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
   [COLLECTION.coupons]: [
     { key: { code: 1 }, unique: true, name: "code_unique" },
     { key: { campusId: 1, isActive: 1 }, name: "campus_active" },
+    { key: { restaurantId: 1, isActive: 1 }, sparse: true, name: "restaurant_active" },
   ],
 
   [COLLECTION.ledgerEntries]: [

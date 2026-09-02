@@ -33,14 +33,18 @@ interface FetchResult {
 }
 
 export function useCartQuote(): CartQuoteResult {
-  const { lines, restaurantId } = useCart();
+  const { lines, restaurantId, couponCode } = useCart();
   const [result, setResult] = useState<FetchResult>({ key: "", data: null, error: false });
   const [nonce, setNonce] = useState(0);
 
   // Everything that can change the price, in one stable string.
   const signature = useMemo(
-    () => JSON.stringify(lines.map((l) => [l.itemId, l.quantity, [...l.addOnOptionIds].sort()])),
-    [lines],
+    () =>
+      JSON.stringify([
+        lines.map((l) => [l.itemId, l.quantity, [...l.addOnOptionIds].sort()]),
+        couponCode ?? null,
+      ]),
+    [lines, couponCode],
   );
 
   const isEmpty = restaurantId === null || lines.length === 0;
@@ -62,6 +66,7 @@ export function useCartQuote(): CartQuoteResult {
               quantity: l.quantity,
               addOnOptionIds: l.addOnOptionIds,
             })),
+            ...(couponCode ? { couponCode } : {}),
           }),
           signal: controller.signal,
         });
@@ -76,7 +81,7 @@ export function useCartQuote(): CartQuoteResult {
     })();
 
     return () => controller.abort();
-  }, [isEmpty, restaurantId, signature, nonce, lines]);
+  }, [isEmpty, restaurantId, signature, nonce, lines, couponCode]);
 
   const status: QuoteStatus = isEmpty
     ? "empty"

@@ -14,7 +14,7 @@
 
 | # | Failure | Detection | Automatic response | Refund? |
 | :-- | :-- | :-- | :-- | :-- |
-| F1 | Razorpay webhook never arrives | Reconciliation cron | Poll Razorpay API, promote to `PLACED` | — |
+| F1 | PhonePe webhook never arrives | Reconciliation cron | Poll PhonePe order-status API, promote to `PLACED` | — |
 | F2 | Student pays, app crashes before redirect | Same as F1 | Order appears in history on next open | — |
 | F3 | Payment arrives **after** auto-expiry | Webhook hits an `EXPIRED_NO_ACK` order | Immediate auto-refund, student notified | ✅ Full |
 | F4 | Vendor never accepts (power/net/asleep) | 4-min timer | `EXPIRED_NO_ACK` + auto-refund | ✅ Full |
@@ -29,7 +29,7 @@
 | F13 | Price changed between cart and pay | Server recompute | Checkout blocked, cart refreshed with new price | — |
 | F14 | Item 86-ed between cart and pay | Server recompute | Item removed, student re-confirms total | — |
 | F15 | Settlement cron runs twice | Unique index | Second run is a no-op | — |
-| F16 | Refund API call fails at Razorpay | Refund retry cron | 3 retries with backoff, then admin alert | ⚠️ Manual |
+| F16 | Refund API call fails at PhonePe | Refund retry cron | 3 retries with backoff, then admin alert | ⚠️ Manual |
 | F17 | Push notification blocked/undelivered | No ack | Fallback: in-app banner + vendor phones student | — |
 | F18 | Vendor forgets to tap "Rider at gate" | 2× prep-time elapsed | Nag banner on vendor board + admin flag | — |
 
@@ -37,7 +37,7 @@
 
 ## 2. Automatic Failures — Detailed Protocols
 
-### F1/F2 — The Razorpay webhook that never came
+### F1/F2 — The PhonePe webhook that never came
 
 The most common real-world payment failure is not a declined card. It is a student on
 hostel Wi-Fi whose UPI app succeeds while their browser tab dies.
@@ -49,9 +49,10 @@ RECONCILIATION CRON — every 60 seconds
                AND createdAt > now - 24 hours
 
   for each:
-     GET https://api.razorpay.com/v1/orders/{razorpayOrderId}/payments
+     POST https://api.phonepe.com/apis/pg/v1/status/by-order/{providerOrderId}
+     (headers signed SHA256(payload + "/v1/status/by-order/…") with PHONEPE_MERCHANT_SECRET)
 
-     if any payment.status == "captured":
+     if transaction state == "COMPLETED":
          verify amount == expectedOnlineAmount     <- never skip this
          promote to PLACED, notify vendor, notify student
      else if createdAt < now - 15 minutes:
@@ -113,7 +114,7 @@ STUDENT: gets a push and a blocking screen with three choices,
 
 **Price difference rule:** if the substitute is cheaper, refund the difference. If it
 is more expensive, **the vendor absorbs it** — never charge a second time. Collecting
-incremental payment mid-order needs a whole second Razorpay flow for ₹20, and it will
+incremental payment mid-order needs a whole second PhonePe flow for ₹20, and it will
 fail more often than it works.
 
 ### F7/F8/F10 — The student who does not show up
@@ -212,7 +213,7 @@ that a person is faster, cheaper, and fairer than the logic required to automate
 | Student claims non-delivery after auto-close | Order timeline, gate code, vendor statement | Refund + vendor debit, or reject the claim |
 | Vendor disputes a chargeback | Full audit trail | Reverse the ledger debit |
 | Repeated no-shows | Strike history | Block COD, or suspend account |
-| Refund stuck after 3 retries (F16) | Razorpay error payload | Manual refund in the Razorpay dashboard, then reconcile |
+| Refund stuck after 3 retries (F16) | PhonePe error payload | Manual refund in the PhonePe merchant dashboard, then reconcile |
 
 **Dispute window: 30 minutes after delivery.** Long enough to open the bag, short
 enough that the food is still evidence. Photo upload is mandatory — no photo, no

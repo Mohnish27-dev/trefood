@@ -15,7 +15,7 @@
 3. **Commission rounds UP. Vendor receivable is the remainder.** This guarantees
    `commission + vendorReceivable === commissionBase` exactly, forever, with no drift.
 4. **The convenience fee is never refundable** and never belongs to TREFOOD — it is
-   pass-through to Razorpay.
+   pass-through to PhonePe.
 5. **A price is frozen at order creation.** Menu price changes never retroactively
    alter a placed order. The order document stores its own full price snapshot.
 
@@ -65,7 +65,7 @@ Order: ₹200 food + ₹10 packaging + ₹15 delivery, no coupon
 | **Student pays online** | **₹231** | |
 | **Refundable if vendor fails** | **₹225** | grandTotal − ₹6 |
 
-**Cash movement:** Razorpay collects ₹231, deducts about ₹5.31 in fees, TREFOOD nets
+**Cash movement:** PhonePe collects ₹231, deducts about ₹5.31 in fees, TREFOOD nets
 about ₹225.69. At midnight settlement TREFOOD pays the vendor ₹202 and retains ₹23.
 
 ---
@@ -76,7 +76,7 @@ Same order, commission base ₹225.
 
 | Line | Amount | Notes |
 | :-- | --: | :-- |
-| **Online token (= the full commission)** | **₹23** | paid to Razorpay upfront |
+| **Online token (= the full commission)** | **₹23** | paid to PhonePe upfront |
 | Convenience fee (2.36% of ₹23, ceil) | ₹1 | non-refundable |
 | **Student pays online at checkout** | **₹24** | |
 | **Cash handed to rider at the gate** | **₹202** | = vendor receivable, exactly |
@@ -129,7 +129,7 @@ refundAmount = order.refundableAmount     <- grandTotal MINUS the convenience fe
 
 **Worked micro-example (your own case):**
 Order ₹3.00, student paid ₹3.18, **refund is ₹3.00, not ₹3.18.**
-The ₹0.18 was the Razorpay cut plus GST on that cut. Razorpay does not return it on
+The ₹0.18 was the PhonePe cut plus GST on that cut. PhonePe does not return it on
 a standard refund, so TREFOOD cannot return it either.
 
 For a COD order the refundable amount is only the token actually paid online
@@ -138,7 +138,7 @@ to refund because no cash was ever collected.
 
 ### Who absorbs the gateway loss (D3)
 
-On every vendor-fault refund, Razorpay keeps its original fee. That loss is booked as
+On every vendor-fault refund, PhonePe keeps its original fee. That loss is booked as
 a **negative ledger entry against the vendor**, deducted from their next payout:
 
 ```json
@@ -188,7 +188,7 @@ For each restaurant, for the settlement day:
 **v1: manual bank transfer.** Admin downloads a CSV, pays via their own banking app,
 marks the batch `PAID` with a UTR reference. Zero extra integration.
 
-> RazorpayX Payouts needs a separate current account and activation. **Do not block
+> payout-API Payouts needs a separate current account and activation. **Do not block
 > launch on it.** With 10–20 vendors, a five-minute nightly CSV is genuinely faster
 > than the integration would be. Automate at 50+ vendors.
 

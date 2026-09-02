@@ -10,6 +10,8 @@ export interface User {
   email: string;
   /** Captured at first checkout (D7), then reused forever. */
   phone: string | null;
+  /** Hashed password for direct vendor login (scrypt salt:hash). */
+  passwordHash?: string | null;
 
   campusId: string | null;
   /** Vendor staff and owners only. Never trust a client-supplied value. */

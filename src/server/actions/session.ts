@@ -9,6 +9,11 @@ import { serverEnv } from "@/lib/env";
 import { COOKIE_MAX_AGE_SECONDS } from "@/lib/cookies";
 import { DEMO_USER_COOKIE } from "@/server/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createVendorSessionToken,
+  VENDOR_SESSION_COOKIE,
+  verifyPassword,
+} from "@/server/auth/passwords";
 
 export type AuthActionState =
   | { status: "idle" }
@@ -59,18 +64,63 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid credentials" };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
+  const email = parsed.data.email.toLowerCase().trim();
+  const password = parsed.data.password;
+  const target = parsed.data.redirectTo;
 
-  if (error) {
-    return { status: "error", message: error.message };
+  // 1. Check for direct vendor login in MongoDB
+  const usersCollection = await db.users();
+  const dbUser = await usersCollection.findOne({ email });
+
+  if (dbUser && dbUser.passwordHash) {
+    const isValid = verifyPassword(password, dbUser.passwordHash);
+    if (!isValid) {
+      return { status: "error", message: "Invalid email or password." };
+    }
+
+    const token = createVendorSessionToken(dbUser._id);
+    const store = await cookies();
+    store.set(VENDOR_SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: COOKIE_MAX_AGE_SECONDS,
+      secure: serverEnv().NODE_ENV === "production",
+    });
+
+    const destination = target && /^\/(?!\/)/.test(target) ? target : landingFor(dbUser.role);
+    redirect(destination);
   }
 
-  const target = parsed.data.redirectTo;
-  redirect(target && /^\/(?!\/)/.test(target) ? target : "/");
+  // 2. Fall back to Supabase auth (for students / OAuth accounts)
+  if (serverEnv().AUTH_PROVIDER === "supabase") {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { status: "error", message: error.message };
+    }
+
+    // Determine landing page based on user role if available
+    let roleLanding = "/";
+    if (data.user) {
+      const authEmail = data.user.email;
+      const mongoUser = await usersCollection.findOne(
+        authEmail
+          ? { $or: [{ authId: data.user.id }, { email: authEmail }] }
+          : { authId: data.user.id },
+      );
+      if (mongoUser) roleLanding = landingFor(mongoUser.role);
+    }
+
+    const destination = target && /^\/(?!\/)/.test(target) ? target : roleLanding;
+    redirect(destination);
+  }
+
+  return { status: "error", message: "Invalid email or password." };
 }
 
 const signUpSchema = z.object({
@@ -155,6 +205,7 @@ function landingFor(role: string): string {
 export async function signOut(): Promise<void> {
   const store = await cookies();
   store.delete(DEMO_USER_COOKIE);
+  store.delete(VENDOR_SESSION_COOKIE);
 
   if (serverEnv().AUTH_PROVIDER === "supabase") {
     try {

@@ -3,6 +3,11 @@ import { z } from "zod";
 
 import { previewCart } from "@/server/services/orders";
 import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
+import { getSession } from "@/server/auth/session";
+import {
+  listEligibleCouponsForCart,
+  validateCouponForOrder,
+} from "@/server/services/coupons";
 
 /**
  * Server-side cart pricing.
@@ -10,11 +15,6 @@ import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
  * The client posts item IDS AND QUANTITIES ONLY. Every rupee comes back from
  * `computePricing` — the same function order creation calls — so the number
  * shown here and the number charged at checkout cannot drift (PRD Part 4.3).
- *
- * Both payment methods are priced in one round trip, because the convenience
- * fee differs between them (it applies to the full total for prepaid, but only
- * to the 10% token for COD) and the checkout screen has to show the student
- * the real cost of each before they choose.
  */
 
 export const dynamic = "force-dynamic";
@@ -31,6 +31,7 @@ const bodySchema = z.object({
     )
     .min(1)
     .max(50),
+  couponCode: z.string().optional(),
 });
 
 export interface CartQuote {
@@ -44,6 +45,19 @@ export interface CartQuote {
   grandTotalPaise: number;
   onlinePaidPaise: number;
   cashDueOnDeliveryPaise: number;
+}
+
+export interface AvailableCouponDto {
+  code: string;
+  description?: string | null | undefined;
+  type: "FLAT" | "PERCENT";
+  valuePaise: number;
+  valueBps: number;
+  maxDiscountPaise: number;
+  minOrderPaise: number;
+  isEligible: boolean;
+  reason?: string | undefined;
+  calculatedDiscountPaise: number;
 }
 
 export interface CartPricingResponse {
@@ -66,6 +80,13 @@ export interface CartPricingResponse {
   }[];
   quotes: Record<PaymentMethod, CartQuote>;
   issues: { itemId: string; itemName: string; code: string; message: string }[];
+  appliedCoupon?: {
+    code: string;
+    discountPaise: number;
+    description?: string | null | undefined;
+  } | null | undefined;
+  availableCoupons: AvailableCouponDto[];
+  couponError?: string | null | undefined;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -74,16 +95,63 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid cart payload" }, { status: 400 });
   }
 
-  const [prepaid, cod] = await Promise.all([
+  const session = await getSession();
+  const studentId = session?.user?._id;
+
+  // First check raw pre-discount preview
+  const rawPreview = await previewCart({
+    restaurantId: parsed.data.restaurantId,
+    lines: parsed.data.lines,
+    method: PAYMENT_METHOD.ONLINE_100,
+  });
+
+  if (!rawPreview) {
+    return NextResponse.json({ error: "This cart can no longer be priced" }, { status: 404 });
+  }
+
+  let discountPaise = 0;
+  let appliedCoupon: CartPricingResponse["appliedCoupon"] = null;
+  let couponError: string | null = null;
+
+  if (parsed.data.couponCode) {
+    const couponValidation = await validateCouponForOrder({
+      code: parsed.data.couponCode,
+      restaurantId: parsed.data.restaurantId,
+      campusId: rawPreview.campus._id,
+      subtotalPaise: rawPreview.pricing.subtotalPaise,
+      studentId: studentId ?? null,
+    });
+
+    if (couponValidation.ok) {
+      discountPaise = couponValidation.discountPaise;
+      appliedCoupon = {
+        code: couponValidation.coupon.code,
+        discountPaise: couponValidation.discountPaise,
+        description: couponValidation.coupon.description ?? null,
+      };
+    } else {
+      couponError = couponValidation.message;
+    }
+  }
+
+  const [prepaid, cod, availableCoupons] = await Promise.all([
     previewCart({
       restaurantId: parsed.data.restaurantId,
       lines: parsed.data.lines,
       method: PAYMENT_METHOD.ONLINE_100,
+      discountPaise,
     }),
     previewCart({
       restaurantId: parsed.data.restaurantId,
       lines: parsed.data.lines,
       method: PAYMENT_METHOD.HYBRID_COD,
+      discountPaise,
+    }),
+    listEligibleCouponsForCart({
+      restaurantId: parsed.data.restaurantId,
+      campusId: rawPreview.campus._id,
+      subtotalPaise: rawPreview.pricing.subtotalPaise,
+      studentId: studentId ?? null,
     }),
   ]);
 
@@ -114,6 +182,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       [PAYMENT_METHOD.HYBRID_COD]: toQuote(PAYMENT_METHOD.HYBRID_COD, cod),
     },
     issues: prepaid.issues,
+    appliedCoupon,
+    availableCoupons: availableCoupons.map((c) => ({
+      code: c.coupon.code,
+      description: c.coupon.description,
+      type: c.coupon.type,
+      valuePaise: c.coupon.valuePaise,
+      valueBps: c.coupon.valueBps,
+      maxDiscountPaise: c.coupon.maxDiscountPaise,
+      minOrderPaise: c.coupon.minOrderPaise,
+      isEligible: c.isEligible,
+      reason: c.reason,
+      calculatedDiscountPaise: c.calculatedDiscountPaise,
+    })),
+    couponError,
   };
 
   return NextResponse.json(body);

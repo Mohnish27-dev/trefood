@@ -262,7 +262,7 @@ export interface SettlementCsvRow extends Settlement {
  *
  * v1 settlement is a bank transfer an admin makes by hand, so this file IS the
  * integration — deliberately, per MONEY section 6. At 10-20 vendors a
- * five-minute nightly CSV genuinely beats a RazorpayX activation. Automate at
+ * five-minute nightly CSV genuinely beats a payout-API activation. Automate at
  * 50+, not before.
  *
  * Amounts are plain rupee decimals with no symbol and no grouping, because

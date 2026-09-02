@@ -19,10 +19,12 @@ import { computePricing, type PricingLineInput } from "./pricing";
 import { generateGateCode } from "./gate-code";
 import { writeAudit } from "./audit";
 import { getCampusById, getMenuItemsByIds, getRestaurantById } from "./catalog";
+import { validateCouponForOrder } from "./coupons";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuItem, Restaurant } from "@/types/restaurant";
 import type { Order, OrderItem } from "@/types/order";
 import type { User } from "@/types/user";
+import type { Coupon } from "@/types/finance";
 
 /**
  * Order creation and guarded state transitions.
@@ -214,7 +216,8 @@ export async function createOrder(params: {
   method: PaymentMethod;
   /** F12 — one per checkout attempt. A double-tap returns the SAME order. */
   idempotencyKey: string;
-  discountPaise?: Paise;
+  discountPaise?: Paise | undefined;
+  couponCode?: string | null | undefined;
 }): Promise<CreateOrderResult> {
   const orders = await db.orders();
 
@@ -223,11 +226,35 @@ export async function createOrder(params: {
   const existing = await orders.findOne({ idempotencyKey: params.idempotencyKey });
   if (existing) return { ok: true, order: existing, reused: true };
 
+  let discountPaise = params.discountPaise ?? 0;
+  let appliedCoupon: Coupon | null = null;
+
+  if (params.couponCode) {
+    const rawPreview = await previewCart({
+      restaurantId: params.restaurantId,
+      lines: params.lines,
+      method: params.method,
+    });
+    if (rawPreview && rawPreview.issues.length === 0) {
+      const couponValidation = await validateCouponForOrder({
+        code: params.couponCode,
+        restaurantId: params.restaurantId,
+        campusId: rawPreview.campus._id,
+        subtotalPaise: rawPreview.pricing.subtotalPaise,
+        studentId: params.customer._id,
+      });
+      if (couponValidation.ok) {
+        discountPaise = couponValidation.discountPaise;
+        appliedCoupon = couponValidation.coupon;
+      }
+    }
+  }
+
   const preview = await previewCart({
     restaurantId: params.restaurantId,
     lines: params.lines,
     method: params.method,
-    ...(params.discountPaise === undefined ? {} : { discountPaise: params.discountPaise }),
+    discountPaise,
   });
 
   if (!preview) {
@@ -304,8 +331,8 @@ export async function createOrder(params: {
     payment: {
       method: params.method,
       status: PAYMENT_STATUS.PENDING,
-      razorpayOrderId: null,
-      razorpayPaymentId: null,
+      providerOrderId: null,
+      providerPaymentId: null,
       onlinePaidPaise: 0, // set on capture, never optimistically
       cashDueOnDeliveryPaise: preview.cashDueOnDeliveryPaise,
       cashCollected: null,
@@ -335,10 +362,21 @@ export async function createOrder(params: {
     refund: null,
     stockout: null,
     reroutedFromZoneId: null,
+
+    couponCode: appliedCoupon ? appliedCoupon.code : null,
+    couponId: appliedCoupon ? appliedCoupon._id : null,
   };
 
   try {
     await orders.insertOne(order);
+
+    if (appliedCoupon) {
+      const couponsColl = await db.coupons();
+      await couponsColl.updateOne(
+        { _id: appliedCoupon._id },
+        { $inc: { usedCount: 1 } },
+      );
+    }
   } catch (error: unknown) {
     // F12 — lost the race against a concurrent double-tap. The unique index on
     // idempotencyKey did its job; return the twin's winner, not an error.

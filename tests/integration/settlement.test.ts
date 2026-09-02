@@ -12,6 +12,7 @@ import { rupeesToPaise } from "@/lib/money";
 import type { Campus } from "@/types/campus";
 import type { Order } from "@/types/order";
 import type { User } from "@/types/user";
+import { setUpCanteenFixture, tearDownCanteenFixture } from "./canteen-fixture";
 
 /**
  * The nightly settlement run, against a real database.
@@ -27,7 +28,9 @@ import type { User } from "@/types/user";
  * Dates are far in the future so this never collides with a real run, and
  * every document it writes is deleted afterwards.
  *
- * Requires the seed (`npm run seed`).
+ * Needs the campus from the seed (`npm run seed`); the restaurant it orders
+ * from is created and removed by canteen-fixture, so the test no longer depends
+ * on any seeded vendor.
  */
 
 const R = rupeesToPaise;
@@ -69,10 +72,27 @@ beforeAll(async () => {
     user = fixture;
   }
   student = user;
+
+  await setUpCanteenFixture();
 });
 
 afterAll(async () => {
-  await (await db.settlements()).deleteMany({ settlementDate: { $in: [DAY_ONE, DAY_TWO] } });
+  // Settlement audit entries point at the settlement by _id (their orderId is
+  // null), so grab those ids BEFORE deleting the settlements — otherwise the
+  // audit rows are orphaned and leak into the next run.
+  const settlements = await db.settlements();
+  const settlementIds = (
+    await settlements
+      .find({ settlementDate: { $in: [DAY_ONE, DAY_TWO] } })
+      .project<{ _id: string }>({ _id: 1 })
+      .toArray()
+  ).map((s) => s._id);
+  if (settlementIds.length > 0) {
+    await (
+      await db.auditLogs()
+    ).deleteMany({ entity: "SETTLEMENT", entityId: { $in: settlementIds } });
+  }
+  await settlements.deleteMany({ settlementDate: { $in: [DAY_ONE, DAY_TWO] } });
   if (createdOrderIds.length > 0) {
     await (await db.orders()).deleteMany({ _id: { $in: createdOrderIds } });
     await (await db.auditLogs()).deleteMany({ orderId: { $in: createdOrderIds } });
@@ -82,6 +102,7 @@ afterAll(async () => {
     await (await db.ledgerEntries()).deleteMany({ _id: { $in: createdLedgerIds } });
   }
   await (await db.users()).deleteOne({ _id: "test_student_settlement_fixture" });
+  await tearDownCanteenFixture();
   await (await getMongoClient()).close();
 });
 
@@ -107,7 +128,7 @@ async function deliveredOrderOn(
     {
       $set: {
         "payment.status": "CAPTURED",
-        "payment.razorpayPaymentId": `stub_pay_${created.order._id}`,
+        "payment.providerPaymentId": `stub_pay_${created.order._id}`,
         "payment.onlinePaidPaise":
           method === PAYMENT_METHOD.ONLINE_100
             ? created.order.pricing.grandTotalPaise
@@ -280,7 +301,7 @@ describe("refunds — D2 and D3", () => {
       {
         $set: {
           "payment.status": "CAPTURED",
-          "payment.razorpayPaymentId": `stub_pay_${created.order._id}`,
+          "payment.providerPaymentId": `stub_pay_${created.order._id}`,
           "payment.onlinePaidPaise": created.order.pricing.grandTotalPaise,
         },
       },
@@ -306,13 +327,13 @@ describe("refunds — D2 and D3", () => {
     expect(refund.ok).toBe(true);
     if (!refund.ok || refund.skipped) throw new Error("expected a real refund");
 
-    // D2 — the convenience fee is never returned. It was Razorpay's, not ours.
+    // D2 — the convenience fee is never returned. It was the gateway's, not ours.
     expect(refund.amountPaise).toBe(rejected.order.pricing.refundableAmountPaise);
     expect(refund.amountPaise).toBe(
       rejected.order.pricing.grandTotalPaise - rejected.order.pricing.convenienceFeePaise,
     );
 
-    // D3 — and the fee Razorpay kept is debited from the vendor's next payout,
+    // D3 — and the fee the gateway kept is debited from the vendor's next payout,
     // which is what makes a rejection carry a real cost.
     const recovery = await (await db.ledgerEntries()).findOne({
       orderId: rejected.order._id,

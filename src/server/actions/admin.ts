@@ -7,6 +7,8 @@ import { ACTOR, ORDER_STATUS, ZONE_TYPE } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { requireAdmin } from "@/server/auth/session";
 import {
+  createVendorDirectly,
+  deleteVendor,
   reviewKyc,
   setCommissionOverride,
   setZoneActive,
@@ -272,6 +274,76 @@ export async function savePayoutDetails(input: unknown): Promise<AdminActionStat
 
   revalidatePath("/admin/vendors");
   return { status: "ok", message: "Bank details saved" };
+}
+
+const createVendorSchema = z.object({
+  ownerName: z.string().trim().min(2, "Owner name must be at least 2 characters"),
+  email: z.string().trim().email("Enter a valid email address"),
+  phone: z.string().trim().min(10, "Enter a valid phone number (at least 10 digits)").max(15),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  restaurantName: z.string().trim().min(2, "Restaurant name must be at least 2 characters"),
+  campusId: z.string().min(1, "Select a campus"),
+  cuisines: z
+    .string()
+    .trim()
+    .transform((val) =>
+      val
+        .split(",")
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0),
+    ),
+  description: z.string().trim().optional(),
+  packagingFeeRupees: z.coerce.number().int().min(0, "Packaging fee cannot be negative"),
+  minOrderRupees: z.coerce.number().int().min(0, "Min order cannot be negative"),
+  prepMinutes: z.coerce.number().int().min(1, "Prep time must be at least 1 minute"),
+  fssai: z.string().trim().optional(),
+  gstin: z.string().trim().optional(),
+  accountName: z.string().trim().optional(),
+  accountNumber: z.string().trim().optional(),
+  ifsc: z.string().trim().optional(),
+  upiId: z.string().trim().optional(),
+});
+
+export async function createVendorAccount(input: unknown): Promise<AdminActionState> {
+  const parsed = createVendorSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid vendor details.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const result = await createVendorDirectly({
+    ...parsed.data,
+    actorId: user._id,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/admin/vendors");
+  return {
+    status: "ok",
+    message: `Vendor "${result.restaurant.name}" created! They can now sign in with ${parsed.data.email}.`,
+  };
+}
+
+export async function deleteVendorAccount(input: unknown): Promise<AdminActionState> {
+  const parsed = z.object({ restaurantId: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Invalid request." };
+
+  const { user } = await requireAdmin();
+  const result = await deleteVendor({
+    restaurantId: parsed.data.restaurantId,
+    actorId: user._id,
+  });
+
+  if (!result.ok) return { status: "error", message: result.message };
+
+  revalidatePath("/admin/vendors");
+  return { status: "ok", message: "Restaurant and vendor account deleted" };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

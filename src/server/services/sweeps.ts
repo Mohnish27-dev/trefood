@@ -251,7 +251,7 @@ export const REFUND_MAX_ATTEMPTS = 3;
  *
  * Money that fails to move must never fail silently. After three attempts the
  * order stops being retried and stays visible with its error payload, because
- * the fix at that point is a human opening the Razorpay dashboard — and a
+ * the fix at that point is a human opening the gateway dashboard — and a
  * cron that keeps retrying forever is how that human never finds out.
  */
 export async function retryFailedRefunds(now: Date = new Date()): Promise<SweepReport> {

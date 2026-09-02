@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  GraduationCap,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Store,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -9,21 +18,29 @@ import { signInWithEmail, signUpWithEmail, sendMagicLink } from "@/server/action
 
 interface StudentAuthFormProps {
   redirectTo: string | null;
+  initialType?: "student" | "vendor";
 }
 
-type AuthMode = "signin" | "signup" | "magic";
+type UserType = "student" | "vendor";
+type StudentAuthMode = "signin" | "signup" | "magic";
 
-export function StudentAuthForm({ redirectTo }: StudentAuthFormProps) {
-  const [mode, setMode] = useState<AuthMode>("signin");
+export function StudentAuthForm({ redirectTo, initialType = "student" }: StudentAuthFormProps) {
+  const [userType, setUserType] = useState<UserType>(initialType);
+  const [studentMode, setStudentMode] = useState<StudentAuthMode>("signin");
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Form fields
+  // Student form fields
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
+
+  // Vendor form fields
+  const [vendorEmail, setVendorEmail] = useState("");
+  const [vendorPassword, setVendorPassword] = useState("");
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -51,28 +68,28 @@ export function StudentAuthForm({ redirectTo }: StudentAuthFormProps) {
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
     setLoading(true);
 
     try {
-      if (mode === "signin") {
+      if (studentMode === "signin") {
         const res = await signInWithEmail({
-          email,
-          password,
+          email: studentEmail,
+          password: studentPassword,
           ...(redirectTo ? { redirectTo } : {}),
         });
         if (res.status === "error") {
           setError(res.message);
           setLoading(false);
         }
-      } else if (mode === "signup") {
+      } else if (studentMode === "signup") {
         const res = await signUpWithEmail({
           name,
-          email,
-          password,
+          email: studentEmail,
+          password: studentPassword,
           ...(redirectTo ? { redirectTo } : {}),
         });
         if (res.status === "error") {
@@ -81,9 +98,9 @@ export function StudentAuthForm({ redirectTo }: StudentAuthFormProps) {
           setSuccessMessage(res.message ?? "Account created successfully!");
         }
         setLoading(false);
-      } else if (mode === "magic") {
+      } else if (studentMode === "magic") {
         const res = await sendMagicLink({
-          email,
+          email: studentEmail,
           ...(redirectTo ? { redirectTo } : {}),
         });
         if (res.status === "error") {
@@ -99,80 +116,65 @@ export function StudentAuthForm({ redirectTo }: StudentAuthFormProps) {
     }
   };
 
+  const handleVendorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    setLoading(true);
+
+    try {
+      const res = await signInWithEmail({
+        email: vendorEmail,
+        password: vendorPassword,
+        ...(redirectTo ? { redirectTo } : {}),
+      });
+
+      if (res.status === "error") {
+        setError(res.message);
+        setLoading(false);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Vendor sign-in failed.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="mt-6 space-y-6">
-      {/* ── Google OAuth Button ────────────────────────────────────── */}
-      <Button
-        type="button"
-        variant="secondary"
-        block
-        size="lg"
-        disabled={googleLoading || loading}
-        onClick={() => void handleGoogleSignIn()}
-        className="relative bg-surface hover:bg-surface-raised border border-line"
-      >
-        {googleLoading ? (
-          <Loader2 className="size-5 animate-spin text-saffron" />
-        ) : (
-          <GoogleIcon className="size-5 shrink-0" />
-        )}
-        <span className="font-medium text-bone">Continue with Google</span>
-      </Button>
-
-      {/* ── Divider ────────────────────────────────────────────────── */}
-      <div className="relative flex items-center justify-center">
-        <div className="w-full border-t border-line" />
-        <span className="absolute bg-ink px-3 text-xs uppercase tracking-wider text-faint">
-          or with email
-        </span>
-      </div>
-
-      {/* ── Mode selector ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface p-1 border border-line">
+      {/* ── Primary User Role Switcher (Customer vs Vendor) ───────── */}
+      <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-surface p-1.5 border border-line">
         <button
           type="button"
           onClick={() => {
-            setMode("signin");
+            setUserType("student");
             setError(null);
             setSuccessMessage(null);
           }}
-          className={`rounded-lg py-2 text-xs font-medium transition-colors ${
-            mode === "signin"
-              ? "bg-surface-raised text-bone shadow-sm"
-              : "text-muted hover:text-bone"
+          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold uppercase tracking-wider transition-all ${
+            userType === "student"
+              ? "bg-saffron text-ink shadow-md"
+              : "text-muted hover:text-bone hover:bg-surface-raised/40"
           }`}
         >
-          Sign in
+          <GraduationCap className="size-4 shrink-0" />
+          <span>Customer</span>
         </button>
+
         <button
           type="button"
           onClick={() => {
-            setMode("signup");
+            setUserType("vendor");
             setError(null);
             setSuccessMessage(null);
           }}
-          className={`rounded-lg py-2 text-xs font-medium transition-colors ${
-            mode === "signup"
-              ? "bg-surface-raised text-bone shadow-sm"
-              : "text-muted hover:text-bone"
+          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold uppercase tracking-wider transition-all ${
+            userType === "vendor"
+              ? "bg-saffron text-ink shadow-md"
+              : "text-muted hover:text-bone hover:bg-surface-raised/40"
           }`}
         >
-          Sign up
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("magic");
-            setError(null);
-            setSuccessMessage(null);
-          }}
-          className={`rounded-lg py-2 text-xs font-medium transition-colors ${
-            mode === "magic"
-              ? "bg-surface-raised text-bone shadow-sm"
-              : "text-muted hover:text-bone"
-          }`}
-        >
-          Magic link
+          <Store className="size-4 shrink-0" />
+          <span>Vendor</span>
         </button>
       </div>
 
@@ -191,79 +193,214 @@ export function StudentAuthForm({ redirectTo }: StudentAuthFormProps) {
         </div>
       ) : null}
 
-      {/* ── Email Form ─────────────────────────────────────────────── */}
-      <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-4">
-        {mode === "signup" ? (
-          <div>
-            <Label htmlFor="auth-name">Your Full Name</Label>
-            <Input
-              id="auth-name"
-              type="text"
-              placeholder="e.g. Aarav Kumar"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              disabled={loading || googleLoading}
-            />
-          </div>
-        ) : null}
+      {/* ── STUDENT / CUSTOMER VIEW ───────────────────────────────── */}
+      {userType === "student" ? (
+        <div className="space-y-6">
+          {/* Google OAuth */}
+          <Button
+            type="button"
+            variant="secondary"
+            block
+            size="lg"
+            disabled={googleLoading || loading}
+            onClick={() => void handleGoogleSignIn()}
+            className="relative bg-surface hover:bg-surface-raised border border-line"
+          >
+            {googleLoading ? (
+              <Loader2 className="size-5 animate-spin text-saffron" />
+            ) : (
+              <GoogleIcon className="size-5 shrink-0" />
+            )}
+            <span className="font-medium text-bone">Continue with Google</span>
+          </Button>
 
-        <div>
-          <Label htmlFor="auth-email">Student / College Email</Label>
-          <Input
-            id="auth-email"
-            type="email"
-            placeholder="e.g. student@nitp.ac.in"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading || googleLoading}
-          />
+          {/* Divider */}
+          <div className="relative flex items-center justify-center">
+            <div className="w-full border-t border-line" />
+            <span className="absolute bg-ink px-3 text-xs uppercase tracking-wider text-faint">
+              or with email
+            </span>
+          </div>
+
+          {/* Student Sub-mode Selector */}
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface p-1 border border-line">
+            <button
+              type="button"
+              onClick={() => {
+                setStudentMode("signin");
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className={`rounded-lg py-2 text-xs font-medium transition-colors ${
+                studentMode === "signin"
+                  ? "bg-surface-raised text-bone shadow-sm"
+                  : "text-muted hover:text-bone"
+              }`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStudentMode("signup");
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className={`rounded-lg py-2 text-xs font-medium transition-colors ${
+                studentMode === "signup"
+                  ? "bg-surface-raised text-bone shadow-sm"
+                  : "text-muted hover:text-bone"
+              }`}
+            >
+              Sign up
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStudentMode("magic");
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className={`rounded-lg py-2 text-xs font-medium transition-colors ${
+                studentMode === "magic"
+                  ? "bg-surface-raised text-bone shadow-sm"
+                  : "text-muted hover:text-bone"
+              }`}
+            >
+              Magic link
+            </button>
+          </div>
+
+          {/* Student Email Form */}
+          <form onSubmit={(e) => void handleStudentSubmit(e)} className="space-y-4">
+            {studentMode === "signup" ? (
+              <div>
+                <Label htmlFor="student-name">Your Full Name</Label>
+                <Input
+                  id="student-name"
+                  type="text"
+                  placeholder="e.g. Aarav Kumar"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={loading || googleLoading}
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <Label htmlFor="student-email">Student / College Email</Label>
+              <Input
+                id="student-email"
+                type="email"
+                placeholder="e.g. student@nitp.ac.in"
+                value={studentEmail}
+                onChange={(e) => setStudentEmail(e.target.value)}
+                required
+                disabled={loading || googleLoading}
+              />
+            </div>
+
+            {studentMode !== "magic" ? (
+              <div>
+                <Label htmlFor="student-password">Password</Label>
+                <Input
+                  id="student-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={studentPassword}
+                  onChange={(e) => setStudentPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  disabled={loading || googleLoading}
+                />
+              </div>
+            ) : null}
+
+            <Button
+              type="submit"
+              variant="primary"
+              block
+              size="lg"
+              disabled={loading || googleLoading}
+            >
+              {loading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : studentMode === "signin" ? (
+                <ShieldCheck className="size-5" />
+              ) : studentMode === "signup" ? (
+                <Sparkles className="size-5" />
+              ) : (
+                <Mail className="size-5" />
+              )}
+              <span>
+                {loading
+                  ? "Please wait..."
+                  : studentMode === "signin"
+                    ? "Sign in as Customer"
+                    : studentMode === "signup"
+                      ? "Create Student Account"
+                      : "Send Magic Login Link"}
+              </span>
+            </Button>
+          </form>
         </div>
-
-        {mode !== "magic" ? (
-          <div>
-            <Label htmlFor="auth-password">Password</Label>
-            <Input
-              id="auth-password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              disabled={loading || googleLoading}
-            />
+      ) : (
+        /* ── VENDOR VIEW ─────────────────────────────────────────── */
+        <div className="space-y-5">
+          <div className="rounded-xl border border-line bg-surface p-3.5 text-xs text-muted leading-relaxed">
+            <p className="font-semibold text-bone mb-1 flex items-center gap-1.5">
+              <Store className="size-3.5 text-saffron" />
+              Vendor & Partner Console
+            </p>
+            Sign in using the email and password provided by the campus administrator when your
+            restaurant was onboarded.
           </div>
-        ) : null}
 
-        <Button
-          type="submit"
-          variant="primary"
-          block
-          size="lg"
-          disabled={loading || googleLoading}
-        >
-          {loading ? (
-            <Loader2 className="size-5 animate-spin" />
-          ) : mode === "signin" ? (
-            <ShieldCheck className="size-5" />
-          ) : mode === "signup" ? (
-            <Sparkles className="size-5" />
-          ) : (
-            <Mail className="size-5" />
-          )}
-          <span>
-            {loading
-              ? "Please wait..."
-              : mode === "signin"
-                ? "Sign in to TREFOOD"
-                : mode === "signup"
-                  ? "Create Student Account"
-                  : "Send Magic Login Link"}
-          </span>
-        </Button>
-      </form>
+          <form onSubmit={(e) => void handleVendorSubmit(e)} className="space-y-4">
+            <div>
+              <Label htmlFor="vendor-auth-email">Vendor Email</Label>
+              <Input
+                id="vendor-auth-email"
+                type="email"
+                placeholder="e.g. owner@canteen.in"
+                value={vendorEmail}
+                onChange={(e) => setVendorEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="vendor-auth-password">Password</Label>
+              <Input
+                id="vendor-auth-password"
+                type="password"
+                placeholder="••••••••"
+                value={vendorPassword}
+                onChange={(e) => setVendorPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              block
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <Store className="size-5" />
+              )}
+              <span>{loading ? "Authenticating..." : "Sign in to Vendor Console"}</span>
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

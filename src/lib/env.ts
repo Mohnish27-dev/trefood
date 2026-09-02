@@ -27,12 +27,6 @@ const intFromString = (fallback: number) =>
     .transform((v) => (v === undefined || v === "" ? fallback : Number(v)))
     .pipe(z.number().int().positive());
 
-const boolFromString = (fallback: boolean) =>
-  z
-    .string()
-    .optional()
-    .transform((v) => (v === undefined || v === "" ? fallback : v === "true"));
-
 const optionalString = z
   .string()
   .optional()
@@ -60,13 +54,14 @@ const serverSchema = z
     MONGODB_MAX_POOL_SIZE: intFromString(10),
 
     AUTH_PROVIDER: z.enum(["stub", "supabase"]).default("stub"),
-    PAYMENT_PROVIDER: z.enum(["stub", "razorpay"]).default("stub"),
+    PAYMENT_PROVIDER: z.enum(["stub", "phonepe"]).default("stub"),
 
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
 
-    RAZORPAY_KEY_ID: optionalString,
-    RAZORPAY_KEY_SECRET: optionalString,
-    RAZORPAY_WEBHOOK_SECRET: optionalString,
+    // D8 — PhonePe merchant (dynamic QR + UPI, direct-to-bank settlement).
+    PHONEPE_MERCHANT_ID: optionalString,
+    PHONEPE_MERCHANT_SECRET: optionalString,
+    PHONEPE_WEBHOOK_SECRET: optionalString,
 
     VAPID_PRIVATE_KEY: optionalString,
     VAPID_SUBJECT: z.string().default("mailto:ops@trefood.in"),
@@ -84,10 +79,10 @@ const serverSchema = z
         message: "required when AUTH_PROVIDER=supabase",
       });
     }
-    if (env.PAYMENT_PROVIDER === "razorpay") {
-      for (const key of ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"] as const) {
+    if (env.PAYMENT_PROVIDER === "phonepe") {
+      for (const key of ["PHONEPE_MERCHANT_ID", "PHONEPE_MERCHANT_SECRET", "PHONEPE_WEBHOOK_SECRET"] as const) {
         if (!env[key]) {
-          ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=razorpay" });
+          ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=phonepe" });
         }
       }
     }
@@ -138,7 +133,6 @@ const clientSchema = z.object({
   NEXT_PUBLIC_POLL_VENDOR_MS: intFromString(5_000),
   NEXT_PUBLIC_POLL_STUDENT_MS: intFromString(8_000),
   NEXT_PUBLIC_POLL_ADMIN_MS: intFromString(10_000),
-  NEXT_PUBLIC_DEMO_MODE: boolFromString(false),
 });
 
 // Literal references: Next inlines these at build time.
@@ -153,7 +147,6 @@ const rawClientEnv = {
   NEXT_PUBLIC_POLL_VENDOR_MS: process.env.NEXT_PUBLIC_POLL_VENDOR_MS,
   NEXT_PUBLIC_POLL_STUDENT_MS: process.env.NEXT_PUBLIC_POLL_STUDENT_MS,
   NEXT_PUBLIC_POLL_ADMIN_MS: process.env.NEXT_PUBLIC_POLL_ADMIN_MS,
-  NEXT_PUBLIC_DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE,
 };
 
 /** Validated public environment. Safe to import from a Client Component. */

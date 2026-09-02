@@ -70,7 +70,7 @@ export interface OrderPricing {
   vendorReceivablePaise: Paise;
 
   gatewayFeeBps: Bps;
-  /** D2 — NON-REFUNDABLE. Pass-through to Razorpay; never TREFOOD's money. */
+  /** D2 — NON-REFUNDABLE. Pass-through to the payment gateway; never TREFOOD's money. */
   convenienceFeePaise: Paise;
 
   grandTotalPaise: Paise;
@@ -81,8 +81,9 @@ export interface OrderPricing {
 export interface OrderPayment {
   method: PaymentMethod;
   status: PaymentStatus;
-  razorpayOrderId: string | null;
-  razorpayPaymentId: string | null;
+  /** Provider-agnostic on purpose: D8 moved the gateway seam to PhonePe. */
+  providerOrderId: string | null;
+  providerPaymentId: string | null;
   /** What actually reached the gateway. */
   onlinePaidPaise: Paise;
   /** COD: exactly vendorReceivable. Prepaid: 0. The invariant that self-settles COD. */
@@ -108,7 +109,7 @@ export interface OrderCancellation {
 }
 
 export interface OrderRefund {
-  razorpayRefundId: string | null;
+  providerRefundId: string | null;
   amountPaise: Paise;
   status: "PENDING" | "PROCESSED" | "FAILED";
   attempts: number;
@@ -167,6 +168,10 @@ export interface Order {
 
   /** F11 — set when a curfew forced a reroute in flight. */
   reroutedFromZoneId: string | null;
+
+  /** Applied coupon code and identifier for audit and receipt */
+  couponCode?: string | null;
+  couponId?: string | null;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

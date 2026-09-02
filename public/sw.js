@@ -30,7 +30,17 @@ const SHELL = ["/", "/offline", "/manifest.json", "/icons/icon-192.png"];
  * Deliberately broad. A new order endpoint added next month is caught by
  * `/api/` without anyone having to remember this file exists.
  */
-const NEVER_CACHE = [/^\/api\//, /^\/orders(\/|$)/, /^\/vendor(\/|$)/, /^\/admin(\/|$)/, /^\/checkout(\/|$)/, /^\/cart(\/|$)/, /^\/demo(\/|$)/];
+const NEVER_CACHE = [
+  /^\/api\//,
+  /^\/orders(\/|$)/,
+  /^\/vendor(\/|$)/,
+  /^\/admin(\/|$)/,
+  /^\/checkout(\/|$)/,
+  /^\/cart(\/|$)/,
+  /^\/demo(\/|$)/,
+  /^\/_next\/webpack-hmr/,
+  /^\/_next\/turbopack-hmr/,
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -94,6 +104,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 function isStaticAsset(pathname) {
+  if (pathname.includes("turbopack") || pathname.includes("hot-update")) return false;
   return (
     pathname.startsWith("/_next/static/") ||
     pathname.startsWith("/icons/") ||

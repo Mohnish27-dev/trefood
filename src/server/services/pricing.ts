@@ -128,7 +128,7 @@ export function computePricing(input: PricingInput): PricingResult {
       ? payableByStudentPaise
       : platformCommissionPaise + codHandlingFeePaise;
 
-  // D2 — never refundable, and never TREFOOD's money. Pass-through to Razorpay.
+  // D2 — never refundable, and never TREFOOD's money. Pass-through to the gateway.
   const convenienceFeePaise = ceilRupeeOfBps(onlineChargeBasePaise, input.gatewayFeeBps);
 
   const onlinePaidPaise = onlineChargeBasePaise + convenienceFeePaise;

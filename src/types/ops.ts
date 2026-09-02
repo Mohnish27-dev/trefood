@@ -1,7 +1,7 @@
 import type { Paise } from "@/lib/money";
 
 /**
- * Razorpay event ids already processed.
+ * Gateway event ids already processed.
  *
  * PRD Part 4.5 — insert the event id (unique index) BEFORE acting. In that
  * order. Reversing it means a replayed webhook double-processes an order.
@@ -9,7 +9,7 @@ import type { Paise } from "@/lib/money";
 export interface WebhookEvent {
   _id: string;
   eventId: string;
-  provider: "RAZORPAY";
+  provider: "PHONEPE";
   eventType: string;
   orderId: string | null;
   processedAt: Date;

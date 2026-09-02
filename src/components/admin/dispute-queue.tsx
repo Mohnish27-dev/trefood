@@ -267,7 +267,7 @@ function RulingDialog({ dispute }: { dispute: DisputeRow }) {
             />
             <p className="mt-1.5 text-xs text-muted">
               Maximum {formatINR(dispute.refundablePaise)} — the amount paid online, less the
-              convenience fee, which Razorpay never returns.
+              convenience fee, which the gateway never returns.
             </p>
           </div>
 

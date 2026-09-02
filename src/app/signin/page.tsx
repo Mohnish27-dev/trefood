@@ -22,9 +22,9 @@ const REASONS: Record<string, string> = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; reason?: string }>;
+  searchParams: Promise<{ next?: string; reason?: string; tab?: string }>;
 }) {
-  const { next, reason } = await searchParams;
+  const { next, reason, tab } = await searchParams;
   const session = await getSession();
 
   // Already signed in and no role complaint? Redirect immediately.
@@ -53,6 +53,8 @@ export default async function SignInPage({
     });
   }
 
+  const initialType = reason === "vendor" || tab === "vendor" ? "vendor" : "student";
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 py-10">
       <Link
@@ -68,8 +70,7 @@ export default async function SignInPage({
           Sign in to TREFOOD
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          You can browse every menu without an account. Signing in is only needed to place an
-          order and follow it to your gate.
+          Choose Customer to order food or Vendor to manage your restaurant orders.
         </p>
       </div>
 
@@ -79,11 +80,11 @@ export default async function SignInPage({
         </p>
       ) : null}
 
-      {/* ── Student Authentication (Google OAuth + Email) ─────────── */}
-      <StudentAuthForm redirectTo={next ?? null} />
+      {/* ── Customer & Vendor Authentication (Google OAuth + Email/Password) ─────────── */}
+      <StudentAuthForm redirectTo={next ?? null} initialType={initialType} />
 
-      {/* ── Staff / Demo accounts (for Vendors & Admins) ────────────── */}
-      {(isStub || accounts.some((a) => a.role !== ROLE.STUDENT)) ? (
+      {/* ── Demo accounts (Stub mode only) ─────────────────────────── */}
+      {isStub ? (
         <SignInPicker accounts={accounts} redirectTo={next ?? null} />
       ) : null}
     </main>
