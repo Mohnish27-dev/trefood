@@ -114,7 +114,7 @@ async function deliveredOrderOn(
   const created = await createOrder({
     customer: student,
     restaurantId: RESTAURANT_ID,
-    zoneId: "zone_ganga_boys",
+    zoneId: "zone_boys_hostel",
     lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: [] }],
     method,
     idempotencyKey: `settlement-test-${settlementDate}-${method}-${Date.now()}`,
@@ -288,7 +288,7 @@ describe("refunds — D2 and D3", () => {
     const created = await createOrder({
       customer: student,
       restaurantId: RESTAURANT_ID,
-      zoneId: "zone_ganga_boys",
+      zoneId: "zone_boys_hostel",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: [] }],
       method: PAYMENT_METHOD.ONLINE_100,
       idempotencyKey: `refund-test-${Date.now()}`,

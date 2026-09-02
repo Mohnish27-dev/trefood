@@ -334,7 +334,7 @@ function ZoneForm({
           id="zone-name"
           value={zone.name}
           onChange={(event) => onChange({ ...zone, name: event.target.value })}
-          placeholder="Ganga Boys Hostel"
+          placeholder="Boys Hostel"
         />
       </div>
 

@@ -42,7 +42,7 @@ export const CAMPUS_ID = "campus_nitp";
 export const ZONES: DeliveryZone[] = [
   {
     id: "zone_main_gate",
-    name: "Main Campus Gate",
+      name: "Main Gate of The campus",
     zoneType: ZONE_TYPE.MAIN_GATE,
     curfewMinutes: null, // 24x7 — the fallback every other zone points at
     opensMinutes: 0,
@@ -53,50 +53,50 @@ export const ZONES: DeliveryZone[] = [
     isFallback: true,
   },
   {
-    id: "zone_ganga_boys",
-    name: "Ganga Boys Hostel Gate",
+    id: "zone_boys_hostel",
+    name: "Boys Hostel",
     zoneType: ZONE_TYPE.HOSTEL_BOYS,
-    curfewMinutes: HM(22), // 22:00 — VERIFY ON CAMPUS
+    curfewMinutes: HM(22), // 22:00 — covers Kautilya, Nagarjuna, Aryabhatta
     opensMinutes: HM(6),
-    lat: 25.6218,
-    lng: 85.1736,
-    instructions: "Hand over at the warden cabin window. Do not enter the block.",
+    lat: 25.6225,
+    lng: 85.1725,
+    instructions: "Hostel gate security cabin (covers Kautilya, Nagarjuna, and Aryabhatta). Do not enter the block.",
     isActive: true,
     isFallback: false,
   },
   {
-    id: "zone_kaveri_girls",
-    name: "Kaveri Girls Hostel Gate",
+    id: "zone_cse_dept",
+    name: "CSE Department",
+    zoneType: ZONE_TYPE.ACADEMIC,
+    curfewMinutes: HM(19), // 19:00 — academic block closing
+    opensMinutes: HM(8),
+    lat: 25.6201,
+    lng: 85.173,
+    instructions: "Reception desk at the Computer Science & Engineering department entrance.",
+    isActive: true,
+    isFallback: false,
+  },
+  {
+    id: "zone_ece_dept",
+    name: "ECE Department",
+    zoneType: ZONE_TYPE.ACADEMIC,
+    curfewMinutes: HM(19), // 19:00 — academic block closing
+    opensMinutes: HM(8),
+    lat: 25.6203,
+    lng: 85.1738,
+    instructions: "Reception desk at the Electronics & Communication Engineering department entrance.",
+    isActive: true,
+    isFallback: false,
+  },
+  {
+    id: "zone_girls_hostel",
+    name: "Girls Hostel",
     zoneType: ZONE_TYPE.HOSTEL_GIRLS,
-    curfewMinutes: HM(21, 30), // 21:30 — the earliest curfew on campus
+    curfewMinutes: HM(21, 30), // 21:30 — covers Kadambini and Sarojini
     opensMinutes: HM(6),
     lat: 25.6195,
     lng: 85.1748,
-    instructions: "Guard cabin only. Female security staff will call the student out.",
-    isActive: true,
-    isFallback: false,
-  },
-  {
-    id: "zone_brahmaputra_boys",
-    name: "Brahmaputra Boys Hostel Gate",
-    zoneType: ZONE_TYPE.HOSTEL_BOYS,
-    curfewMinutes: HM(22),
-    opensMinutes: HM(6),
-    lat: 25.6229,
-    lng: 85.1712,
-    instructions: "Left of the cycle stand, under the light.",
-    isActive: true,
-    isFallback: false,
-  },
-  {
-    id: "zone_academic",
-    name: "Academic Block Gate",
-    zoneType: ZONE_TYPE.ACADEMIC,
-    curfewMinutes: HM(19), // 19:00 — shuts before the late-night window opens
-    opensMinutes: HM(8),
-    lat: 25.6201,
-    lng: 85.1729,
-    instructions: "Reception desk at the CSE block entrance.",
+    instructions: "Guard cabin at Girls Hostel gate (covers Kadambini and Sarojini). Female security staff will call the student out.",
     isActive: true,
     isFallback: false,
   },

@@ -73,7 +73,7 @@ describe("prepaid order, cart to DELIVERED", () => {
     const created = await createOrder({
       customer: student,
       restaurantId: "rest_nit_canteen",
-      zoneId: "zone_ganga_boys",
+      zoneId: "zone_boys_hostel",
       // Veg Thali (90) full (+30) x2 = 240, Masala Maggi (45) = 45  -> 285
       lines: [
         { itemId: "item_nc_veg_thali", quantity: 2, addOnOptionIds: ["opt_full"] },
@@ -110,7 +110,7 @@ describe("prepaid order, cart to DELIVERED", () => {
     /* ── Snapshots ──────────────────────────────────────────── */
 
     expect(order.restaurantSnapshot.name).toBe("NIT Canteen");
-    expect(order.deliveryZoneSnapshot.name).toBe("Ganga Boys Hostel Gate");
+    expect(order.deliveryZoneSnapshot.name).toBe("Boys Hostel");
     // 22:00, stored as minutes from midnight
     expect(order.deliveryZoneSnapshot.curfewMinutes).toBe(22 * 60);
 

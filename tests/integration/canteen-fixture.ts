@@ -174,7 +174,7 @@ export async function setUpCanteenFixture(): Promise<void> {
   const campus = await (await db.campuses()).findOne({ _id: CAMPUS_ID });
   const servedZoneIds = campus
     ? campus.zones.map((zone) => zone.id)
-    : ["zone_main_gate", "zone_ganga_boys"];
+    : ["zone_main_gate", "zone_boys_hostel"];
 
   await (await db.restaurants()).replaceOne({ _id: CANTEEN_ID }, canteen(servedZoneIds), {
     upsert: true,
