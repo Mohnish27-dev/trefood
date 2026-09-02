@@ -29,7 +29,15 @@ export default async function SignInPage({
   const session = await getSession();
 
   // Already signed in and no role complaint? Redirect immediately.
-  if (session && !reason) redirect(next && next.startsWith("/") ? next : "/");
+  if (session && !reason) {
+    const defaultLand =
+      session.role === ROLE.VENDOR_OWNER || session.role === ROLE.VENDOR_STAFF
+        ? "/vendor/orders"
+        : session.role === ROLE.ADMIN || session.role === ROLE.SUPER_ADMIN
+          ? "/admin/orders"
+          : "/c/nit-patna";
+    redirect(next && next.startsWith("/") && next !== "/" ? next : defaultLand);
+  }
 
   const isStub = serverEnv().AUTH_PROVIDER === "stub";
   const users = await listDemoUsers();
@@ -50,7 +58,7 @@ export default async function SignInPage({
           ? "/vendor/orders"
           : user.role === ROLE.ADMIN || user.role === ROLE.SUPER_ADMIN
             ? "/admin/orders"
-            : "/",
+            : "/c/nit-patna",
     });
   }
 
