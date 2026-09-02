@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Self-contained server bundle. Required for a small Docker image and for
-  // any host that is not Vercel. See docs/PHASE_PLAN.md section 2.
-  output: "standalone",
+  // any host that is not Vercel. On Vercel, native serverless deployment is used.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
 
   reactStrictMode: true,
 
