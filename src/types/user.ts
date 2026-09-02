@@ -26,6 +26,16 @@ export interface User {
   codBlockedReason: string | null;
   strikes: number;
 
+  /** Quick Unlock settings (4-digit PIN hash/salt, Biometrics, and app lock preferences) */
+  quickUnlock?: {
+    pinHash?: string | null;
+    pinSalt?: string | null;
+    biometricEnabled?: boolean;
+    credentialId?: string | null;
+    requireOnOpen?: boolean;
+    updatedAt?: Date;
+  } | null;
+
   createdAt: Date;
   updatedAt: Date;
 }

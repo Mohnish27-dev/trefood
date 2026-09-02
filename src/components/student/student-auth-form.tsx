@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
   GraduationCap,
+  KeyRound,
   Loader2,
   Mail,
   ShieldCheck,
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithEmail, signUpWithEmail, sendMagicLink } from "@/server/actions/session";
+import { QuickUnlockScreen } from "@/components/student/quick-unlock-screen";
+import { getStoredQuickUnlockProfile, type StoredQuickUnlockProfile } from "@/lib/quick-unlock";
 
 interface StudentAuthFormProps {
   redirectTo: string | null;
@@ -27,6 +30,17 @@ type StudentAuthMode = "signin" | "signup" | "magic";
 export function StudentAuthForm({ redirectTo, initialType = "student" }: StudentAuthFormProps) {
   const [userType, setUserType] = useState<UserType>(initialType);
   const [studentMode, setStudentMode] = useState<StudentAuthMode>("signin");
+
+  const [storedProfile, setStoredProfile] = useState<StoredQuickUnlockProfile | null>(null);
+  const [showQuickUnlock, setShowQuickUnlock] = useState<boolean>(false);
+
+  useEffect(() => {
+    const profile = getStoredQuickUnlockProfile();
+    if (profile && profile.pinHash) {
+      setStoredProfile(profile);
+      setShowQuickUnlock(true);
+    }
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -139,8 +153,41 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
     }
   };
 
+  if (showQuickUnlock && storedProfile) {
+    return (
+      <div className="mt-4">
+        <QuickUnlockScreen
+          profile={storedProfile}
+          redirectTo={redirectTo}
+          onSwitchAccount={() => setShowQuickUnlock(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 space-y-6">
+      {/* ── Quick Unlock Banner (if profile exists and switched to standard login) ── */}
+      {storedProfile ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-saffron/30 bg-saffron-wash p-3.5 text-xs shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <KeyRound className="size-4 shrink-0 text-saffron" />
+            <span className="truncate text-bone">
+              Quick PIN is ready for <strong className="text-saffron">{storedProfile.name || storedProfile.email}</strong>
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowQuickUnlock(true)}
+            className="shrink-0 text-xs border-saffron/40"
+          >
+            Use PIN
+          </Button>
+        </div>
+      ) : null}
+
       {/* ── Primary User Role Switcher (Customer vs Vendor) ───────── */}
       <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-surface p-1.5 border border-line">
         <button
