@@ -65,14 +65,13 @@ export const STUDENT_STEPPER: readonly {
   { key: "placed", label: "Placed", statuses: [ORDER_STATUS.PLACED] },
   {
     key: "accepted",
-    label: "Accepted",
-    statuses: [
-      ORDER_STATUS.ACCEPTED,
-      ORDER_STATUS.PREPARING,
-      ORDER_STATUS.READY,
-      ORDER_STATUS.OUT_FOR_DELIVERY,
-      ORDER_STATUS.AT_GATE,
-    ],
+    label: "Preparing",
+    statuses: [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY],
+  },
+  {
+    key: "on_the_way",
+    label: "On the way",
+    statuses: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.AT_GATE],
   },
   {
     key: "delivered",

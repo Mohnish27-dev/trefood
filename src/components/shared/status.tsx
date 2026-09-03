@@ -1,4 +1,4 @@
-import { Check, Clock, Flame, ShoppingBag } from "lucide-react";
+import { Check, Clock, Flame, ShoppingBag, Truck } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -140,6 +140,7 @@ export function StatusBadge({ status, className }: { status: OrderStatus; classN
 const STEP_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   placed: ShoppingBag,
   accepted: Flame,
+  on_the_way: Truck,
   delivered: Check,
 };
 

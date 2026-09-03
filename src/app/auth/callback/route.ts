@@ -8,9 +8,18 @@ import type { User } from "@/types/user";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
   const rawNext = searchParams.get("next");
+
+  // Determine actual public origin (handles reverse proxies like Cloudflare/Lightsail)
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+  const origin = isLocalEnv
+    ? request.nextUrl.origin
+    : forwardedHost
+      ? `https://${forwardedHost}`
+      : (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin);
 
   // Prevent open redirect vulnerabilities: only allow local relative paths
   const next = rawNext && /^\/(?!\/)/.test(rawNext) ? rawNext : "/";

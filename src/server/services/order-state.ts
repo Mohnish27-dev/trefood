@@ -89,6 +89,18 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     why: "Student confirmed order pickup.",
   },
   {
+    from: S.ACCEPTED,
+    to: S.OUT_FOR_DELIVERY,
+    actors: [A.VENDOR],
+    why: "Rider dispatched / on the way.",
+  },
+  {
+    from: S.PREPARING,
+    to: S.OUT_FOR_DELIVERY,
+    actors: [A.VENDOR],
+    why: "Rider dispatched / on the way.",
+  },
+  {
     from: S.PREPARING,
     to: S.READY,
     actors: [A.VENDOR],

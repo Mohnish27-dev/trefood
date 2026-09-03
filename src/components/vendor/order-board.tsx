@@ -33,16 +33,16 @@ const COLUMNS: { key: string; label: string; statuses: readonly OrderStatus[]; h
     hint: "Accept or reject within 4 minutes",
   },
   {
-    key: "active",
-    label: "Active & In Progress",
-    statuses: [
-      ORDER_STATUS.ACCEPTED,
-      ORDER_STATUS.PREPARING,
-      ORDER_STATUS.READY,
-      ORDER_STATUS.OUT_FOR_DELIVERY,
-      ORDER_STATUS.AT_GATE,
-    ],
-    hint: "Write OTP on packet. Rider calls student upon arrival at gate.",
+    key: "preparing",
+    label: "Preparing",
+    statuses: [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY],
+    hint: "Cooking food. Tap 'Mark on the way' when dispatched.",
+  },
+  {
+    key: "on_the_way",
+    label: "On the Way",
+    statuses: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.AT_GATE],
+    hint: "Rider on the way. Call student upon arrival at gate.",
   },
 ];
 
@@ -99,7 +99,7 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
           description="New orders land here with a chime and a 4-minute countdown. Leave this screen open and the tablet awake."
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {COLUMNS.map((column) => {
             const orders = board.orders.filter((o) => column.statuses.includes(o.status));
 

@@ -19,7 +19,7 @@ import * as db from "@/server/db/collections";
 import {
   ADMIN_EMAIL,
   CAMPUS,
-  LEGACY_ADMIN_EMAIL,
+  LEGACY_ADMIN_EMAILS,
   LEGACY_DEMO_ORDER_KEY_PATTERN,
   LEGACY_DEMO_RESTAURANT_IDS,
   LEGACY_DEMO_USER_EMAILS,
@@ -101,7 +101,7 @@ async function removeLegacyDemoData(): Promise<number> {
         { _id: { $in: LEGACY_DEMO_USER_IDS } },
         { email: { $in: LEGACY_DEMO_USER_EMAILS } },
         { restaurantId: { $in: LEGACY_DEMO_RESTAURANT_IDS } },
-        { email: LEGACY_ADMIN_EMAIL },
+        { email: { $in: LEGACY_ADMIN_EMAILS } },
       ],
     }),
   );

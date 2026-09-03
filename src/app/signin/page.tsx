@@ -82,7 +82,9 @@ export default async function SignInPage({
           Sign in to your account
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-muted">
-          Choose Customer to order food or Vendor to manage your restaurant orders.
+          {next?.startsWith("/admin") || reason === "admin"
+            ? "Sign in with your administrator account to access the admin console."
+            : "Choose Customer to order food or Vendor to manage your restaurant orders."}
         </p>
       </div>
 

@@ -9,6 +9,7 @@ import {
   MapPin,
   Phone,
   Printer,
+  Truck,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -35,6 +36,7 @@ import { VegMark } from "@/components/shared/veg-mark";
 import {
   acceptOrder,
   confirmCashCollected,
+  dispatchRider,
   raiseStockoutForOrder,
   rejectOrder,
   reportNoShow,
@@ -199,6 +201,25 @@ export function VendorOrderCard({
                 label="Write this OTP on packet"
               />
             ) : null}
+
+            {/* Flow status / action */}
+            {order.status === ORDER_STATUS.OUT_FOR_DELIVERY ||
+            order.status === ORDER_STATUS.AT_GATE ? (
+              <div className="flex items-center gap-2 rounded-xl border border-saffron/30 bg-saffron-wash px-3 py-2 text-xs font-semibold text-saffron">
+                <Truck className="size-4 shrink-0" />
+                <span>On the way to {order.zoneName}</span>
+              </div>
+            ) : (
+              <Button
+                block
+                size="lg"
+                disabled={busy}
+                onClick={() => void run(() => dispatchRider({ orderId: order.orderId }))}
+              >
+                {busy ? <Loader2 className="animate-spin" /> : <Truck />}
+                Mark on the way
+              </Button>
+            )}
 
             {/* Call student & KOT */}
             <div className="flex items-center justify-between gap-2">

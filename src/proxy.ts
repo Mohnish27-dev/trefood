@@ -67,7 +67,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const hasVendorCookie = request.cookies.has(VENDOR_SESSION_COOKIE);
 
   if (isGuarded && !hasSupabaseUser && !hasDemoCookie && !hasVendorCookie) {
-    const signIn = new URL("/signin", request.url);
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+    const origin = forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin);
+    const signIn = new URL("/signin", origin);
     signIn.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(signIn);
   }
