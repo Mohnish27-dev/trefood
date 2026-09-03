@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardList, Home, ShoppingCart, User } from "lucide-react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useCart } from "@/hooks/use-cart";
@@ -14,6 +14,24 @@ import { cn } from "@/lib/utils";
  * actually used — walking to a gate, at night, carrying something else.
  * `pb-safe` keeps it clear of the home indicator once installed as a PWA.
  */
+/**
+ * A saffron bar under the tab that was just tapped, while the next route is
+ * still on the wire. It is delayed by 120ms in CSS, so a prefetched (that
+ * is, instant) navigation never flashes it — this only ever appears when
+ * the network is actually slow.
+ */
+function TapHint() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+
+  return (
+    <span
+      aria-hidden
+      className="nav-tap-hint absolute inset-x-5 bottom-1 h-0.5 rounded-full bg-saffron"
+    />
+  );
+}
+
 export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
   const pathname = usePathname();
   const { itemCount } = useCart();
@@ -56,6 +74,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
                   ) : null}
                 </span>
                 <span className="text-[10px] font-medium leading-none">{label}</span>
+                <TapHint />
               </Link>
             </li>
           );

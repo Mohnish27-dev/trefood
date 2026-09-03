@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import * as db from "@/server/db/collections";
 import { ROLE } from "@/lib/constants";
 import { newId } from "@/lib/ids";
+import { resolveLandingPath } from "@/lib/routes";
 import type { User } from "@/types/user";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,6 @@ export async function GET(request: NextRequest) {
     : forwardedHost
       ? `https://${forwardedHost}`
       : (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin);
-
-  // Prevent open redirect vulnerabilities: only allow local relative paths
-  const next = rawNext && /^\/(?!\/)/.test(rawNext) ? rawNext : "/";
 
   if (code) {
     const supabase = await createSupabaseServerClient();
@@ -69,9 +67,13 @@ export async function GET(request: NextRequest) {
         };
 
         await usersCollection.insertOne(newStudent);
+        mongoUser = newStudent;
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      // `next` is only honoured when it is a local path that leads somewhere.
+      // A bare "/" means "no preference", and the answer to that is the
+      // campus feed — never the marketing page they just signed in from.
+      return NextResponse.redirect(`${origin}${resolveLandingPath(rawNext, mongoUser.role)}`);
     }
   }
 

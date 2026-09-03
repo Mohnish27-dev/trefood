@@ -69,6 +69,69 @@
   --animate-shake: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   --animate-fade-in: fade-in 0.2s ease-out;
 
+  /* ── Landing page only. Nothing inside the ordering flow moves for
+     decoration; a hungry person at 1 AM is not here to watch a hero. ── */
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-flame: flame 3.2s ease-in-out infinite;
+  --animate-reveal: reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sheen: sheen 2.6s ease-in-out infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-14px) rotate(4deg);
+    }
+  }
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      /* The track holds the same list twice, so half a track is one loop. */
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes flame {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.12);
+    }
+  }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(22px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes sheen {
+    0%,
+    55%,
+    100% {
+      transform: translateX(-130%) skewX(-18deg);
+    }
+    80% {
+      transform: translateX(230%) skewX(-18deg);
+    }
+  }
+
   @keyframes shake {
     10%, 90% { transform: translate3d(-2px, 0, 0); }
     20%, 80% { transform: translate3d(4px, 0, 0); }
@@ -337,6 +400,89 @@ h3,
 }
 @utility pt-safe {
   padding-top: max(env(safe-area-inset-top), 0rem);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Landing page
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Scroll-driven reveal, progressively enhanced. Where `animation-timeline`
+   is unsupported (Safari, Firefox today) the element is simply already
+   visible — the content is never hidden behind a capability check. */
+@utility reveal-on-scroll {
+  @supports (animation-timeline: view()) {
+    animation: var(--animate-reveal);
+    animation-timeline: view();
+    animation-range: entry 0% cover 32%;
+  }
+}
+
+/* The looping dish ticker. The track holds the list twice; fading both
+   edges hides the seam without a mask image. */
+@utility marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+/* Warm light behind the hero, so the headline sits on something rather
+   than floating on flat ink. Costs no network bytes. */
+@utility hero-glow {
+  background:
+    radial-gradient(38rem 26rem at 15% 0%, rgb(255 107 26 / 0.22), transparent 62%),
+    radial-gradient(30rem 22rem at 88% 12%, rgb(251 191 36 / 0.14), transparent 60%),
+    radial-gradient(26rem 20rem at 60% 96%, rgb(56 189 248 / 0.1), transparent 62%);
+}
+
+.light .hero-glow,
+[data-theme="light"] .hero-glow {
+  background:
+    radial-gradient(38rem 26rem at 15% 0%, rgb(255 107 26 / 0.16), transparent 62%),
+    radial-gradient(30rem 22rem at 88% 12%, rgb(251 191 36 / 0.12), transparent 60%),
+    radial-gradient(26rem 20rem at 60% 96%, rgb(56 189 248 / 0.08), transparent 62%);
+}
+
+/* Saffron→amber wash used on the two headline words and the step numerals. */
+@utility text-flame {
+  background: linear-gradient(
+    100deg,
+    var(--color-saffron) 0%,
+    var(--color-amber) 46%,
+    var(--color-saffron-glow) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Hairline grid behind the "how it works" band. */
+@utility grid-fade {
+  background-image:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+  -webkit-mask-image: radial-gradient(28rem 20rem at 50% 40%, black, transparent 78%);
+  mask-image: radial-gradient(28rem 20rem at 50% 40%, black, transparent 78%);
+  opacity: 0.5;
+}
+
+/* Tap feedback on the bottom nav. Starts invisible and fades in after
+   120ms, so an instant (prefetched) navigation never flashes a hint. */
+@utility nav-tap-hint {
+  animation: fade-in 0.2s ease-out 0.12s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -15,6 +15,7 @@ import {
   verifyPassword,
 } from "@/server/auth/passwords";
 import { ROLE } from "@/lib/constants";
+import { resolveLandingPath } from "@/lib/routes";
 
 export type AuthActionState =
   | { status: "idle" }
@@ -49,8 +50,7 @@ export async function signInAsDemoUser(input: unknown): Promise<AuthActionState>
     secure: serverEnv().NODE_ENV === "production",
   });
 
-  const target = parsed.data.redirectTo;
-  redirect(target && /^\/(?!\/)/.test(target) ? target : landingFor(user.role));
+  redirect(resolveLandingPath(parsed.data.redirectTo, user.role));
 }
 
 const emailPasswordSchema = z.object({
@@ -90,8 +90,7 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
       secure: serverEnv().NODE_ENV === "production",
     });
 
-    const destination = target && /^\/(?!\/)/.test(target) ? target : landingFor(dbUser.role);
-    redirect(destination);
+    redirect(resolveLandingPath(target, dbUser.role));
   }
 
   // 2. Fall back to Supabase auth (for students / OAuth accounts)
@@ -106,8 +105,9 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
       return { status: "error", message: error.message };
     }
 
-    // Determine landing page based on user role if available
-    let roleLanding = "/";
+    // Determine landing page based on user role. A student with no mirrored
+    // Mongo document yet still belongs on the campus feed, never on "/".
+    let role: string | null = null;
     if (data.user) {
       const authEmail = data.user.email;
       const mongoUser = await usersCollection.findOne(
@@ -115,11 +115,10 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
           ? { $or: [{ authId: data.user.id }, { email: authEmail }] }
           : { authId: data.user.id },
       );
-      if (mongoUser) roleLanding = landingFor(mongoUser.role);
+      role = mongoUser?.role ?? null;
     }
 
-    const destination = target && /^\/(?!\/)/.test(target) ? target : roleLanding;
-    redirect(destination);
+    redirect(resolveLandingPath(target, role));
   }
 
   return { status: "error", message: "Invalid email or password." };
@@ -156,8 +155,7 @@ export async function signUpWithEmail(input: unknown): Promise<AuthActionState> 
 
   // If email confirmation is disabled or session is created immediately:
   if (data.session) {
-    const target = parsed.data.redirectTo;
-    redirect(target && /^\/(?!\/)/.test(target) ? target : "/c/nit-patna");
+    redirect(resolveLandingPath(parsed.data.redirectTo, ROLE.STUDENT));
   }
 
   return {
@@ -178,8 +176,7 @@ export async function sendMagicLink(input: unknown): Promise<AuthActionState> {
   }
 
   const supabase = await createSupabaseServerClient();
-  const target = parsed.data.redirectTo;
-  const redirectUrl = target && /^\/(?!\/)/.test(target) ? target : "/c/nit-patna";
+  const redirectUrl = resolveLandingPath(parsed.data.redirectTo, ROLE.STUDENT);
 
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
@@ -196,12 +193,6 @@ export async function sendMagicLink(input: unknown): Promise<AuthActionState> {
     status: "success",
     message: "Magic login link sent to your email! Check your inbox.",
   };
-}
-
-function landingFor(role: string): string {
-  if (role === "VENDOR_OWNER" || role === "VENDOR_STAFF") return "/vendor/orders";
-  if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin/orders";
-  return "/c/nit-patna";
 }
 
 export async function signOut(): Promise<void> {
