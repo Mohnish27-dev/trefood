@@ -54,7 +54,7 @@ const serverSchema = z
     MONGODB_MAX_POOL_SIZE: intFromString(10),
 
     AUTH_PROVIDER: z.enum(["stub", "supabase"]).default("stub"),
-    PAYMENT_PROVIDER: z.enum(["stub", "phonepe"]).default("stub"),
+    PAYMENT_PROVIDER: z.enum(["stub", "phonepe", "paytm"]).default("stub"),
 
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
 
@@ -62,6 +62,12 @@ const serverSchema = z
     PHONEPE_MERCHANT_ID: optionalString,
     PHONEPE_MERCHANT_SECRET: optionalString,
     PHONEPE_WEBHOOK_SECRET: optionalString,
+
+    // Paytm merchant
+    PAYTM_MID: optionalString,
+    PAYTM_MERCHANT_KEY: optionalString,
+    PAYTM_WEBSITE: z.string().default("WEBSTAGING"),
+    PAYTM_ENVIRONMENT: z.enum(["staging", "production"]).default("staging"),
 
     VAPID_PRIVATE_KEY: optionalString,
     VAPID_SUBJECT: z.string().default("mailto:ops@trefood.in"),
@@ -83,6 +89,13 @@ const serverSchema = z
       for (const key of ["PHONEPE_MERCHANT_ID", "PHONEPE_MERCHANT_SECRET", "PHONEPE_WEBHOOK_SECRET"] as const) {
         if (!env[key]) {
           ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=phonepe" });
+        }
+      }
+    }
+    if (env.PAYMENT_PROVIDER === "paytm") {
+      for (const key of ["PAYTM_MID", "PAYTM_MERCHANT_KEY"] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=paytm" });
         }
       }
     }

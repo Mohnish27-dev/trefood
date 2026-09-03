@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import * as db from "@/server/db/collections";
 import { ACTOR, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
+import { serverEnv } from "@/lib/env";
 import { requireSession } from "@/server/auth/session";
 import { getCampusById, getRestaurantById } from "@/server/services/catalog";
 import { checkCurfew } from "@/server/services/curfew";
@@ -41,7 +42,17 @@ const placeOrderSchema = z.object({
 export type PlaceOrderState =
   | { status: "idle" }
   | { status: "error"; message: string; issues?: { itemId: string; message: string }[] }
-  | { status: "success"; orderId: string };
+  | {
+      status: "success";
+      orderId: string;
+      paytm?: {
+        orderId: string;
+        txnToken: string;
+        amountRupees: string;
+        mid: string;
+        isStaging: boolean;
+      };
+    };
 
 /**
  * Place an order.
@@ -165,7 +176,22 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
   }
 
   revalidatePath("/orders");
-  return { status: "success", orderId: order._id };
+  const isPaytm = paymentProvider().name === "paytm";
+  return {
+    status: "success",
+    orderId: order._id,
+    ...(isPaytm && intent.txnToken && intent.mid
+      ? {
+          paytm: {
+            orderId: order.orderNumber,
+            txnToken: intent.txnToken,
+            amountRupees: `${Math.floor(expectedOnlinePaise / 100)}.${Math.abs(expectedOnlinePaise % 100).toString().padStart(2, "0")}`,
+            mid: intent.mid,
+            isStaging: serverEnv().PAYTM_ENVIRONMENT !== "production",
+          },
+        }
+      : {}),
+  };
 }
 
 /* ------------------------------------------------------------------ */

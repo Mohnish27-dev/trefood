@@ -1,7 +1,8 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
+import { paymentProvider } from "./payments";
 import { issueRefund } from "./refunds";
 import { transitionOrder } from "./orders";
 import { recordStrike } from "./students";
@@ -226,6 +227,39 @@ export async function abandonStalePayments(now: Date = new Date()): Promise<Swee
 
   for (const order of orders) {
     report.scanned += 1;
+
+    // Check with gateway first: if student completed payment just as tab closed, promote to PLACED
+    const provider = paymentProvider();
+    if (provider.checkStatus) {
+      try {
+        const check = await provider.checkStatus({ orderNumber: order.orderNumber });
+        if (check.status === "SUCCESS") {
+          await (await db.orders()).updateOne(
+            { _id: order._id },
+            {
+              $set: {
+                "payment.status": PAYMENT_STATUS.CAPTURED,
+                "payment.providerPaymentId": check.paymentId ?? null,
+                "payment.onlinePaidPaise": check.amountPaise ?? order.pricing.grandTotalPaise,
+              },
+            },
+          );
+          const promoted = await transitionOrder({
+            orderId: order._id,
+            to: ORDER_STATUS.PLACED,
+            actor: ACTOR.SYSTEM,
+            reason: `Payment verified during reconciliation sweep (${paymentProvider().name})`,
+          });
+          if (promoted.ok) {
+            report.acted += 1;
+            continue;
+          }
+        }
+      } catch {
+        // Continue to abandon if check failed
+      }
+    }
+
     const transition = await transitionOrder({
       orderId: order._id,
       to: ORDER_STATUS.PAYMENT_FAILED,

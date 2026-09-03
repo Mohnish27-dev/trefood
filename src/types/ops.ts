@@ -9,7 +9,7 @@ import type { Paise } from "@/lib/money";
 export interface WebhookEvent {
   _id: string;
   eventId: string;
-  provider: "PHONEPE";
+  provider: "PHONEPE" | "PAYTM";
   eventType: string;
   orderId: string | null;
   processedAt: Date;
