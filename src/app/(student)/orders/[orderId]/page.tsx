@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { OrderTracker } from "@/components/student/order-tracker";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import {
@@ -77,15 +78,18 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex min-h-14 items-center gap-2 border-b border-line bg-ink/95 px-2 backdrop-blur-lg pt-safe">
-        <Link
-          href="/orders"
-          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
-          aria-label="Back to orders"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <h1 className="font-display text-base font-semibold text-bone">Order status</h1>
+      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-line bg-ink/95 px-2 pr-4 backdrop-blur-lg pt-safe">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/orders"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
+            aria-label="Back to orders"
+          >
+            <ArrowLeft className="size-5" />
+          </Link>
+          <h1 className="font-display text-base font-semibold text-bone">Order status</h1>
+        </div>
+        <ThemeToggle />
       </header>
 
       <OrderTracker initial={initial} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Toaster as Sonner } from "sonner";
+import { useTheme } from "@/components/shared/theme-provider";
 
 /**
  * Toasts, for confirmations that do not deserve a dialog.
@@ -11,9 +12,11 @@ import { Toaster as Sonner } from "sonner";
  * person just took.
  */
 export function Toaster() {
+  const { theme } = useTheme();
+
   return (
     <Sonner
-      theme="dark"
+      theme={theme}
       position="top-center"
       toastOptions={{
         classNames: {

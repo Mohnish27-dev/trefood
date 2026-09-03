@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/money";
 import { StatusBadge } from "@/components/shared/status";
 import { EmptyState } from "@/components/shared/states";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
 import { TERMINAL_STATUSES } from "@/lib/constants";
@@ -20,8 +21,9 @@ export default async function OrdersPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex min-h-14 items-center border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
+      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
         <h1 className="font-display text-base font-semibold text-bone">Your orders</h1>
+        <ThemeToggle />
       </header>
 
       {orders.length === 0 ? (

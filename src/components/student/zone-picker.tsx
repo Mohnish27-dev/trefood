@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { useDeliveryZone } from "@/hooks/use-delivery-zone";
 import { cn } from "@/lib/utils";
 import type { ZoneType } from "@/lib/constants";
@@ -66,35 +67,38 @@ export function ZonePicker({
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur-lg pt-safe">
-        <Dialog.Trigger asChild>
-          <button
-            type="button"
-            className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface/60"
-          >
-            <MapPin className="size-4 shrink-0 text-saffron" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                Deliver to
+        <div className="flex items-center pr-3">
+          <Dialog.Trigger asChild>
+            <button
+              type="button"
+              className="flex min-h-14 flex-1 items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface/60"
+            >
+              <MapPin className="size-4 shrink-0 text-saffron" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
+                  Deliver to
+                </span>
+                <span className="block truncate text-sm font-medium text-bone">
+                  {selected ? selected.name : "Choose your gate"}
+                </span>
               </span>
-              <span className="block truncate text-sm font-medium text-bone">
-                {selected ? selected.name : "Choose your gate"}
-              </span>
-            </span>
-            {selected?.curfewLabel ? (
-              <Badge tone="warning" className="shrink-0">
-                <Clock className="size-3" />
-                {selected.curfewLabel}
-              </Badge>
-            ) : selected ? (
-              <Badge tone="success" className="shrink-0">
-                24×7
-              </Badge>
-            ) : null}
-            <ChevronDown
-              className={cn("size-4 shrink-0 text-faint transition-transform", isPending && "animate-spin")}
-            />
-          </button>
-        </Dialog.Trigger>
+              {selected?.curfewLabel ? (
+                <Badge tone="warning" className="shrink-0">
+                  <Clock className="size-3" />
+                  {selected.curfewLabel}
+                </Badge>
+              ) : selected ? (
+                <Badge tone="success" className="shrink-0">
+                  24×7
+                </Badge>
+              ) : null}
+              <ChevronDown
+                className={cn("size-4 shrink-0 text-faint transition-transform", isPending && "animate-spin")}
+              />
+            </button>
+          </Dialog.Trigger>
+          <ThemeToggle className="size-10 shrink-0 border-0 bg-transparent hover:bg-surface-raised" />
+        </div>
       </header>
 
       <Dialog.Portal>

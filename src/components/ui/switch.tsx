@@ -24,7 +24,7 @@ export function Switch({ className, ...props }: ComponentProps<typeof SwitchPrim
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "pointer-events-none block size-5 rounded-full bg-bone shadow-lg ring-0 transition-transform",
+          "pointer-events-none block size-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
           "data-[state=checked]:translate-x-[1.4rem] data-[state=unchecked]:translate-x-0.5",
         )}
       />

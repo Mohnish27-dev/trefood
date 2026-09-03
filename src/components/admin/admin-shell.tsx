@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/toast";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { signOut } from "@/server/actions/session";
 import { cn } from "@/lib/utils";
 
@@ -67,20 +68,23 @@ export function AdminShell({
   return (
     <div className="min-h-dvh lg:flex">
       <aside className="border-b border-line bg-surface/40 lg:min-h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2.5 px-4 py-4">
-          <div className="relative size-8 shrink-0 overflow-hidden rounded-lg border border-saffron/30">
-            <Image
-              src="/icons/icon-192.png"
-              alt="TREFOOD Logo"
-              width={32}
-              height={32}
-              className="size-full object-cover"
-            />
+        <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-2.5">
+            <div className="relative size-8 shrink-0 overflow-hidden rounded-lg border border-saffron/30">
+              <Image
+                src="/icons/icon-192.png"
+                alt="TREFOOD Logo"
+                width={32}
+                height={32}
+                className="size-full object-cover"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-sm font-semibold leading-none text-bone">TREFOOD</p>
+              <p className="mt-1 text-[11px] leading-none text-faint">Admin console</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="font-display text-sm font-semibold leading-none text-bone">TREFOOD</p>
-            <p className="mt-1 text-[11px] leading-none text-faint">Admin console</p>
-          </div>
+          <ThemeToggle />
         </div>
 
         <nav className="flex gap-4 overflow-x-auto px-2 pb-3 lg:block lg:overflow-visible lg:px-2">

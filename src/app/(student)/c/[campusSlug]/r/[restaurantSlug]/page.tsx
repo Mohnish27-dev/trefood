@@ -1,12 +1,12 @@
-import { ArrowLeft, Clock, Phone, Star, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, Clock, Phone, Star } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Money } from "@/components/shared/money";
-import { EmptyState } from "@/components/shared/states";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { CartBar } from "@/components/student/cart-bar";
-import { MenuItemRow } from "@/components/student/menu-item-row";
+import { RestaurantMenuSearch } from "@/components/student/restaurant-menu-search";
 import { formatRating } from "@/lib/utils";
 import {
   getCampusBySlug,
@@ -39,106 +39,132 @@ export default async function MenuPage({
     0,
   );
 
+  const highlightTag =
+    restaurant.rating !== null && restaurant.rating >= 4.5
+      ? `🏅 Best in ${restaurant.cuisines[0] || "Campus"}`
+      : null;
+
   return (
     <>
       {/* ── Header ───────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur-lg pt-safe">
-        <div className="flex min-h-14 items-center gap-2 px-2">
+      <header className="sticky top-0 z-30 bg-[#0b0f19] text-white pt-safe">
+        <div className="flex min-h-14 items-center gap-2 px-3">
           <Link
             href={`/c/${campusSlug}`}
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors"
             aria-label="Back to restaurants"
           >
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="min-w-0 flex-1 truncate font-display text-base font-semibold text-bone">
+          <h1 className="min-w-0 flex-1 truncate font-display text-base font-semibold text-white">
             {restaurant.name}
           </h1>
           <a
             href={`tel:${restaurant.phone}`}
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors"
             aria-label={`Call ${restaurant.name}`}
           >
             <Phone className="size-5" />
           </a>
+          <ThemeToggle />
         </div>
       </header>
 
-      {/* ── Restaurant summary ───────────────────────────────────── */}
-      <section className="border-b border-line px-4 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {isServing ? (
-            <Badge tone="success">
-              <span className="size-1.5 rounded-full bg-mint" />
-              Open now
-            </Badge>
-          ) : (
-            <Badge tone="warning">
-              Closed · opens {formatMinutes(restaurant.opensMinutes)}
-            </Badge>
-          )}
-          {restaurant.rating !== null ? (
-            <Badge tone="neutral">
-              <Star className="size-3 fill-amber text-amber" />
-              {formatRating(restaurant.rating)} ({restaurant.ratingCount})
-            </Badge>
+      {/* ── Swiggy-Style Hero Container (Dark Backdrop) ──────────── */}
+      <section className="bg-[#0b0f19] px-4 sm:px-5 pt-1 pb-7 sm:pb-8 rounded-b-[2.5rem] shadow-2xl">
+        {/* ── Floating Box (White in Light Mode, Dark in Dark Mode) ── */}
+        <div className="restaurant-hero-card rounded-[1.35rem] p-4 sm:p-5 border transition-colors duration-200">
+          {/* Top Tag & Serving Status Row */}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            {highlightTag ? (
+              <p className="text-xs font-semibold text-saffron tracking-tight">
+                {highlightTag}
+              </p>
+            ) : (
+              <span />
+            )}
+
+            {isServing ? (
+              <Badge tone="success" className="px-2.5 py-0.5 text-[11px] font-medium shadow-2xs">
+                <span className="size-1.5 rounded-full bg-mint" />
+                Open now
+              </Badge>
+            ) : (
+              <Badge tone="warning" className="px-2.5 py-0.5 text-[11px] font-medium shadow-2xs">
+                Closed · opens {formatMinutes(restaurant.opensMinutes)}
+              </Badge>
+            )}
+          </div>
+
+          {/* Restaurant Title & Rating Badge Row */}
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="hero-card-title font-display text-xl sm:text-2xl font-bold tracking-tight leading-tight">
+              {restaurant.name}
+            </h2>
+
+            {restaurant.rating !== null ? (
+              <div className="flex flex-col items-end shrink-0">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs">
+                  <Star className="size-3 fill-white text-white" />
+                  <span>{formatRating(restaurant.rating)}</span>
+                </span>
+                <span className="hero-card-subtext mt-0.5 text-[10px] font-medium">
+                  {restaurant.ratingCount} ratings
+                </span>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white shadow-xs shrink-0">
+                <Star className="size-3 fill-white text-white" />
+                <span>New</span>
+              </span>
+            )}
+          </div>
+
+          {/* Prep Time & Campus Location Line */}
+          <div className="hero-card-subtext mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <Clock className="size-3.5 opacity-70" />
+              {restaurant.prepMinutes}-{restaurant.prepMinutes + 5} min prep
+            </span>
+            <span className="opacity-40">•</span>
+            <span className="hero-card-strong font-medium">{campus.name}</span>
+          </div>
+
+          {/* Cuisines & Min Order Line */}
+          <div className="hero-card-subtext mt-1 flex items-center justify-between text-xs">
+            <p className="truncate pr-2 font-normal">
+              {restaurant.cuisines.join(", ")}
+            </p>
+            <span className="hero-card-strong shrink-0 font-semibold">
+              Min <Money paise={restaurant.minOrderPaise} />
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="hero-card-divider my-3 border-t" />
+
+          {/* Hotel Description */}
+          <p className="hero-card-subtext text-xs sm:text-[13px] leading-relaxed font-normal">
+            {restaurant.description}
+          </p>
+
+          {/* Out-of-Stock Badge (if applicable) */}
+          {outOfStockCount > 0 ? (
+            <p className="hero-card-chip mt-2.5 rounded-md border px-2.5 py-1 text-[11px] font-medium">
+              {outOfStockCount} item{outOfStockCount === 1 ? " is" : "s are"} out of stock today
+            </p>
           ) : null}
         </div>
-
-        <p className="mt-3 text-sm leading-relaxed text-muted">{restaurant.description}</p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-          <span className="inline-flex items-center gap-1">
-            <Clock className="size-3.5 text-faint" />
-            {restaurant.prepMinutes} min prep
-          </span>
-          <span>
-            Min order <Money paise={restaurant.minOrderPaise} />
-          </span>
-        </div>
-
-        {outOfStockCount > 0 ? (
-          <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-muted">
-            {outOfStockCount} item{outOfStockCount === 1 ? " is" : "s are"} out of stock today.
-            They stay listed so you know they exist.
-          </p>
-        ) : null}
       </section>
 
-      {/* ── Menu ─────────────────────────────────────────────────── */}
-      <div className="px-4">
-        {sections.length === 0 ? (
-          <EmptyState
-            icon={UtensilsCrossed}
-            title="No menu yet"
-            description="This restaurant has not published its menu. Try another one, or check back later."
-          />
-        ) : (
-          sections.map((section) => (
-            <section key={section.category._id} className="border-b border-line py-2 last:border-0">
-              <h2 className="sticky top-14 z-20 -mx-4 bg-ink/95 px-4 py-3 font-display text-sm font-semibold uppercase tracking-wider text-muted backdrop-blur-lg">
-                {section.category.name}
-                <span className="ml-2 font-sans text-xs font-normal normal-case tracking-normal text-faint">
-                  {section.items.length}
-                </span>
-              </h2>
-
-              <div className="divide-y divide-line">
-                {section.items.map((item) => (
-                  <MenuItemRow
-                    key={item._id}
-                    item={item}
-                    restaurantId={restaurant._id}
-                    restaurantSlug={restaurant.slug}
-                    campusSlug={campusSlug}
-                    restaurantIsOpen={isServing}
-                  />
-                ))}
-              </div>
-            </section>
-          ))
-        )}
-      </div>
+      {/* ── Search & Menu (Directly under the black box) ───────────── */}
+      <RestaurantMenuSearch
+        sections={sections}
+        restaurantId={restaurant._id}
+        restaurantSlug={restaurant.slug}
+        campusSlug={campusSlug}
+        restaurantIsOpen={isServing}
+      />
 
       <CartBar />
     </>

@@ -1,19 +1,21 @@
-import { Clock, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Money } from "@/components/shared/money";
 import { cn, formatRating } from "@/lib/utils";
+import { getRestaurantImages } from "@/lib/restaurant-media";
+import { RestaurantCarousel } from "./restaurant-carousel";
 import type { RestaurantListItem } from "@/server/services/catalog";
 
 /**
- * A restaurant in the student list.
+ * A restaurant in the student list styled after the Swiggy card layout.
  *
- * Closed restaurants are RENDERED, greyed, at the bottom — never hidden. A
- * student needs to know the place exists and is shut tonight, not wonder where
- * it went. The whole card stays a link so they can still read the menu and
- * plan tomorrow.
+ * Includes an auto-sliding horizontal image carousel (3s loop),
+ * ETA badge in bottom-right, rating pill, and clean typography.
+ *
+ * Closed restaurants are RENDERED, greyed, at the bottom — never hidden.
+ * The whole card stays a link so students can still read the menu and plan tomorrow.
  */
 export function RestaurantCard({
   restaurant,
@@ -23,76 +25,75 @@ export function RestaurantCard({
   campusSlug: string;
 }) {
   const { isServingNow } = restaurant;
-  const initials = restaurant.name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0] ?? "")
-    .join("");
+  const images = getRestaurantImages(restaurant);
+  const etaLabel = `${restaurant.prepMinutes}-${restaurant.prepMinutes + 5} MINS`;
+
+  const highlightTag =
+    restaurant.rating !== null && restaurant.rating >= 4.5
+      ? `🏅 Best in ${restaurant.cuisines[0] || "Campus"}`
+      : null;
 
   return (
     <Link href={`/c/${campusSlug}/r/${restaurant.slug}`} className="block group">
       <Card
         className={cn(
-          "transition-all group-active:scale-[0.99]",
-          isServingNow ? "group-hover:border-saffron/50" : "opacity-55",
+          "overflow-hidden border border-line bg-surface transition-all duration-300 rounded-2xl group-active:scale-[0.99]",
+          isServingNow
+            ? "hover:border-saffron/50 hover:shadow-lg"
+            : "opacity-65 hover:opacity-85",
         )}
       >
-        <div className="flex gap-3.5 p-3.5">
-          {/* No photo yet, so a typographic tile rather than a grey box.
-              Menu images land in Supabase Storage at Phase 2.2. */}
-          <span
-            className={cn(
-              "flex size-16 shrink-0 items-center justify-center rounded-xl border font-display text-lg font-bold",
-              isServingNow
-                ? "border-saffron/25 bg-saffron-wash text-saffron"
-                : "border-line bg-surface-raised text-faint",
-            )}
-            aria-hidden
-          >
-            {initials}
-          </span>
+        {/* ── 16:9 Image Carousel ──────────────────────────────────── */}
+        <RestaurantCarousel
+          images={images}
+          restaurantName={restaurant.name}
+          etaLabel={etaLabel}
+          isServingNow={isServingNow}
+        />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="truncate font-display text-base font-semibold text-bone">
-                {restaurant.name}
-              </h3>
-              {isServingNow ? (
-                <Badge tone="success" className="shrink-0">
-                  <span className="size-1.5 rounded-full bg-mint" />
-                  Open
-                </Badge>
-              ) : (
-                <Badge tone="neutral" className="shrink-0">
-                  Closed
-                </Badge>
-              )}
-            </div>
-
-            <p className="mt-0.5 truncate text-xs text-muted">
-              {restaurant.cuisines.join(" · ")}
+        {/* ── Details Section (Matching Swiggy Card) ────────────────── */}
+        <div className="p-3.5 sm:p-4">
+          {/* Highlight Tag */}
+          {highlightTag ? (
+            <p className="mb-1 text-xs font-semibold text-saffron tracking-tight">
+              {highlightTag}
             </p>
+          ) : null}
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-              <span className="inline-flex items-center gap-1">
-                <Clock className="size-3.5 text-faint" />
-                {restaurant.prepMinutes} min
-              </span>
-              <span className="text-line">|</span>
+          {/* Restaurant Name */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-bone group-hover:text-saffron transition-colors truncate">
+              {restaurant.name}
+            </h3>
+          </div>
+
+          {/* Rating, Gate & Transit Line */}
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            <span className="inline-flex items-center gap-1 rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-bold text-white shadow-xs">
+              <Star className="size-3 fill-white text-white" />
               <span>
-                Min <Money paise={restaurant.minOrderPaise} />
+                {restaurant.rating !== null ? formatRating(restaurant.rating) : "New"}
               </span>
-              {restaurant.rating !== null ? (
-                <>
-                  <span className="text-line">|</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Star className="size-3.5 fill-amber text-amber" />
-                    <span className="tabular">{formatRating(restaurant.rating)}</span>
-                    <span className="text-faint">({restaurant.ratingCount})</span>
-                  </span>
-                </>
+              {restaurant.ratingCount ? (
+                <span className="opacity-90">({restaurant.ratingCount})</span>
               ) : null}
-            </div>
+            </span>
+
+            <span className="text-line">•</span>
+            <span className="font-medium text-bone/80">NIT Patna</span>
+
+            <span className="text-line">•</span>
+            <span>{restaurant.prepMinutes} min prep</span>
+          </div>
+
+          {/* Cuisines & Min Order Line */}
+          <div className="mt-1.5 flex items-center justify-between text-xs text-muted truncate">
+            <p className="truncate">
+              {restaurant.cuisines.join(", ")}
+            </p>
+            <span className="shrink-0 pl-2 font-medium text-bone/90">
+              Min <Money paise={restaurant.minOrderPaise} />
+            </span>
           </div>
         </div>
       </Card>

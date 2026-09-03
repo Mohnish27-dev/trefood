@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/toast";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { signOut } from "@/server/actions/session";
 import { setRestaurantOpen } from "@/server/actions/vendor";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,8 @@ export function VendorShell({
                 aria-label={open ? "Stop taking orders" : "Start taking orders"}
               />
             </div>
+
+            <ThemeToggle />
 
             <form action={signOut}>
               <button
