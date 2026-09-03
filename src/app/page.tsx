@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { BrandLogo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { ROLE } from "@/lib/constants";
 
@@ -29,21 +30,24 @@ export default async function LandingPage() {
       {/* ── Header / Navigation ─────────────────────────────────── */}
       <header className="px-5 pt-8 pb-4 max-w-2xl mx-auto flex items-center justify-between">
         <BrandLogo size="md" />
-        {session ? (
-          <Link
-            href={appDestination}
-            className="rounded-xl border border-saffron/30 bg-saffron-wash px-3.5 py-1.5 text-xs font-medium text-saffron hover:bg-saffron hover:text-ink transition-colors"
-          >
-            Go to App
-          </Link>
-        ) : (
-          <Link
-            href="/signin"
-            className="rounded-xl border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted hover:border-saffron/40 hover:text-bone transition-colors"
-          >
-            Sign in
-          </Link>
-        )}
+        <div className="flex items-center gap-2.5">
+          <ThemeToggle />
+          {session ? (
+            <Link
+              href={appDestination}
+              className="rounded-xl border border-saffron/30 bg-saffron-wash px-3.5 py-2 text-xs font-medium text-saffron hover:bg-saffron hover:text-ink transition-colors"
+            >
+              Go to App
+            </Link>
+          ) : (
+            <Link
+              href="/signin"
+              className="rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-medium text-muted hover:border-saffron/40 hover:text-bone transition-colors"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </header>
 
       {/* ── Hero ─────────────────────────────────────────────────── */}

@@ -126,7 +126,7 @@ export function MenuItemRow({
           {canOrder ? (
             <Button
               size="sm"
-              variant={hasChoices ? "outline" : "primary"}
+              variant="primary"
               onClick={() => (hasChoices ? setSheetOpen(true) : commit([]))}
               aria-label={`Add ${item.name}`}
             >

@@ -17,6 +17,7 @@ import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
 import { PushPermissionCard } from "@/components/student/push-permission-card";
 import { AccountQuickUnlock } from "@/components/student/account-quick-unlock";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { signOut } from "@/server/actions/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
@@ -182,6 +183,11 @@ export default async function AccountPage() {
         {/* ── F17 — push is never the only channel ─────────────── */}
         <PushPermissionCard />
 
+        {/* ── Appearance & Theme ─────────────────────────────────── */}
+        <Card>
+          <ThemeToggle variant="row" />
+        </Card>
+
         {/* ── Links ────────────────────────────────────────────── */}
         <Card className="divide-y divide-line">
           <Row href="/orders" label="Your orders" hint={`${orders.length} in total`} />
@@ -212,8 +218,9 @@ export default async function AccountPage() {
 
 function Header() {
   return (
-    <header className="sticky top-0 z-30 flex min-h-14 items-center border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
+    <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
       <h1 className="font-display text-base font-semibold text-bone">Account</h1>
+      <ThemeToggle />
     </header>
   );
 }

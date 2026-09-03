@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ══════════════════════════════════════════════════════════════════════
    TREFOOD — Midnight Campus design system
@@ -16,36 +17,36 @@
 
 @theme {
   /* ── Ground & surfaces ──────────────────────────────────────────── */
-  --color-ink: #0b0d12;
-  --color-ink-deep: #06080c;
-  --color-surface: #12151d;
-  --color-surface-raised: #1a1f2a;
-  --color-surface-hover: #222836;
-  --color-line: #262c3a;
-  --color-line-strong: #38405320;
+  --color-ink: var(--theme-ink);
+  --color-ink-deep: var(--theme-ink-deep);
+  --color-surface: var(--theme-surface);
+  --color-surface-raised: var(--theme-surface-raised);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-line: var(--theme-line);
+  --color-line-strong: var(--theme-line-strong);
 
   /* ── Type ───────────────────────────────────────────────────────── */
-  --color-bone: #f5f3ef;
-  --color-muted: #8b93a5;
-  --color-faint: #5a6274;
+  --color-bone: var(--theme-bone);
+  --color-muted: var(--theme-muted);
+  --color-faint: var(--theme-faint);
 
   /* ── Brand & semantics ──────────────────────────────────────────── */
-  --color-saffron: #ff6b1a;
-  --color-saffron-glow: #ff8a47;
-  --color-saffron-deep: #d4520c;
-  --color-saffron-wash: #ff6b1a1a;
+  --color-saffron: var(--theme-saffron);
+  --color-saffron-glow: var(--theme-saffron-glow);
+  --color-saffron-deep: var(--theme-saffron-deep);
+  --color-saffron-wash: var(--theme-saffron-wash);
 
-  --color-mint: #34d399;
-  --color-mint-wash: #34d3991a;
+  --color-mint: var(--theme-mint);
+  --color-mint-wash: var(--theme-mint-wash);
 
-  --color-chili: #f43f5e;
-  --color-chili-wash: #f43f5e1a;
+  --color-chili: var(--theme-chili);
+  --color-chili-wash: var(--theme-chili-wash);
 
-  --color-amber: #fbbf24;
-  --color-amber-wash: #fbbf241a;
+  --color-amber: var(--theme-amber);
+  --color-amber-wash: var(--theme-amber-wash);
 
-  --color-sky: #38bdf8;
-  --color-sky-wash: #38bdf81a;
+  --color-sky: var(--theme-sky);
+  --color-sky-wash: var(--theme-sky-wash);
 
   /* ── Fonts ──────────────────────────────────────────────────────── */
   --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
@@ -141,10 +142,77 @@
    Base
    ══════════════════════════════════════════════════════════════════════ */
 
-:root {
+:root,
+.dark,
+[data-theme="dark"] {
   color-scheme: dark;
   --header-h: 3.5rem;
   --bottom-nav-h: 4.25rem;
+
+  --theme-ink: #0b0d12;
+  --theme-ink-deep: #06080c;
+  --theme-surface: #12151d;
+  --theme-surface-raised: #1a1f2a;
+  --theme-surface-hover: #222836;
+  --theme-line: #262c3a;
+  --theme-line-strong: rgba(56, 64, 83, 0.2);
+
+  --theme-bone: #f5f3ef;
+  --theme-muted: #8b93a5;
+  --theme-faint: #5a6274;
+
+  --theme-saffron: #ff6b1a;
+  --theme-saffron-glow: #ff8a47;
+  --theme-saffron-deep: #d4520c;
+  --theme-saffron-wash: rgba(255, 107, 26, 0.1);
+
+  --theme-mint: #34d399;
+  --theme-mint-wash: rgba(52, 211, 153, 0.1);
+
+  --theme-chili: #f43f5e;
+  --theme-chili-wash: rgba(244, 63, 94, 0.1);
+
+  --theme-amber: #fbbf24;
+  --theme-amber-wash: rgba(251, 191, 36, 0.1);
+
+  --theme-sky: #38bdf8;
+  --theme-sky-wash: rgba(56, 189, 248, 0.1);
+}
+
+.light,
+[data-theme="light"] {
+  color-scheme: light;
+  --header-h: 3.5rem;
+  --bottom-nav-h: 4.25rem;
+
+  --theme-ink: #f8f9fc;
+  --theme-ink-deep: #0f172a;
+  --theme-surface: #ffffff;
+  --theme-surface-raised: #f1f5f9;
+  --theme-surface-hover: #e2e8f0;
+  --theme-line: #e2e8f0;
+  --theme-line-strong: rgba(15, 23, 42, 0.08);
+
+  --theme-bone: #0f172a;
+  --theme-muted: #475569;
+  --theme-faint: #94a3b8;
+
+  --theme-saffron: #ff6b1a;
+  --theme-saffron-glow: #ff8a47;
+  --theme-saffron-deep: #ea580c;
+  --theme-saffron-wash: rgba(255, 107, 26, 0.08);
+
+  --theme-mint: #059669;
+  --theme-mint-wash: rgba(5, 150, 105, 0.08);
+
+  --theme-chili: #e11d48;
+  --theme-chili-wash: rgba(225, 29, 72, 0.08);
+
+  --theme-amber: #d97706;
+  --theme-amber-wash: rgba(217, 119, 6, 0.08);
+
+  --theme-sky: #0284c7;
+  --theme-sky-wash: rgba(2, 132, 199, 0.08);
 }
 
 * {
@@ -168,6 +236,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.light body,
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(60rem 40rem at 50% -10%, rgb(255 107 26 / 0.05), transparent 60%),
+    radial-gradient(40rem 30rem at 100% 0%, rgb(56 189 248 / 0.03), transparent 55%);
+}
+
+.light .text-ink,
+[data-theme="light"] .text-ink {
+  color: #080a0f !important;
+}
+
+.light .surface-card,
+[data-theme="light"] .surface-card {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+}
+
 h1,
 h2,
 h3,
@@ -186,7 +271,7 @@ h3,
 
 ::selection {
   background: var(--color-saffron);
-  color: var(--color-ink);
+  color: #080a0f;
 }
 
 /* Scrollbars, so the vendor board does not look unfinished on a tablet. */
@@ -288,3 +373,89 @@ h3,
     border-color: var(--color-chili) !important;
   }
 }
+
+/* ── Restaurant Detail Hero Card Theme Adaptation ─────────────────────── */
+.restaurant-hero-card {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+}
+
+.restaurant-hero-card .hero-card-title {
+  color: #0f172a;
+}
+
+.restaurant-hero-card .hero-card-subtext {
+  color: #475569;
+}
+
+.restaurant-hero-card .hero-card-strong {
+  color: #0f172a;
+}
+
+.restaurant-hero-card .hero-card-divider {
+  border-color: #f1f5f9;
+}
+
+.restaurant-hero-card .hero-card-chip {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.dark .restaurant-hero-card,
+[data-theme="dark"] .restaurant-hero-card {
+  background-color: #151922 !important;
+  color: var(--theme-bone) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark .restaurant-hero-card .hero-card-title,
+[data-theme="dark"] .restaurant-hero-card .hero-card-title {
+  color: var(--theme-bone) !important;
+}
+
+.dark .restaurant-hero-card .hero-card-subtext,
+[data-theme="dark"] .restaurant-hero-card .hero-card-subtext {
+  color: var(--theme-muted) !important;
+}
+
+.dark .restaurant-hero-card .hero-card-strong,
+[data-theme="dark"] .restaurant-hero-card .hero-card-strong {
+  color: var(--theme-bone) !important;
+}
+
+.dark .restaurant-hero-card .hero-card-divider,
+[data-theme="dark"] .restaurant-hero-card .hero-card-divider {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .restaurant-hero-card .hero-card-chip,
+[data-theme="dark"] .restaurant-hero-card .hero-card-chip {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-line) !important;
+  color: var(--theme-muted) !important;
+}
+
+/* ── Restaurant In-Menu Search Input ─────────────────────────────────── */
+.restaurant-menu-search-input,
+.restaurant-menu-search-input:focus,
+.restaurant-menu-search-input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ── Veg & Non-Veg Mark Distinct Outer Box Borders ───────────────────── */
+.veg-mark-veg {
+  border-color: var(--theme-mint, #059669) !important;
+}
+
+.veg-mark-nonveg {
+  border-color: var(--theme-chili, #dc2626) !important;
+}
+
+
+

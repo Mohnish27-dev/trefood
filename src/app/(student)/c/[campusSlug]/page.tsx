@@ -1,9 +1,9 @@
-import { Store, UtensilsCrossed } from "lucide-react";
+import { Store } from "lucide-react";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/shared/states";
-import { RestaurantCard } from "@/components/student/restaurant-card";
+import { CampusRestaurantFeed } from "@/components/student/campus-restaurant-feed";
 import { ZonePicker, type ZoneOption } from "@/components/student/zone-picker";
 import { zoneCookieName } from "@/lib/cookies";
 import { getCampusBySlug, listRestaurantsForZone } from "@/server/services/catalog";
@@ -65,9 +65,6 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
       };
     });
 
-  const open = restaurants.filter((r) => r.isServingNow);
-  const closed = restaurants.filter((r) => !r.isServingNow);
-
   return (
     <>
       <ZonePicker
@@ -91,59 +88,11 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
             description={`No restaurant currently delivers to ${selectedZone.name}. Try the main campus gate, which every restaurant serves.`}
           />
         ) : (
-          <>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h1 className="font-display text-lg font-semibold text-bone">
-                {open.length} open now
-              </h1>
-              <p className="text-xs text-muted">
-                {campus.settings.transitMinutes} min to your gate
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {open.map((restaurant) => (
-                <RestaurantCard
-                  key={restaurant._id}
-                  restaurant={restaurant}
-                  campusSlug={campusSlug}
-                />
-              ))}
-            </div>
-
-            {open.length === 0 ? (
-              <EmptyState
-                icon={UtensilsCrossed}
-                title="Everything is closed right now"
-                description="Campus kitchens shut for a few hours overnight. The ones below open again later today."
-              />
-            ) : null}
-
-            {/* Closed restaurants are SHOWN, greyed, at the bottom — never
-                hidden. A student needs to know the place exists and is shut
-                tonight, not wonder where it went. */}
-            {closed.length > 0 ? (
-              <section className="mt-8">
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-line" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                    Closed right now
-                  </span>
-                  <span className="h-px flex-1 bg-line" />
-                </div>
-
-                <div className="space-y-3">
-                  {closed.map((restaurant) => (
-                    <RestaurantCard
-                      key={restaurant._id}
-                      restaurant={restaurant}
-                      campusSlug={campusSlug}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </>
+          <CampusRestaurantFeed
+            campusSlug={campusSlug}
+            transitMinutes={campus.settings.transitMinutes}
+            restaurants={restaurants}
+          />
         )}
       </div>
     </>

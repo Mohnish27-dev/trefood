@@ -74,9 +74,9 @@ export function CampusMap({
       zoom={16}
       scrollWheelZoom
       className="h-[28rem] w-full rounded-2xl border border-line"
-      // Leaflet paints its own background; without this the dark page shows
+      // Leaflet paints its own background; without this the page shows
       // through the tile gaps while they load.
-      style={{ background: "#12151d" }}
+      style={{ background: "var(--color-surface)" }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

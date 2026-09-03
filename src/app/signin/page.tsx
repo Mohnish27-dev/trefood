@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { SignInPicker, type SignInAccount } from "@/components/student/sign-in-picker";
 import { StudentAuthForm } from "@/components/student/student-auth-form";
 import { getSession, listDemoUsers } from "@/server/auth/session";
@@ -66,13 +67,16 @@ export default async function SignInPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 py-10">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-muted hover:text-bone"
-      >
-        <ArrowLeft className="size-4" />
-        Back
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-muted hover:text-bone"
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </Link>
+        <ThemeToggle />
+      </div>
 
       <div className="mt-6">
         <div className="mb-4">

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { CheckoutView, type CheckoutZone } from "@/components/student/checkout-view";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { CAMPUS_COOKIE, zoneCookieName } from "@/lib/cookies";
 import { getSession } from "@/server/auth/session";
 import { getCampusBySlug } from "@/server/services/catalog";
@@ -56,8 +57,9 @@ export default async function CheckoutPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex min-h-14 items-center border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
+      <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-line bg-ink/95 px-4 backdrop-blur-lg pt-safe">
         <h1 className="font-display text-base font-semibold text-bone">Checkout</h1>
+        <ThemeToggle />
       </header>
 
       <CheckoutView

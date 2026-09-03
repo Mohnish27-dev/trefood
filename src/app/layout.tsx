@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 
 import { OfflineBanner, ServiceWorkerRegistrar } from "@/components/shared/pwa";
+import { ThemeProvider, themeInitScript } from "@/components/shared/theme-provider";
 import "./globals.css";
 
 /* Display: distinctive, high-personality grotesque for headings and the brand.
@@ -52,8 +53,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B0D12",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0B0D12" },
+    { media: "(prefers-color-scheme: light)", color: "#F8F9FC" },
+  ],
+  colorScheme: "dark light",
   width: "device-width",
   initialScale: 1,
   // Deliberately not user-scalable:false — pinch-zoom is an accessibility
@@ -64,11 +68,20 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${bricolage.variable} ${inter.variable} ${mono.variable}`}>
-      <body className="min-h-dvh antialiased">
-        <OfflineBanner />
-        {children}
-        <ServiceWorkerRegistrar />
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${bricolage.variable} ${inter.variable} ${mono.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
+        <ThemeProvider>
+          <OfflineBanner />
+          {children}
+          <ServiceWorkerRegistrar />
+        </ThemeProvider>
       </body>
     </html>
   );
