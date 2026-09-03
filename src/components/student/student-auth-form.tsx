@@ -62,8 +62,15 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
     try {
       const supabase = createClient();
       const origin = window.location.origin;
-      const target = redirectTo && /^\/(?!\/)/.test(redirectTo) ? redirectTo : "/";
-      const redirectCallback = `${origin}/auth/callback?next=${encodeURIComponent(target)}`;
+      // Forward only a real `next`. With none, the callback picks the
+      // destination from the account's role — passing a guessed path here
+      // would strand an admin on the student feed.
+      const explicitNext = redirectTo && redirectTo !== "/" && /^\/(?!\/)/.test(redirectTo)
+        ? redirectTo
+        : null;
+      const redirectCallback = explicitNext
+        ? `${origin}/auth/callback?next=${encodeURIComponent(explicitNext)}`
+        : `${origin}/auth/callback`;
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",

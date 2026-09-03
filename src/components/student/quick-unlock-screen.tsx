@@ -20,6 +20,7 @@ import {
   isBiometricsAvailable,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
+import { resolveLandingPath } from "@/lib/routes";
 
 interface QuickUnlockScreenProps {
   profile?: StoredQuickUnlockProfile | null;
@@ -64,7 +65,7 @@ export function QuickUnlockScreen({
     if (onSuccess) {
       onSuccess();
     } else {
-      const target = redirectTo && /^\/(?!\/)/.test(redirectTo) ? redirectTo : "/c/nit-patna";
+      const target = resolveLandingPath(redirectTo, null);
       window.location.href = target;
     }
   }, [redirectTo, onSuccess]);

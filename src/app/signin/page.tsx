@@ -10,7 +10,7 @@ import { StudentAuthForm } from "@/components/student/student-auth-form";
 import { getSession, listDemoUsers } from "@/server/auth/session";
 import { getRestaurantById } from "@/server/services/catalog";
 import { serverEnv } from "@/lib/env";
-import { ROLE } from "@/lib/constants";
+import { landingForRole, resolveLandingPath } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Sign in" };
 export const dynamic = "force-dynamic";
@@ -31,13 +31,7 @@ export default async function SignInPage({
 
   // Already signed in and no role complaint? Redirect immediately.
   if (session && !reason) {
-    const defaultLand =
-      session.role === ROLE.VENDOR_OWNER || session.role === ROLE.VENDOR_STAFF
-        ? "/vendor/orders"
-        : session.role === ROLE.ADMIN || session.role === ROLE.SUPER_ADMIN
-          ? "/admin/orders"
-          : "/c/nit-patna";
-    redirect(next && next.startsWith("/") && next !== "/" ? next : defaultLand);
+    redirect(resolveLandingPath(next, session.role));
   }
 
   const isStub = serverEnv().AUTH_PROVIDER === "stub";
@@ -54,12 +48,7 @@ export default async function SignInPage({
       restaurantName: restaurant?.name ?? null,
       codBlocked: user.codBlocked,
       strikes: user.strikes,
-      lands:
-        user.role === ROLE.VENDOR_OWNER || user.role === ROLE.VENDOR_STAFF
-          ? "/vendor/orders"
-          : user.role === ROLE.ADMIN || user.role === ROLE.SUPER_ADMIN
-            ? "/admin/orders"
-            : "/c/nit-patna",
+      lands: landingForRole(user.role),
     });
   }
 
