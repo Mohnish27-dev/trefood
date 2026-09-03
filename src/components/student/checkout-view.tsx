@@ -28,6 +28,29 @@ export interface CheckoutZone {
   curfewLabel: string | null;
 }
 
+function loadPaytmScript(mid: string, isStaging: boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    const existing = document.getElementById("paytm-checkoutjs");
+    if (existing) {
+      resolve(true);
+      return;
+    }
+    const host = isStaging ? "https://securegw-stage.paytm.in" : "https://securegw.paytm.in";
+    const script = document.createElement("script");
+    script.id = "paytm-checkoutjs";
+    script.src = `${host}/merchantpgpui/checkoutjs/merchants/${encodeURIComponent(mid)}.js`;
+    script.crossOrigin = "anonymous";
+    script.type = "application/javascript";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 /**
  * Checkout.
  *
@@ -60,6 +83,22 @@ export function CheckoutView({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [waitingForPayment, setWaitingForPayment] = useState<string | null>(null);
+
+  if (waitingForPayment) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+        <Loader2 className="size-8 animate-spin text-saffron" />
+        <h3 className="mt-4 font-display text-base font-semibold text-bone">Opening payment…</h3>
+        <p className="mt-1.5 text-sm text-muted">
+          Scan the QR code or pay with your UPI app in the Paytm payment window.
+        </p>
+        <Button asChild variant="secondary" size="sm" className="mt-6">
+          <Link href={`/orders/${waitingForPayment}`}>Go to order status →</Link>
+        </Button>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
@@ -136,8 +175,52 @@ export function CheckoutView({
     });
 
     if (result.status === "success") {
-      setIsSuccess(true);
       clear();
+
+      if (result.paytm) {
+        setWaitingForPayment(result.orderId);
+        const loaded = await loadPaytmScript(result.paytm.mid, result.paytm.isStaging);
+        const win = window as unknown as {
+          Paytm?: {
+            CheckoutJS?: {
+              init: (config: unknown) => Promise<void>;
+              open: () => void;
+              close: () => void;
+            };
+          };
+        };
+
+        if (loaded && win.Paytm?.CheckoutJS) {
+          try {
+            await win.Paytm.CheckoutJS.init({
+              root: "",
+              flow: "DEFAULT",
+              data: {
+                orderId: result.paytm.orderId,
+                token: result.paytm.txnToken,
+                tokenType: "TXN_TOKEN",
+                amount: result.paytm.amountRupees,
+              },
+              handler: {
+                notifyMerchant: function (eventName: string) {
+                  if (eventName === "APP_CLOSED") {
+                    router.push(`/orders/${result.orderId}`);
+                  }
+                },
+                transactionStatus: function () {
+                  router.push(`/orders/${result.orderId}`);
+                },
+              },
+            });
+            win.Paytm.CheckoutJS.open();
+            return;
+          } catch (e) {
+            console.error("Paytm CheckoutJS initialization error:", e);
+          }
+        }
+      }
+
+      setIsSuccess(true);
       router.push(`/orders/${result.orderId}`);
       return;
     }

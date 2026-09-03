@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import * as db from "@/server/db/collections";
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import {
@@ -7,9 +8,11 @@ import {
   estimatedArrival,
   gateDeadline,
   getOrderForCustomer,
+  transitionOrder,
 } from "@/server/services/orders";
 import { revealGateCode } from "@/server/services/gate-code";
-import { TERMINAL_STATUSES, type OrderStatus, type PaymentMethod } from "@/lib/constants";
+import { paymentProvider } from "@/server/services/payments";
+import { ACTOR, ORDER_STATUS, PAYMENT_STATUS, TERMINAL_STATUSES, type OrderStatus, type PaymentMethod } from "@/lib/constants";
 
 /**
  * The student tracker poll. Every 8 seconds.
@@ -88,6 +91,38 @@ export async function GET(
   // Ownership, not just authentication.
   const order = await getOrderForCustomer(orderId, session.user._id);
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // If still payment-pending, actively verify with gateway in case webhook was delayed
+  const provider = paymentProvider();
+  if (order.status === ORDER_STATUS.PAYMENT_PENDING && provider.checkStatus) {
+    try {
+      const check = await provider.checkStatus({ orderNumber: order.orderNumber });
+      if (check.status === "SUCCESS") {
+        await (await db.orders()).updateOne(
+          { _id: order._id },
+          {
+            $set: {
+              "payment.status": PAYMENT_STATUS.CAPTURED,
+              "payment.providerPaymentId": check.paymentId ?? null,
+              "payment.onlinePaidPaise": check.amountPaise ?? order.pricing.grandTotalPaise,
+            },
+          },
+        );
+        const promoted = await transitionOrder({
+          orderId: order._id,
+          to: ORDER_STATUS.PLACED,
+          actor: ACTOR.WEBHOOK,
+          actorId: null,
+          reason: "Payment verified on status check during poll",
+        });
+        if (promoted.ok) {
+          order.status = ORDER_STATUS.PLACED;
+        }
+      }
+    } catch {
+      // Non-blocking background check
+    }
+  }
 
   const campus = await getCampusById(order.campusId);
   const transitMinutes = campus?.settings.transitMinutes ?? 8;

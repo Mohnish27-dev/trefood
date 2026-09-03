@@ -68,6 +68,7 @@ export async function issueRefund(params: {
       paymentId: order.payment.providerPaymentId,
       amountPaise,
       reason: params.reason,
+      orderNumber: order.orderNumber,
     });
     refundId = result.refundId;
     status = result.status;

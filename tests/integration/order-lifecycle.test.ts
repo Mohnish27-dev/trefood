@@ -91,20 +91,20 @@ describe("prepaid order, cart to DELIVERED", () => {
 
     /* ── Money ──────────────────────────────────────────────── */
 
-    // 285 food + 10 packaging + 15 delivery = 310 commission base
+    // 285 food + 0 packaging + 0 delivery = 285 commission base
     expect(order.pricing.subtotalPaise).toBe(R(285));
-    expect(order.pricing.commissionBasePaise).toBe(R(310));
-    // 10% of 310 = 31 exactly
-    expect(order.pricing.platformCommissionPaise).toBe(R(31));
-    expect(order.pricing.vendorReceivablePaise).toBe(R(279));
+    expect(order.pricing.commissionBasePaise).toBe(R(285));
+    // 10% of 285 = 28.50 -> ceil 29
+    expect(order.pricing.platformCommissionPaise).toBe(R(29));
+    expect(order.pricing.vendorReceivablePaise).toBe(R(256));
     // The invariant that never drifts
     expect(
       order.pricing.platformCommissionPaise + order.pricing.vendorReceivablePaise,
     ).toBe(order.pricing.commissionBasePaise);
-    // 2.36% of 310 = 7.316 -> ceil to 8
-    expect(order.pricing.convenienceFeePaise).toBe(R(8));
-    expect(order.pricing.grandTotalPaise).toBe(R(318));
-    expect(order.pricing.refundableAmountPaise).toBe(R(310));
+    // 2.36% of 285 = 6.726 -> ceil to 7
+    expect(order.pricing.convenienceFeePaise).toBe(R(7));
+    expect(order.pricing.grandTotalPaise).toBe(R(292));
+    expect(order.pricing.refundableAmountPaise).toBe(R(285));
     expect(order.payment.cashDueOnDeliveryPaise).toBe(0);
 
     /* ── Snapshots ──────────────────────────────────────────── */
@@ -144,12 +144,11 @@ describe("prepaid order, cart to DELIVERED", () => {
     // Vendor sees the code from READY, to write on the packet.
     await step(ORDER_STATUS.READY, ACTOR.VENDOR);
     expect(revealGateCode(order.gateCode, ORDER_STATUS.READY, "VENDOR")).toBe(order.gateCode);
-    // ...and the student still cannot.
-    expect(revealGateCode(order.gateCode, ORDER_STATUS.READY, "STUDENT")).toBeNull();
+    // Student sees OTP from ACCEPTED onward so they are ready when rider calls
+    expect(revealGateCode(order.gateCode, ORDER_STATUS.READY, "STUDENT")).toBe(order.gateCode);
 
     await step(ORDER_STATUS.OUT_FOR_DELIVERY, ACTOR.VENDOR);
-    // Still hidden while the rider is walking.
-    expect(revealGateCode(order.gateCode, ORDER_STATUS.OUT_FOR_DELIVERY, "STUDENT")).toBeNull();
+    expect(revealGateCode(order.gateCode, ORDER_STATUS.OUT_FOR_DELIVERY, "STUDENT")).toBe(order.gateCode);
 
     await step(ORDER_STATUS.AT_GATE, ACTOR.VENDOR);
     // Only now.
@@ -199,11 +198,11 @@ describe("hybrid COD order", () => {
     const order = created.order;
     createdOrderIds.push(order._id);
 
-    // 240 food + 10 packaging + 15 delivery = 265 base
-    expect(order.pricing.commissionBasePaise).toBe(R(265));
-    // 10% of 265 = 26.50 -> ceil 27
-    expect(order.pricing.platformCommissionPaise).toBe(R(27));
-    expect(order.pricing.vendorReceivablePaise).toBe(R(238));
+    // 240 food + 0 packaging + 0 delivery = 240 base
+    expect(order.pricing.commissionBasePaise).toBe(R(240));
+    // 10% of 240 = 24 exactly
+    expect(order.pricing.platformCommissionPaise).toBe(R(24));
+    expect(order.pricing.vendorReceivablePaise).toBe(R(216));
 
     // THE invariant: the token IS the commission, the cash IS the receivable.
     // Neither side owes the other anything, so a COD order never settles.
@@ -212,10 +211,10 @@ describe("hybrid COD order", () => {
       order.pricing.platformCommissionPaise + order.payment.cashDueOnDeliveryPaise,
     ).toBe(order.pricing.commissionBasePaise);
 
-    // 2.36% of the 27 token = 0.637 -> ceil to 1
+    // 2.36% of the 24 token = 0.566 -> ceil to 1
     expect(order.pricing.convenienceFeePaise).toBe(R(1));
     // Refundable is the token minus its fee, NOT the whole order.
-    expect(order.pricing.refundableAmountPaise).toBe(R(27));
+    expect(order.pricing.refundableAmountPaise).toBe(R(24));
   });
 });
 

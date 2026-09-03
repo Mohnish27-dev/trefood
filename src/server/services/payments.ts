@@ -1,24 +1,8 @@
 import "server-only";
 
-import { serverEnv } from "@/lib/env";
-import type { Paise } from "@/lib/money";
-
-/**
- * The payment seam.
- *
- * This is the ONE place the app differs from its final money path.
- * `StubProvider` captures instantly instead of calling a gateway, so the
- * whole ordering flow runs end to end while the merchant account is being
- * provisioned. D8 chose PhonePe (merchant business account, dynamic QR +
- * UPI, money credited directly to the business bank account); when the
- * merchant registration clears, `PhonePeProvider` lands behind this
- * identical interface and PAYMENT_PROVIDER flips — no call site changes.
- *
- * Everything else about the money path is already production code: the amount
- * charged comes from `computePricing`, the order is created PAYMENT_PENDING
- * before the gateway opens (so an abandoned payment is traceable, F1/F2), and
- * promotion to PLACED happens through the FSM.
- */
+import { clientEnv, serverEnv } from "@/lib/env";
+import { type Paise, rupeesToPaise } from "@/lib/money";
+import PaytmChecksum from "paytmchecksum";
 
 export interface PaymentIntent {
   providerOrderId: string;
@@ -26,10 +10,13 @@ export interface PaymentIntent {
   currency: "INR";
   /** Non-null only for the stub: production never captures without a webhook. */
   autoCapturedPaymentId: string | null;
+  /** Paytm transaction token for Checkout JS (dynamic QR and UPI intent) */
+  txnToken?: string | null;
+  mid?: string | null;
 }
 
 export interface PaymentProvider {
-  readonly name: "stub" | "phonepe";
+  readonly name: "stub" | "phonepe" | "paytm";
   createIntent(params: {
     orderId: string;
     orderNumber: string;
@@ -37,9 +24,14 @@ export interface PaymentProvider {
     customerName: string;
     customerPhone: string;
   }): Promise<PaymentIntent>;
-  refund(params: { paymentId: string; amountPaise: Paise; reason: string }): Promise<{
+  refund(params: { paymentId: string; amountPaise: Paise; reason: string; orderNumber?: string }): Promise<{
     refundId: string;
     status: "PROCESSED" | "PENDING" | "FAILED";
+  }>;
+  checkStatus?(params: { orderNumber: string }): Promise<{
+    status: "SUCCESS" | "PENDING" | "FAILED";
+    paymentId?: string | undefined;
+    amountPaise?: Paise | undefined;
   }>;
 }
 
@@ -54,8 +46,6 @@ const stubProvider: PaymentProvider = {
     providerOrderId: `stub_order_${orderId}`,
     amountPaise,
     currency: "INR",
-    // Captures immediately. In production this is null and the webhook
-    // (or the reconciliation cron) is what promotes the order.
     autoCapturedPaymentId: `stub_pay_${orderId}`,
   }),
 
@@ -66,39 +56,235 @@ const stubProvider: PaymentProvider = {
 };
 
 /* ------------------------------------------------------------------ */
-/* PhonePe — D8. Wired once the merchant registration clears.          */
+/* PhonePe — D8.                                                      */
 /* ------------------------------------------------------------------ */
 
-/**
- * The integration shape is already decided:
- *
- *   createIntent -> PhonePe dynamic QR / UPI intent for the order amount,
- *                   money settles directly into the business bank account
- *   refund       -> PhonePe refund API against the captured payment
- *   webhook      -> signature verified with PHONEPE_WEBHOOK_SECRET, event id
- *                   inserted into `webhookEvents` (unique index) BEFORE it
- *                   promotes the order through the FSM — exactly once
- *
- * Credentials live in PHONEPE_MERCHANT_ID / PHONEPE_MERCHANT_SECRET /
- * PHONEPE_WEBHOOK_SECRET, and `env.ts` refuses to boot PAYMENT_PROVIDER=phonepe
- * until all three are present.
- */
 const phonepeProvider: PaymentProvider = {
   name: "phonepe",
 
   createIntent: async () => {
     throw new Error(
-      "The PhonePe provider is not wired yet — merchant registration is pending. Keep PAYMENT_PROVIDER=stub until the merchant credentials are in .env.local.",
+      "The PhonePe provider is not wired yet — merchant registration is pending. Keep PAYMENT_PROVIDER=stub or paytm in .env.local.",
     );
   },
 
   refund: async () => {
     throw new Error(
-      "The PhonePe provider is not wired yet — merchant registration is pending. Keep PAYMENT_PROVIDER=stub until the merchant credentials are in .env.local.",
+      "The PhonePe provider is not wired yet — merchant registration is pending. Keep PAYMENT_PROVIDER=stub or paytm in .env.local.",
     );
   },
 };
 
-export function paymentProvider(): PaymentProvider {
-  return serverEnv().PAYMENT_PROVIDER === "phonepe" ? phonepeProvider : stubProvider;
+/* ------------------------------------------------------------------ */
+/* Paytm — Dynamic QR + UPI Intent via Standard Checkout JS           */
+/* ------------------------------------------------------------------ */
+
+function getPaytmHost(): string {
+  const env = serverEnv();
+  return env.PAYTM_ENVIRONMENT === "production"
+    ? "https://securegw.paytm.in"
+    : "https://securegw-stage.paytm.in";
 }
+
+function paiseToPaytmAmount(paise: Paise): string {
+  const whole = Math.floor(paise / 100);
+  const rem = Math.abs(paise % 100);
+  return `${whole}.${rem.toString().padStart(2, "0")}`;
+}
+
+const paytmProvider: PaymentProvider = {
+  name: "paytm",
+
+  createIntent: async ({ orderId, orderNumber, amountPaise, customerPhone }) => {
+    const env = serverEnv();
+    const mid = env.PAYTM_MID ?? "";
+    const merchantKey = env.PAYTM_MERCHANT_KEY ?? "";
+    const website = env.PAYTM_WEBSITE ?? (env.PAYTM_ENVIRONMENT === "production" ? "DEFAULT" : "WEBSTAGING");
+    const host = getPaytmHost();
+
+    const valueRupees = paiseToPaytmAmount(amountPaise);
+    const custId = customerPhone.replace(/\D/g, "") || `CUST_${orderId.slice(-8)}`;
+
+    const paytmParams = {
+      body: {
+        requestType: "Payment",
+        mid,
+        websiteName: website,
+        orderId: orderNumber,
+        callbackUrl: `${clientEnv.NEXT_PUBLIC_APP_URL}/api/webhooks/paytm`,
+        txnAmount: {
+          value: valueRupees,
+          currency: "INR",
+        },
+        userInfo: {
+          custId,
+        },
+      },
+      head: {
+        signature: "",
+      },
+    };
+
+    const signature = await PaytmChecksum.generateSignature(
+      JSON.stringify(paytmParams.body),
+      merchantKey,
+    );
+    paytmParams.head.signature = signature;
+
+    const response = await fetch(
+      `${host}/theia/api/v1/initiateTransaction?mid=${encodeURIComponent(mid)}&orderId=${encodeURIComponent(orderNumber)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(paytmParams),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Paytm initiateTransaction HTTP error: ${response.status}`);
+    }
+
+    const resData = (await response.json()) as {
+      body?: {
+        resultInfo?: { resultStatus?: string; resultMsg?: string; resultCode?: string };
+        txnToken?: string;
+      };
+    };
+
+    const resultInfo = resData.body?.resultInfo;
+    if (resultInfo?.resultStatus !== "S" || !resData.body?.txnToken) {
+      throw new Error(
+        `Paytm transaction token generation failed: ${resultInfo?.resultMsg ?? "Unknown error"}`,
+      );
+    }
+
+    return {
+      providerOrderId: orderNumber,
+      amountPaise,
+      currency: "INR",
+      autoCapturedPaymentId: null,
+      txnToken: resData.body.txnToken,
+      mid,
+    };
+  },
+
+  refund: async ({ paymentId, amountPaise, reason, orderNumber }) => {
+    const env = serverEnv();
+    const mid = env.PAYTM_MID ?? "";
+    const merchantKey = env.PAYTM_MERCHANT_KEY ?? "";
+    const host = getPaytmHost();
+
+    const refId = `ref_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const refundAmount = paiseToPaytmAmount(amountPaise);
+
+    const paytmParams = {
+      body: {
+        mid,
+        txnType: "REFUND",
+        orderId: orderNumber ?? paymentId,
+        txnId: paymentId,
+        refId,
+        refundAmount,
+        comments: reason.slice(0, 100),
+      },
+      head: {
+        signature: "",
+      },
+    };
+
+    const signature = await PaytmChecksum.generateSignature(
+      JSON.stringify(paytmParams.body),
+      merchantKey,
+    );
+    paytmParams.head.signature = signature;
+
+    const response = await fetch(`${host}/refund/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(paytmParams),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Paytm refund HTTP error: ${response.status}`);
+    }
+
+    const resData = (await response.json()) as {
+      body?: {
+        resultInfo?: { resultStatus?: string; resultMsg?: string };
+        refundId?: string;
+      };
+    };
+
+    const status = resData.body?.resultInfo?.resultStatus;
+    if (status === "TXN_SUCCESS") {
+      return { refundId: resData.body?.refundId ?? refId, status: "PROCESSED" };
+    }
+    if (status === "PENDING") {
+      return { refundId: resData.body?.refundId ?? refId, status: "PENDING" };
+    }
+
+    throw new Error(
+      `Paytm refund failed: ${resData.body?.resultInfo?.resultMsg ?? "Unknown error"}`,
+    );
+  },
+
+  checkStatus: async ({ orderNumber }) => {
+    const env = serverEnv();
+    const mid = env.PAYTM_MID ?? "";
+    const merchantKey = env.PAYTM_MERCHANT_KEY ?? "";
+    const host = getPaytmHost();
+
+    const paytmParams = {
+      body: { mid, orderId: orderNumber },
+      head: { signature: "" },
+    };
+
+    const signature = await PaytmChecksum.generateSignature(
+      JSON.stringify(paytmParams.body),
+      merchantKey,
+    );
+    paytmParams.head.signature = signature;
+
+    const response = await fetch(`${host}/v3/order/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(paytmParams),
+    });
+
+    if (!response.ok) {
+      return { status: "PENDING" };
+    }
+
+    const resData = (await response.json()) as {
+      body?: {
+        resultInfo?: { resultStatus?: string };
+        txnId?: string;
+        txnAmount?: string;
+      };
+    };
+
+    const resStatus = resData.body?.resultInfo?.resultStatus;
+    if (resStatus === "TXN_SUCCESS") {
+      return {
+        status: "SUCCESS",
+        paymentId: resData.body?.txnId,
+        amountPaise: resData.body?.txnAmount ? rupeesToPaise(Number(resData.body.txnAmount)) : undefined,
+      };
+    }
+    if (resStatus === "TXN_FAILURE") {
+      return { status: "FAILED" };
+    }
+
+    return { status: "PENDING" };
+  },
+};
+
+export function paymentProvider(): PaymentProvider {
+  const provider = serverEnv().PAYMENT_PROVIDER;
+  if (provider === "paytm") return paytmProvider;
+  if (provider === "phonepe") return phonepeProvider;
+  return stubProvider;
+}
+
