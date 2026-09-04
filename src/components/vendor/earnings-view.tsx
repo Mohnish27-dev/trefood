@@ -10,6 +10,12 @@ import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
 import { formatCampusDate } from "@/lib/campus-time";
 import { formatINRPlain } from "@/lib/money";
+import { useVendorLanguage } from "@/context/vendor-language-context";
+import {
+  localizeLedgerNote,
+  localizeLedgerType,
+  formatCampusDateLocalized,
+} from "@/lib/i18n/vendor-dictionary";
 
 export interface EarningsDayView {
   date: string;
@@ -72,56 +78,65 @@ export function EarningsView({
   pendingPayoutPaise: number;
   commissionPct: string;
 }) {
+  const { t, lang } = useVendorLanguage();
+
   return (
     <div className="space-y-6">
+      <header className="mb-5">
+        <h1 className="font-display text-xl font-semibold text-bone">{t("earningsPageTitle")}</h1>
+        <p className="mt-1 text-sm text-muted">
+          {t("earningsPageSubtitle")}
+        </p>
+      </header>
+
       {/* ── Today ────────────────────────────────────────────────── */}
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           icon={TrendingUp}
-          label="Today, gross"
+          label={t("todayGross")}
           paise={today.grossPaise}
-          hint={`${today.orderCount} delivered order${today.orderCount === 1 ? "" : "s"}`}
+          hint={`${today.orderCount} ${today.orderCount === 1 ? t("deliveredOrder") : t("deliveredOrders")}`}
         />
         <Stat
           icon={Receipt}
-          label={`TREFOOD commission (${commissionPct}%)`}
+          label={`${t("trefoodCommission")} (${commissionPct}%)`}
           paise={today.commissionPaise}
-          hint="Charged on food, packaging and delivery"
+          hint={t("commissionChargedOn")}
         />
         <Stat
           icon={Banknote}
-          label="Cash already with you"
+          label={t("cashWithYou")}
           paise={today.codCashPaise}
-          hint={`${today.codOrderCount} cash order${today.codOrderCount === 1 ? "" : "s"}, settled at the gate`}
+          hint={`${today.codOrderCount} ${today.codOrderCount === 1 ? t("cashOrderSettled") : t("cashOrdersSettled")}`}
           tone="mint"
         />
         <Stat
           icon={Download}
-          label="Awaiting bank transfer"
+          label={t("awaitingBankTransfer")}
           paise={pendingPayoutPaise}
-          hint="Statements written but not yet paid"
+          hint={t("statementsWrittenPending")}
           tone="saffron"
         />
       </section>
 
       {/* ── Last seven days ──────────────────────────────────────── */}
       <section>
-        <h2 className="mb-2.5 font-display text-sm font-semibold text-bone">Last seven days</h2>
+        <h2 className="mb-2.5 font-display text-sm font-semibold text-bone">{t("lastSevenDays")}</h2>
         <Table>
           <THead>
             <tr>
-              <TH>Day</TH>
-              <TH className="text-right">Orders</TH>
-              <TH className="text-right">Gross</TH>
-              <TH className="text-right">Commission</TH>
-              <TH className="text-right">Your share</TH>
-              <TH className="text-right">Of which cash</TH>
+              <TH>{t("day")}</TH>
+              <TH className="text-right">{t("ordersCount")}</TH>
+              <TH className="text-right">{t("gross")}</TH>
+              <TH className="text-right">{t("commission")}</TH>
+              <TH className="text-right">{t("netShare")}</TH>
+              <TH className="text-right">{t("ofWhichCash")}</TH>
             </tr>
           </THead>
           <TBody>
             {days.map((day) => (
               <TR key={day.date}>
-                <TD className="whitespace-nowrap">{formatCampusDate(day.date)}</TD>
+                <TD className="whitespace-nowrap">{formatCampusDateLocalized(day.date, lang)}</TD>
                 <TD className="text-right tabular">{day.orderCount}</TD>
                 <TD className="text-right">
                   <Money paise={day.grossPaise} />
@@ -144,10 +159,10 @@ export function EarningsView({
       {/* ── Adjustments ──────────────────────────────────────────── */}
       <section>
         <div className="mb-2.5 flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-sm font-semibold text-bone">Adjustments</h2>
+          <h2 className="font-display text-sm font-semibold text-bone">{t("adjustments")}</h2>
           {ledger.length > 0 ? (
             <span className="text-sm">
-              Total{" "}
+              {t("adjustmentsTotal")}{" "}
               <SignedMoney paise={ledgerTotalPaise} className="font-semibold" />
             </span>
           ) : null}
@@ -157,32 +172,32 @@ export function EarningsView({
           <Card>
             <EmptyState
               icon={Receipt}
-              title="No adjustments"
-              description="Refund gateway fees and dispute debits would appear here. An empty list is a good list."
+              title={t("noAdjustments")}
+              description={t("noAdjustmentsDesc")}
             />
           </Card>
         ) : (
           <Table>
             <THead>
               <tr>
-                <TH>When</TH>
-                <TH>Reason</TH>
-                <TH className="text-right">Amount</TH>
+                <TH>{t("when")}</TH>
+                <TH>{t("reason")}</TH>
+                <TH className="text-right">{t("amount")}</TH>
               </tr>
             </THead>
             <TBody>
               {ledger.map((entry) => (
                 <TR key={entry.id}>
                   <TD className="whitespace-nowrap text-muted">
-                    {new Date(entry.createdAt).toLocaleDateString("en-IN", {
+                    {new Date(entry.createdAt).toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
                       day: "2-digit",
                       month: "short",
                     })}
                   </TD>
                   <TD>
-                    <p className="text-sm">{entry.note}</p>
+                    <p className="text-sm">{localizeLedgerNote(entry.note, lang)}</p>
                     <p className="mt-0.5 text-[11px] uppercase tracking-wider text-faint">
-                      {entry.type.replaceAll("_", " ").toLowerCase()}
+                      {localizeLedgerType(entry.type, lang)}
                     </p>
                   </TD>
                   <TD className="text-right">
@@ -198,11 +213,11 @@ export function EarningsView({
       {/* ── Statements ───────────────────────────────────────────── */}
       <section>
         <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="font-display text-sm font-semibold text-bone">Statements</h2>
+          <h2 className="font-display text-sm font-semibold text-bone">{t("statements")}</h2>
           {settlements.length > 0 ? (
             <Button variant="ghost" size="sm" onClick={() => downloadCsv(settlements)}>
               <Download />
-              Download CSV
+              {t("downloadCsv")}
             </Button>
           ) : null}
         </div>
@@ -211,26 +226,26 @@ export function EarningsView({
           <Card>
             <EmptyState
               icon={Download}
-              title="No statements yet"
-              description="One is written for you every night at 23:59. Cash orders are already settled and never appear on it."
+              title={t("noStatementsYet")}
+              description={t("noStatementsDesc")}
             />
           </Card>
         ) : (
           <Table>
             <THead>
               <tr>
-                <TH>Day</TH>
-                <TH className="text-right">Prepaid orders</TH>
-                <TH className="text-right">Adjustments</TH>
-                <TH className="text-right">Net payable</TH>
-                <TH className="text-right">Carried forward</TH>
-                <TH>Status</TH>
+                <TH>{t("day")}</TH>
+                <TH className="text-right">{t("prepaidOrders")}</TH>
+                <TH className="text-right">{t("adjustments")}</TH>
+                <TH className="text-right">{t("netPayable")}</TH>
+                <TH className="text-right">{t("carriedForward")}</TH>
+                <TH>{t("status")}</TH>
               </tr>
             </THead>
             <TBody>
               {settlements.map((row) => (
                 <TR key={row.id}>
-                  <TD className="whitespace-nowrap">{formatCampusDate(row.settlementDate)}</TD>
+                  <TD className="whitespace-nowrap">{formatCampusDateLocalized(row.settlementDate, lang)}</TD>
                   <TD className="text-right">
                     <Money paise={row.grossPrepaidPaise} exact />
                   </TD>
@@ -246,7 +261,7 @@ export function EarningsView({
                   <TD>
                     {row.status === "PAID" ? (
                       <span className="inline-flex flex-col gap-0.5">
-                        <Badge tone="success">Paid</Badge>
+                        <Badge tone="success">{t("paid")}</Badge>
                         {row.utrReference ? (
                           <span className="font-mono text-[10px] text-faint">
                             {row.utrReference}
@@ -254,7 +269,7 @@ export function EarningsView({
                         ) : null}
                       </span>
                     ) : (
-                      <Badge tone="warning">Pending</Badge>
+                      <Badge tone="warning">{t("pending")}</Badge>
                     )}
                   </TD>
                 </TR>

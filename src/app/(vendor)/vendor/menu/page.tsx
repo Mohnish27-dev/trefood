@@ -32,16 +32,5 @@ export default async function VendorMenuPage() {
     })),
   }));
 
-  return (
-    <>
-      <header className="mb-5">
-        <h1 className="font-display text-xl font-semibold text-bone">Menu</h1>
-        <p className="mt-1 text-sm text-muted">
-          Flip a switch to take something off. It disappears from every new order immediately.
-        </p>
-      </header>
-
-      <MenuManager sections={view} />
-    </>
-  );
+  return <MenuManager sections={view} />;
 }
