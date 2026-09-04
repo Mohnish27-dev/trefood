@@ -178,8 +178,8 @@ export const DEFAULTS = {
 
   /** D6 — 10% commission, as basis points. */
   commissionBps: 1_000,
-  /** A3 — 2% gateway fee + 18% GST on the fee. VERIFY AGAINST YOUR PLAN BEFORE LAUNCH. */
-  gatewayFeeBps: 236,
+  /** A3 — Gateway convenience fee passed to the student. 0 so the user pays for the order only. */
+  gatewayFeeBps: 0,
   /** A7 — COD handling fee lever. Ships at zero; turn it on only if COD share climbs. */
   codHandlingFeePaise: 0,
   /** A1 — coupons are platform-funded, so the vendor is paid on the pre-discount base. */

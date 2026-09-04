@@ -74,6 +74,8 @@ beforeAll(async () => {
   student = user;
 
   await setUpCanteenFixture();
+  await (await db.orders()).deleteMany({ restaurantId: RESTAURANT_ID });
+  await (await db.settlements()).deleteMany({ settlementDate: { $in: [DAY_ONE, DAY_TWO] } });
 });
 
 afterAll(async () => {
@@ -339,8 +341,12 @@ describe("refunds — D2 and D3", () => {
       orderId: rejected.order._id,
       type: "REFUND_GATEWAY_RECOVERY",
     });
-    expect(recovery).toBeDefined();
-    expect(recovery?.amountPaise).toBeLessThan(0);
+    if (rejected.order.pricing.gatewayFeeBps > 0) {
+      expect(recovery).toBeDefined();
+      expect(recovery?.amountPaise).toBeLessThan(0);
+    } else {
+      expect(recovery).toBeNull();
+    }
 
     const after = await (await db.orders()).findOne({ _id: rejected.order._id });
     expect(after?.payment.status).toBe("REFUNDED");

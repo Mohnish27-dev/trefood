@@ -173,11 +173,6 @@ export function CartView() {
 
         <div className="my-2 border-t border-line" />
         <MoneyRow label="Total" paise={payableNow} emphasis />
-
-        <p className="mt-3 text-xs leading-relaxed text-faint">
-          A payment-gateway fee is added at checkout, and it differs depending on how you
-          choose to pay.
-        </p>
       </Card>
 
       {data.belowMinimum ? (

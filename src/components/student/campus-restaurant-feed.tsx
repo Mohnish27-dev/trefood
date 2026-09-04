@@ -9,6 +9,13 @@ import {
   CampusHeroBanner,
   CAMPUS_CATEGORY_BOXES,
 } from "@/components/student/campus-hero-banner";
+import { FoodTypeFilterBar } from "@/components/student/food-type-filter";
+import {
+  FOOD_TYPE_OPTIONS,
+  matchesFoodType,
+  getFoodTypeCounts,
+  type FoodTypeFilter,
+} from "@/lib/restaurant-filter";
 import type { RestaurantListItem } from "@/server/services/catalog";
 
 interface CampusRestaurantFeedProps {
@@ -24,6 +31,9 @@ export function CampusRestaurantFeed({
 }: CampusRestaurantFeedProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [foodTypeFilter, setFoodTypeFilter] = useState<FoodTypeFilter>("all");
+
+  const foodTypeCounts = useMemo(() => getFoodTypeCounts(restaurants), [restaurants]);
 
   // Filter restaurants based on search query and selected category box
   const filteredRestaurants = useMemo(() => {
@@ -39,7 +49,12 @@ export function CampusRestaurantFeed({
         }
       }
 
-      // 2. Category box filter
+      // 2. Food type filter (all, fruits, juice/shakes, food)
+      if (foodTypeFilter !== "all" && !matchesFoodType(r, foodTypeFilter)) {
+        return false;
+      }
+
+      // 3. Category box filter
       if (selectedCategory) {
         switch (selectedCategory) {
           case "senior":
@@ -79,7 +94,7 @@ export function CampusRestaurantFeed({
 
       return true;
     });
-  }, [restaurants, searchQuery, selectedCategory]);
+  }, [restaurants, searchQuery, selectedCategory, foodTypeFilter]);
 
   const openRestaurants = useMemo(
     () => filteredRestaurants.filter((r) => r.isServingNow),
@@ -96,11 +111,19 @@ export function CampusRestaurantFeed({
     [selectedCategory],
   );
 
-  const hasActiveFilters = Boolean(searchQuery.trim() || selectedCategory);
+  const activeFoodTypeObj = useMemo(
+    () => (foodTypeFilter !== "all" ? FOOD_TYPE_OPTIONS.find((b) => b.id === foodTypeFilter) : null),
+    [foodTypeFilter],
+  );
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || selectedCategory || foodTypeFilter !== "all",
+  );
 
   const clearAllFilters = () => {
     setSearchQuery("");
     setSelectedCategory(null);
+    setFoodTypeFilter("all");
   };
 
   return (
@@ -111,6 +134,13 @@ export function CampusRestaurantFeed({
         onSearchChange={setSearchQuery}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
+      />
+
+      {/* ── PWA Mobile Sticky Food Type Filters (All, Fruits, Juice / Shakes, Food) ── */}
+      <FoodTypeFilterBar
+        selected={foodTypeFilter}
+        onChange={setFoodTypeFilter}
+        counts={foodTypeCounts}
       />
 
       {/* ── Filter Feedback & Status Row ────────────────────────────── */}
@@ -132,6 +162,21 @@ export function CampusRestaurantFeed({
         {/* Active Filter Chips with Quick Clear */}
         {hasActiveFilters ? (
           <div className="mb-4 flex flex-wrap items-center gap-2">
+            {activeFoodTypeObj ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron/15 text-saffron px-3 py-1 text-xs font-semibold border border-saffron/30">
+                <span>{activeFoodTypeObj.emoji}</span>
+                <span>{activeFoodTypeObj.label}</span>
+                <button
+                  type="button"
+                  onClick={() => setFoodTypeFilter("all")}
+                  className="hover:opacity-75 ml-0.5 cursor-pointer"
+                  aria-label="Remove food type filter"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ) : null}
+
             {activeCategoryObj ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron/15 text-saffron px-3 py-1 text-xs font-semibold border border-saffron/30">
                 <span>{activeCategoryObj.badgeEmoji}</span>

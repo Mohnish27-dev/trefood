@@ -143,6 +143,15 @@ const paytmProvider: PaymentProvider = {
     );
 
     if (!response.ok) {
+      if (response.status === 503) {
+        throw new Error(
+          `Paytm gateway is temporarily unavailable (HTTP 503). ${
+            env.PAYTM_ENVIRONMENT === "staging"
+              ? "Paytm Staging environment (securegw-stage.paytm.in) is currently undergoing maintenance on Paytm's end. Once production keys are approved, switch to PAYTM_ENVIRONMENT=production."
+              : "Paytm production server is temporarily busy. Please retry in a moment."
+          }`,
+        );
+      }
       throw new Error(`Paytm initiateTransaction HTTP error: ${response.status}`);
     }
 

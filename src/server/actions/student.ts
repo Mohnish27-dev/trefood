@@ -137,13 +137,22 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
       ? order.pricing.grandTotalPaise
       : order.pricing.platformCommissionPaise + order.pricing.convenienceFeePaise;
 
-  const intent = await paymentProvider().createIntent({
-    orderId: order._id,
-    orderNumber: order.orderNumber,
-    amountPaise: expectedOnlinePaise,
-    customerName: user.name,
-    customerPhone: data.phone,
-  });
+  let intent;
+  try {
+    intent = await paymentProvider().createIntent({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      amountPaise: expectedOnlinePaise,
+      customerName: user.name,
+      customerPhone: data.phone,
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to initiate payment. Please try again or choose another payment method.";
+    return { status: "error", message };
+  }
 
   await (await db.orders()).updateOne(
     { _id: order._id },

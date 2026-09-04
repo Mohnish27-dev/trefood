@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreFood Branded QR Code Generator</title>
+  <style>
+    :root {
+      --primary: #ff5414;
+      --bg: #0b0d12;
+      --surface: #161922;
+      --card: #1f2430;
+      --text: #f5f3ef;
+      --muted: #8b93a5;
+      --border: #2a3142;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      max-width: 680px;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+    header h1 span {
+      color: var(--primary);
+    }
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .layout {
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      max-width: 960px;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      padding: 2rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+    .preview-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 1.5rem;
+      background: var(--card);
+      border-radius: 1rem;
+      border: 1px dashed var(--border);
+    }
+    #qrContainer {
+      width: 320px;
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    #qrContainer svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 12px 28px rgba(0,0,0,0.4));
+    }
+    .controls-col {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #0f1218;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, input[type="url"]:focus {
+      border-color: var(--primary);
+    }
+    .color-picker-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: none;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch {
+      border: 2px solid var(--border);
+      border-radius: 0.5rem;
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .btn {
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #252b3b;
+      color: #fff;
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: #2e3649;
+    }
+    .tips {
+      background: rgba(255, 84, 20, 0.08);
+      border: 1px solid rgba(255, 84, 20, 0.25);
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: #ff9d75;
+    }
+    .presets {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .chip {
+      background: #1e2433;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.3rem 0.6rem;
+      border-radius: 0.35rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .chip:hover {
+      color: #fff;
+      border-color: var(--primary);
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>TreFood <span>QR Code Generator</span></h1>
+    <p>Generate production-ready, branded QR codes with rounded corners and the central TreFood badge</p>
+  </header>
+
+  <div class="layout">
+    <div class="preview-col">
+      <div id="qrContainer"></div>
+      <p style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;">
+        Scan with your phone's camera or Google Lens to test
+      </p>
+    </div>
+
+    <div class="controls-col">
+      <div class="field">
+        <label for="urlInput">Target URL / Link</label>
+        <input type="url" id="urlInput" value="https://trefood.in" placeholder="https://trefood.in" />
+      </div>
+
+      <div class="field">
+        <label>Quick Presets</label>
+        <div class="presets">
+          <span class="chip" onclick="setPreset('https://trefood.in')">Homepage</span>
+          <span class="chip" onclick="setPreset('https://trefood.in/c/nit-patna')">Campus Page</span>
+          <span class="chip" onclick="setPreset('http://localhost:3000')">Localhost (Dev)</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="colorInput">Brand Theme Color</label>
+        <div class="color-picker-row">
+          <input type="color" id="colorInput" value="#ff5414" />
+          <span id="colorHex" style="font-family: monospace; font-size: 0.9rem;">#ff5414</span>
+        </div>
+      </div>
+
+      <div class="tips">
+        <strong>Error Correction:</strong> Uses High (Level H, 30% redundancy) so the QR code scans instantly even with the TreFood center emblem embedded.
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="downloadPNG(1024)">
+          ⬇️ Download PNG (1024px)
+        </button>
+        <button class="btn btn-secondary" onclick="downloadPNG(2048)">
+          🖨️ Print PNG (2048px)
+        </button>
+        <button class="btn btn-secondary" onclick="downloadSVG()">
+          📐 Download Vector SVG
+        </button>
+        <button class="btn btn-secondary" onclick="copySVGToClipboard()">
+          📋 Copy SVG Code
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentSvgString = "";
+
+    function setPreset(url) {
+      document.getElementById("urlInput").value = url;
+      renderQR();
+    }
+
+    document.getElementById("urlInput").addEventListener("input", renderQR);
+    document.getElementById("colorInput").addEventListener("input", (e) => {
+      document.getElementById("colorHex").innerText = e.target.value;
+      renderQR();
+    });
+
+    async function renderQR() {
+      const url = document.getElementById("urlInput").value.trim() || "https://trefood.in";
+      const brandColor = document.getElementById("colorInput").value || "#ff5414";
+
+      // Generate QR matrix using qrcode-generator
+      const qr = qrcode(0, 'H');
+      qr.addData(url);
+      qr.make();
+
+      const matrixSize = qr.getModuleCount();
+      const viewBoxSize = 1000;
+      const frameMargin = 35;
+      const frameRadius = 70;
+      const borderWidth = 20;
+      const contentPadding = 65;
+
+      const qrAreaSize = viewBoxSize - (frameMargin + borderWidth) * 2 - contentPadding * 2;
+      const qrOffset = frameMargin + borderWidth + contentPadding;
+      const moduleSize = qrAreaSize / matrixSize;
+
+      const logoModules = Math.floor(matrixSize * 0.23);
+      const logoStart = Math.floor((matrixSize - logoModules) / 2);
+      const logoEnd = logoStart + logoModules;
+
+      function isFinderPattern(r, c) {
+        if (r < 7 && c < 7) return true;
+        if (r < 7 && c >= matrixSize - 7) return true;
+        if (r >= matrixSize - 7 && c < 7) return true;
+        return false;
+      }
+
+      function isCenterLogoArea(r, c) {
+        return r >= logoStart - 1 && r <= logoEnd && c >= logoStart - 1 && c <= logoEnd;
+      }
+
+      const modulesSvg = [];
+      for (let r = 0; r < matrixSize; r++) {
+        for (let c = 0; c < matrixSize; c++) {
+          if (isFinderPattern(r, c)) continue;
+          if (isCenterLogoArea(r, c)) continue;
+
+          if (qr.isDark(r, c)) {
+            const x = qrOffset + c * moduleSize;
+            const y = qrOffset + r * moduleSize;
+            const rRad = moduleSize * 0.22;
+            modulesSvg.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${moduleSize.toFixed(2)}" height="${moduleSize.toFixed(2)}" rx="${rRad.toFixed(2)}" fill="#000000" />`);
+          }
+        }
+      }
+
+      function renderFinderEye(startRow, startCol) {
+        const x = qrOffset + startCol * moduleSize;
+        const y = qrOffset + startRow * moduleSize;
+        const w = 7 * moduleSize;
+        const h = 7 * moduleSize;
+        const outerRadius = moduleSize * 1.35;
+        const innerWhiteOffset = 1 * moduleSize;
+        const innerWhiteSize = 5 * moduleSize;
+        const innerWhiteRadius = moduleSize * 0.95;
+        const centerOffset = 2 * moduleSize;
+        const centerSize = 3 * moduleSize;
+        const centerRadius = moduleSize * 0.65;
+
+        return `
+          <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${outerRadius.toFixed(2)}" fill="#000000" />
+          <rect x="${(x + innerWhiteOffset).toFixed(2)}" y="${(y + innerWhiteOffset).toFixed(2)}" width="${innerWhiteSize.toFixed(2)}" height="${innerWhiteSize.toFixed(2)}" rx="${innerWhiteRadius.toFixed(2)}" fill="#ffffff" />
+          <rect x="${(x + centerOffset).toFixed(2)}" y="${(y + centerOffset).toFixed(2)}" width="${centerSize.toFixed(2)}" height="${centerSize.toFixed(2)}" rx="${centerRadius.toFixed(2)}" fill="#000000" />
+        `;
+      }
+
+      const finderTL = renderFinderEye(0, 0);
+      const finderTR = renderFinderEye(0, matrixSize - 7);
+      const finderBL = renderFinderEye(matrixSize - 7, 0);
+
+      const logoX = qrOffset + (logoStart - 0.5) * moduleSize;
+      const logoY = qrOffset + (logoStart - 0.5) * moduleSize;
+      const logoPixelSize = (logoModules + 1) * moduleSize;
+      const logoRadius = logoPixelSize * 0.22;
+
+      const zoom = 0.05;
+      const imgX = logoX - logoPixelSize * zoom;
+      const imgY = logoY - logoPixelSize * zoom;
+      const imgSize = logoPixelSize * (1 + zoom * 2);
+
+      const cardX = frameMargin + borderWidth / 2;
+      const cardY = frameMargin + borderWidth / 2;
+      const cardSize = viewBoxSize - (frameMargin + borderWidth / 2) * 2;
+
+      currentSvgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}">
+  <defs>
+    <clipPath id="centerLogoClip">
+      <rect x="${logoX.toFixed(2)}" y="${logoY.toFixed(2)}" width="${logoPixelSize.toFixed(2)}" height="${logoPixelSize.toFixed(2)}" rx="${logoRadius.toFixed(2)}" />
+    </clipPath>
+  </defs>
+  <!-- Background Card -->
+  <rect x="${cardX.toFixed(2)}" y="${cardY.toFixed(2)}" width="${cardSize.toFixed(2)}" height="${cardSize.toFixed(2)}" rx="${frameRadius.toFixed(2)}" fill="#ffffff" />
+  
+  <!-- Outer Brand Frame -->
+  <rect x="${cardX.toFixed(2)}" y="${cardY.toFixed(2)}" width="${cardSize.toFixed(2)}" height="${cardSize.toFixed(2)}" rx="${frameRadius.toFixed(2)}" fill="none" stroke="${brandColor}" stroke-width="${borderWidth}" />
+
+  <!-- QR Modules -->
+  <g id="modules">
+    ${modulesSvg.join("")}
+  </g>
+
+  <!-- Corner Finder Eyes -->
+  <g id="finder-eyes">
+    ${finderTL}
+    ${finderTR}
+    ${finderBL}
+  </g>
+
+  <!-- Center TreFood Logo -->
+  <g id="logo-badge">
+    <rect x="${(logoX - moduleSize * 0.4).toFixed(2)}" y="${(logoY - moduleSize * 0.4).toFixed(2)}" width="${(logoPixelSize + moduleSize * 0.8).toFixed(2)}" height="${(logoPixelSize + moduleSize * 0.8).toFixed(2)}" rx="${(logoRadius + moduleSize * 0.4).toFixed(2)}" fill="#ffffff" />
+    <image href="/logo.png" x="${imgX.toFixed(2)}" y="${imgY.toFixed(2)}" width="${imgSize.toFixed(2)}" height="${imgSize.toFixed(2)}" clip-path="url(#centerLogoClip)" />
+  </g>
+</svg>`;
+
+      document.getElementById("qrContainer").innerHTML = currentSvgString;
+    }
+
+    function downloadSVG() {
+      const blob = new Blob([currentSvgString], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "trefood-qr.svg";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function copySVGToClipboard() {
+      navigator.clipboard.writeText(currentSvgString).then(() => {
+        alert("SVG code copied to clipboard!");
+      });
+    }
+
+    function downloadPNG(resolution = 1024) {
+      const img = new Image();
+      const svgBlob = new Blob([currentSvgString], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        canvas.width = resolution;
+        canvas.height = resolution;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, resolution, resolution);
+        ctx.drawImage(img, 0, 0, resolution, resolution);
+        URL.revokeObjectURL(url);
+
+        const pngUrl = canvas.toDataURL("image/png");
+        const a = document.createElement("a");
+        a.href = pngUrl;
+        a.download = `trefood-qr-${resolution}px.png`;
+        a.click();
+      };
+      img.src = url;
+    }
+
+    // Initial render
+    renderQR();
+  </script>
+</body>
+</html>
