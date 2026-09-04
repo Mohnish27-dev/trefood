@@ -158,75 +158,85 @@ export function CheckoutView({
     setSubmitting(true);
     setError(null);
 
-    const result = await placeOrder({
-      restaurantId: data.restaurantId,
-      zoneId: zone.id,
-      lines: lines.map((l) => ({
-        itemId: l.itemId,
-        quantity: l.quantity,
-        addOnOptionIds: l.addOnOptionIds,
-      })),
-      method,
-      // F12 — a fresh key per attempt, so a double-tap returns the first order
-      // rather than creating a twin.
-      idempotencyKey: crypto.randomUUID(),
-      phone: phone.replace(/\s/g, ""),
-      couponCode: couponCode || undefined,
-    });
+    try {
+      const result = await placeOrder({
+        restaurantId: data.restaurantId,
+        zoneId: zone.id,
+        lines: lines.map((l) => ({
+          itemId: l.itemId,
+          quantity: l.quantity,
+          addOnOptionIds: l.addOnOptionIds,
+        })),
+        method,
+        // F12 — a fresh key per attempt, so a double-tap returns the first order
+        // rather than creating a twin.
+        idempotencyKey: crypto.randomUUID(),
+        phone: phone.replace(/\s/g, ""),
+        couponCode: couponCode || undefined,
+      });
 
-    if (result.status === "success") {
-      clear();
+      if (result.status === "success") {
+        clear();
 
-      if (result.paytm) {
-        setWaitingForPayment(result.orderId);
-        const loaded = await loadPaytmScript(result.paytm.mid, result.paytm.isStaging);
-        const win = window as unknown as {
-          Paytm?: {
-            CheckoutJS?: {
-              init: (config: unknown) => Promise<void>;
-              open: () => void;
-              close: () => void;
+        if (result.paytm) {
+          setWaitingForPayment(result.orderId);
+          const loaded = await loadPaytmScript(result.paytm.mid, result.paytm.isStaging);
+          const win = window as unknown as {
+            Paytm?: {
+              CheckoutJS?: {
+                init: (config: unknown) => Promise<void>;
+                open: () => void;
+                close: () => void;
+              };
             };
           };
-        };
 
-        if (loaded && win.Paytm?.CheckoutJS) {
-          try {
-            await win.Paytm.CheckoutJS.init({
-              root: "",
-              flow: "DEFAULT",
-              data: {
-                orderId: result.paytm.orderId,
-                token: result.paytm.txnToken,
-                tokenType: "TXN_TOKEN",
-                amount: result.paytm.amountRupees,
-              },
-              handler: {
-                notifyMerchant: function (eventName: string) {
-                  if (eventName === "APP_CLOSED") {
+          if (loaded && win.Paytm?.CheckoutJS) {
+            try {
+              await win.Paytm.CheckoutJS.init({
+                root: "",
+                flow: "DEFAULT",
+                data: {
+                  orderId: result.paytm.orderId,
+                  token: result.paytm.txnToken,
+                  tokenType: "TXN_TOKEN",
+                  amount: result.paytm.amountRupees,
+                },
+                handler: {
+                  notifyMerchant: function (eventName: string) {
+                    if (eventName === "APP_CLOSED") {
+                      router.push(`/orders/${result.orderId}`);
+                    }
+                  },
+                  transactionStatus: function () {
                     router.push(`/orders/${result.orderId}`);
-                  }
+                  },
                 },
-                transactionStatus: function () {
-                  router.push(`/orders/${result.orderId}`);
-                },
-              },
-            });
-            win.Paytm.CheckoutJS.open();
-            return;
-          } catch (e) {
-            console.error("Paytm CheckoutJS initialization error:", e);
+              });
+              win.Paytm.CheckoutJS.open();
+              return;
+            } catch (e) {
+              console.error("Paytm CheckoutJS initialization error:", e);
+            }
           }
         }
+
+        setIsSuccess(true);
+        router.push(`/orders/${result.orderId}`);
+        return;
       }
 
-      setIsSuccess(true);
-      router.push(`/orders/${result.orderId}`);
-      return;
+      setError(result.status === "error" ? result.message : "Something went wrong.");
+    } catch (err) {
+      console.error("Order placement failed:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to process order right now. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
     }
-
-    setError(result.status === "error" ? result.message : "Something went wrong.");
-    setSubmitting(false);
   };
 
   return (
@@ -393,11 +403,13 @@ export function CheckoutView({
         {quote.discountPaise > 0 ? (
           <MoneyRow label="Discount" paise={quote.discountPaise} negative />
         ) : null}
-        <MoneyRow
-          label="Convenience fee"
-          paise={quote.convenienceFeePaise}
-          hint="Payment gateway charge. This part is not refundable."
-        />
+        {quote.convenienceFeePaise > 0 ? (
+          <MoneyRow
+            label="Convenience fee"
+            paise={quote.convenienceFeePaise}
+            hint="Payment gateway charge. This part is not refundable."
+          />
+        ) : null}
 
         <div className="my-2 border-t border-line" />
 

@@ -42,11 +42,11 @@ const CATEGORIES: { id: string; name: string; sortOrder: number }[] = [
 
 const ITEMS: MenuItem[] = [
   {
-    _id: "zb_chicken_biryani",
+    _id: "zb_moradabadi_biryani",
     restaurantId: RESTAURANT_ID,
     categoryId: "cat_zb_biryani",
-    name: "Chicken Biryani",
-    description: "Signature fragrant dum chicken biryani prepared with aromatic basmati rice, tender chicken and special Zaika spices.",
+    name: "Moradabadi Biryani",
+    description: "Authentic light, aromatic, and flavorful Moradabadi chicken biryani cooked with mild whole spices and tender chicken.",
     isVeg: false,
     pricePaise: R(140),
     imageUrl: null,
@@ -54,6 +54,20 @@ const ITEMS: MenuItem[] = [
     isPopular: true,
     addOnGroups: [portionGroup(R(140), R(210))],
     sortOrder: 1,
+  },
+  {
+    _id: "zb_hyderabadi_biryani",
+    restaurantId: RESTAURANT_ID,
+    categoryId: "cat_zb_biryani",
+    name: "Hyderabadi Biryani",
+    description: "Classic rich, spicy Hyderabadi dum chicken biryani prepared with layered fragrant basmati rice and marinated chicken.",
+    isVeg: false,
+    pricePaise: R(140),
+    imageUrl: null,
+    isAvailable: true,
+    isPopular: true,
+    addOnGroups: [portionGroup(R(140), R(220))],
+    sortOrder: 2,
   },
 ];
 

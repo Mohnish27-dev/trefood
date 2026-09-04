@@ -101,9 +101,9 @@ describe("prepaid order, cart to DELIVERED", () => {
     expect(
       order.pricing.platformCommissionPaise + order.pricing.vendorReceivablePaise,
     ).toBe(order.pricing.commissionBasePaise);
-    // 2.36% of 285 = 6.726 -> ceil to 7
-    expect(order.pricing.convenienceFeePaise).toBe(R(7));
-    expect(order.pricing.grandTotalPaise).toBe(R(292));
+    // 0% convenience fee — user pays for order only
+    expect(order.pricing.convenienceFeePaise).toBe(0);
+    expect(order.pricing.grandTotalPaise).toBe(R(285));
     expect(order.pricing.refundableAmountPaise).toBe(R(285));
     expect(order.payment.cashDueOnDeliveryPaise).toBe(0);
 
@@ -211,9 +211,9 @@ describe("hybrid COD order", () => {
       order.pricing.platformCommissionPaise + order.payment.cashDueOnDeliveryPaise,
     ).toBe(order.pricing.commissionBasePaise);
 
-    // 2.36% of the 24 token = 0.566 -> ceil to 1
-    expect(order.pricing.convenienceFeePaise).toBe(R(1));
-    // Refundable is the token minus its fee, NOT the whole order.
+    // 0% convenience fee — user pays for order only
+    expect(order.pricing.convenienceFeePaise).toBe(0);
+    // Refundable is the token actually paid online.
     expect(order.pricing.refundableAmountPaise).toBe(R(24));
   });
 });

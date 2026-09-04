@@ -63,7 +63,7 @@ so none of them block the build — but review them before go-live.
 | :-- | :-- | :-- | :-- |
 | A1 | Coupons are funded by the **platform**, not the vendor. Vendor is paid on the pre-discount base. | `PLATFORM` | `campus.settings.couponFundedBy` |
 | A2 | Food GST is **0%** — most campus canteens are below the ₹20 L registration threshold. Registered vendors get 5%. | `0` | `restaurant.foodGstPct` |
-| A3 | Payment-gateway convenience rate passed to the student. **Verify against your actual PhonePe merchant plan before launch.** | `2.36%` (2% fee + 18% GST on the fee) | `campus.settings.gatewayFeePct` |
+| A3 | Payment-gateway convenience rate passed to the student. Updated: **0%** — user pays for the order only without convenience fees. | `0%` | `campus.settings.gatewayFeePct` |
 | A4 | All student-facing amounts are **whole rupees**. Commission rounds **up**; vendor receivable is the remainder. Guarantees clean cash at a dark hostel gate. | `CEIL` | `campus.settings.roundingMode` |
 | A5 | Vendor must accept within **3 minutes**, auto-expires at **4 minutes**. | `180s / 240s` | `campus.settings.vendorAckSeconds` |
 | A6 | Student has **15 minutes** at `AT_GATE` before auto-close (prepaid only). | `900s` | `campus.settings.gateGraceSeconds` |

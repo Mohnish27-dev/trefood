@@ -24,7 +24,6 @@
 
 import { DEFAULTS, ROLE, ZONE_TYPE } from "@/lib/constants";
 import { rupeesToPaise } from "@/lib/money";
-import { hashPassword } from "@/server/auth/passwords";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { User } from "@/types/user";
 
@@ -131,7 +130,7 @@ export const CAMPUS: Campus = {
   settings: {
     deliveryFeePaise: R(15), // PRD Part 8.3 — set the real fee before launch
     commissionBps: DEFAULTS.commissionBps,
-    gatewayFeeBps: DEFAULTS.gatewayFeeBps, // A3 — verify against the live payment plan
+    gatewayFeeBps: DEFAULTS.gatewayFeeBps, // A3 — 0 bps: user pays for order only without convenience fees
     codHandlingFeePaise: DEFAULTS.codHandlingFeePaise,
     couponFundedBy: "PLATFORM",
     roundingMode: "CEIL",
