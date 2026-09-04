@@ -22,15 +22,15 @@ export function FoodTypeFilterBar({
   return (
     <div
       className={cn(
-        // Sticky bar below the main gate header (top-14)
-        "sticky top-14 z-20 -mx-4 px-4 py-2 bg-ink/95 backdrop-blur-md border-b border-line/50 transition-all shadow-xs",
+        // Sticky bar below the main gate header (top-14 + notch safe area on mobile)
+        "sticky top-[calc(3.5rem+max(env(safe-area-inset-top),0rem))] z-20 -mx-4 px-2.5 sm:px-4 py-2 bg-ink/95 backdrop-blur-md border-b border-line/50 transition-all shadow-xs",
         className,
       )}
     >
       <div
         role="tablist"
         aria-label="Filter kitchens by category"
-        className="flex items-center gap-2 overflow-x-auto scrollbar-none py-0.5 scroll-smooth"
+        className="grid grid-cols-4 gap-1.5 sm:gap-2 py-0.5 w-full"
       >
         {FOOD_TYPE_OPTIONS.map((option) => {
           const isSelected = selected === option.id;
@@ -51,20 +51,20 @@ export function FoodTypeFilterBar({
                 }
               }}
               className={cn(
-                "group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all shrink-0 cursor-pointer select-none active:scale-95 border",
+                "group relative flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 rounded-full px-1.5 sm:px-3 py-2 sm:py-1.5 text-xs font-semibold transition-all cursor-pointer select-none active:scale-95 border",
                 isSelected
                   ? "bg-saffron text-slate-950 border-saffron shadow-sm shadow-saffron/20 font-bold"
                   : "bg-surface text-muted border-line hover:text-bone hover:border-line-strong hover:bg-surface-raised",
               )}
             >
-              <span className="text-sm leading-none" aria-hidden="true">
+              <span className="text-sm leading-none shrink-0" aria-hidden="true">
                 {option.emoji}
               </span>
-              <span>{option.label}</span>
+              <span className="truncate">{option.label}</span>
               {count > 0 ? (
                 <span
                   className={cn(
-                    "ml-0.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10.5px] font-bold transition-colors leading-none",
+                    "ml-0.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] sm:text-[10.5px] font-bold transition-colors leading-none shrink-0",
                     isSelected
                       ? "bg-slate-950/15 text-slate-950"
                       : "bg-surface-raised text-faint group-hover:text-muted",

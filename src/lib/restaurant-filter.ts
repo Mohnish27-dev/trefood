@@ -1,6 +1,6 @@
 import type { RestaurantListItem } from "@/server/services/catalog";
 
-export type FoodTypeFilter = "all" | "fruits" | "juice_shakes" | "food";
+export type FoodTypeFilter = "all" | "food" | "fruits" | "juice_shakes";
 
 export interface FoodTypeOption {
   id: FoodTypeFilter;
@@ -10,9 +10,9 @@ export interface FoodTypeOption {
 
 export const FOOD_TYPE_OPTIONS: FoodTypeOption[] = [
   { id: "all", label: "All", emoji: "🍽️" },
-  { id: "fruits", label: "Fruits", emoji: "🍎" },
-  { id: "juice_shakes", label: "Juice / Shakes", emoji: "🥤" },
   { id: "food", label: "Food", emoji: "🍛" },
+  { id: "fruits", label: "Fruits", emoji: "🍎" },
+  { id: "juice_shakes", label: "Juices", emoji: "🥤" },
 ];
 
 const FRUIT_REGEX = /fruit|फल/i;

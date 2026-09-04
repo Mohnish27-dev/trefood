@@ -29,6 +29,10 @@ import type { User } from "@/types/user";
  */
 
 import { VENDOR_SESSION_COOKIE, verifyVendorSessionToken } from "@/server/auth/passwords";
+import {
+  QUICK_UNLOCK_SESSION_COOKIE,
+  verifyQuickUnlockToken,
+} from "@/server/auth/quick-unlock";
 
 export const DEMO_USER_COOKIE = "trefood_demo_user";
 
@@ -51,7 +55,13 @@ export async function getSession(): Promise<Session | null> {
   // 2. Supabase or Stub session
   const provider = serverEnv().AUTH_PROVIDER;
   const user = provider === "supabase" ? await resolveSupabaseUser() : await resolveStubUser();
-  return user ? { user, role: user.role } : null;
+  if (user) return { user, role: user.role };
+
+  // 3. Quick unlock (4-digit PIN / biometrics). Deliberately LAST: a real
+  // password or OAuth session always wins, so a stale quick-unlock cookie can
+  // never shadow the account somebody has just signed into on this device.
+  const quickUser = await resolveQuickUnlockUser();
+  return quickUser ? { user: quickUser, role: quickUser.role } : null;
 }
 
 /** Throws when unauthenticated. Use in Server Actions, never in a read path that can degrade. */
@@ -128,6 +138,28 @@ async function resolveVendorUser(): Promise<User | null> {
   if (!userId) return null;
 
   return (await db.users()).findOne({ _id: userId });
+}
+
+/**
+ * Quick unlock provider.
+ *
+ * The cookie is only ever minted by `unlockWithQuickUnlock()`, after the
+ * server has checked the PIN against `users.quickUnlock`. It is re-validated
+ * on every request: turning quick unlock off in Account clears the stored
+ * hash, and this drops the session the moment that happens.
+ */
+async function resolveQuickUnlockUser(): Promise<User | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(QUICK_UNLOCK_SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const userId = verifyQuickUnlockToken("session", token);
+  if (!userId) return null;
+
+  const user = await (await db.users()).findOne({ _id: userId });
+  if (!user?.quickUnlock?.pinHash) return null;
+
+  return user;
 }
 
 /**

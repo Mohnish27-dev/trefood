@@ -16,6 +16,20 @@ import {
 } from "@/server/auth/passwords";
 import { ROLE } from "@/lib/constants";
 import { resolveLandingPath } from "@/lib/routes";
+import {
+  credentialIdMatches,
+  QUICK_UNLOCK_LOCKOUT_MS,
+  QUICK_UNLOCK_MAX_ATTEMPTS,
+  QUICK_UNLOCK_SESSION_COOKIE,
+  verifyQuickPin,
+} from "@/server/auth/quick-unlock";
+import {
+  clearQuickUnlockCookies,
+  ensureQuickUnlockDeviceCookie,
+  setQuickUnlockDeviceCookie,
+  setQuickUnlockSessionCookie,
+  trustedDeviceUserId,
+} from "@/server/auth/quick-unlock-cookies";
 
 export type AuthActionState =
   | { status: "idle" }
@@ -90,6 +104,7 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
       secure: serverEnv().NODE_ENV === "production",
     });
 
+    await ensureQuickUnlockDeviceCookie(dbUser);
     redirect(resolveLandingPath(target, dbUser.role));
   }
 
@@ -116,6 +131,7 @@ export async function signInWithEmail(input: unknown): Promise<AuthActionState> 
           : { authId: data.user.id },
       );
       role = mongoUser?.role ?? null;
+      await ensureQuickUnlockDeviceCookie(mongoUser);
     }
 
     redirect(resolveLandingPath(target, role));
@@ -199,6 +215,11 @@ export async function signOut(): Promise<void> {
   const store = await cookies();
   store.delete(DEMO_USER_COOKIE);
   store.delete(VENDOR_SESSION_COOKIE);
+  // The quick-unlock SESSION goes; the device trust cookie stays. Signing out
+  // means "stop being signed in", not "forget my phone" — the PIN screen on
+  // /signin can then mint a fresh session, which is the whole point of it.
+  // "Use a different account" (forgetQuickUnlockDevice) is what forgets.
+  store.delete(QUICK_UNLOCK_SESSION_COOKIE);
 
   if (serverEnv().AUTH_PROVIDER === "supabase") {
     try {
@@ -213,7 +234,7 @@ export async function signOut(): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Quick Unlock (4-Digit PIN & Biometrics) Server Sync                */
+/* Quick Unlock (4-Digit PIN & Biometrics)                             */
 /* ------------------------------------------------------------------ */
 
 const quickUnlockSchema = z.object({
@@ -251,6 +272,9 @@ export async function saveQuickUnlockSettings(input: unknown): Promise<AuthActio
         ? parsed.data.credentialId
         : (currentSettings.credentialId ?? null),
     requireOnOpen: parsed.data.requireOnOpen ?? currentSettings.requireOnOpen ?? true,
+    // A fresh PIN clears any standing lockout left over from the old one.
+    failedAttempts: 0,
+    lockedUntil: null,
     updatedAt: new Date(),
   };
 
@@ -258,6 +282,13 @@ export async function saveQuickUnlockSettings(input: unknown): Promise<AuthActio
     { _id: session.user._id },
     { $set: { quickUnlock: updatedSettings, updatedAt: new Date() } },
   );
+
+  // Trust this device from now on. This is the half that was missing: without
+  // it the PIN screen had nothing on the server to authenticate against, so
+  // unlocking never produced a session.
+  if (updatedSettings.pinHash) {
+    await setQuickUnlockDeviceCookie(session.user._id);
+  }
 
   return { status: "success", message: "Quick unlock settings saved successfully." };
 }
@@ -274,7 +305,140 @@ export async function resetQuickUnlockSettings(): Promise<AuthActionState> {
     { $set: { quickUnlock: null, updatedAt: new Date() } },
   );
 
+  await clearQuickUnlockCookies();
+
   return { status: "success", message: "Quick unlock has been reset." };
+}
+
+/** "Use a different account" on the unlock screen. Forgets this device entirely. */
+export async function forgetQuickUnlockDevice(): Promise<AuthActionState> {
+  await clearQuickUnlockCookies();
+  return { status: "success", message: "This device no longer remembers a quick unlock PIN." };
+}
+
+const unlockSchema = z
+  .object({
+    mode: z.enum(["pin", "biometric"]),
+    pin: z
+      .string()
+      .regex(/^[0-9]{4}$/, "Enter your 4-digit PIN")
+      .optional(),
+    credentialId: z.string().min(1).optional(),
+    redirectTo: z.string().optional(),
+  })
+  .refine((value) => (value.mode === "pin" ? Boolean(value.pin) : Boolean(value.credentialId)), {
+    message: "Missing unlock credentials.",
+  });
+
+export type QuickUnlockResult =
+  | { status: "success"; redirectTo: string }
+  | { status: "error"; message: string; reason: "untrusted" | "locked" | "invalid" };
+
+/**
+ * Verifies a quick unlock on the SERVER and mints a session cookie.
+ *
+ * The browser half (`@/lib/quick-unlock`) is a convenience only — it can tell
+ * the keypad that the PIN looks wrong so the dots shake, but it cannot sign
+ * anybody in. This can, and nothing else may.
+ */
+export async function unlockWithQuickUnlock(input: unknown): Promise<QuickUnlockResult> {
+  const parsed = unlockSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Missing unlock credentials.", reason: "invalid" };
+  }
+
+  const userId = await trustedDeviceUserId();
+  if (!userId) {
+    return {
+      status: "error",
+      message: "This device is not set up for quick unlock. Sign in once to enable it again.",
+      reason: "untrusted",
+    };
+  }
+
+  const usersCol = await db.users();
+  const user = await usersCol.findOne({ _id: userId });
+  const settings = user?.quickUnlock;
+
+  if (!user || !settings?.pinHash || !settings.pinSalt) {
+    return {
+      status: "error",
+      message: "Quick unlock is no longer configured for this account. Please sign in.",
+      reason: "untrusted",
+    };
+  }
+
+  const lockedUntil = settings.lockedUntil ? new Date(settings.lockedUntil).getTime() : 0;
+  if (lockedUntil > Date.now()) {
+    const minutes = Math.max(1, Math.ceil((lockedUntil - Date.now()) / 60000));
+    return {
+      status: "error",
+      message: `Too many wrong attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or sign in with your password.`,
+      reason: "locked",
+    };
+  }
+
+  const ok =
+    parsed.data.mode === "pin"
+      ? verifyQuickPin(parsed.data.pin ?? "", settings.pinHash, settings.pinSalt)
+      : Boolean(settings.biometricEnabled) &&
+        credentialIdMatches(parsed.data.credentialId, settings.credentialId);
+
+  if (!ok) {
+    const attempts = (settings.failedAttempts ?? 0) + 1;
+    const shouldLock = attempts >= QUICK_UNLOCK_MAX_ATTEMPTS;
+
+    await usersCol.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          "quickUnlock.failedAttempts": shouldLock ? 0 : attempts,
+          "quickUnlock.lockedUntil": shouldLock
+            ? new Date(Date.now() + QUICK_UNLOCK_LOCKOUT_MS)
+            : null,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    if (shouldLock) {
+      return {
+        status: "error",
+        message: "Too many wrong attempts. Quick unlock is paused for 15 minutes.",
+        reason: "locked",
+      };
+    }
+
+    const left = QUICK_UNLOCK_MAX_ATTEMPTS - attempts;
+    return {
+      status: "error",
+      message:
+        parsed.data.mode === "pin"
+          ? `Incorrect PIN. ${left} attempt${left === 1 ? "" : "s"} left.`
+          : "Biometric unlock could not be verified. Enter your 4-digit PIN.",
+      reason: "invalid",
+    };
+  }
+
+  await usersCol.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        "quickUnlock.failedAttempts": 0,
+        "quickUnlock.lockedUntil": null,
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  await setQuickUnlockSessionCookie(user._id);
+  // Refresh the device trust so a daily user never quietly falls off it.
+  await setQuickUnlockDeviceCookie(user._id);
+
+  return {
+    status: "success",
+    redirectTo: resolveLandingPath(parsed.data.redirectTo, user.role),
+  };
 }
 
 export async function getQuickUnlockStatus(): Promise<{
@@ -293,4 +457,3 @@ export async function getQuickUnlockStatus(): Promise<{
     requireOnOpen: session.user.quickUnlock.requireOnOpen ?? true,
   };
 }
-

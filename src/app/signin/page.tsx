@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { SignInPicker, type SignInAccount } from "@/components/student/sign-in-picker";
 import { StudentAuthForm } from "@/components/student/student-auth-form";
 import { getSession, listDemoUsers } from "@/server/auth/session";
+import { getQuickUnlockDeviceState } from "@/server/auth/quick-unlock-cookies";
 import { getRestaurantById } from "@/server/services/catalog";
 import { serverEnv } from "@/lib/env";
 import { landingForRole, resolveLandingPath } from "@/lib/routes";
@@ -33,6 +34,12 @@ export default async function SignInPage({
   if (session && !reason) {
     redirect(resolveLandingPath(next, session.role));
   }
+
+  // Resolved from the signed device cookie, not from localStorage. The client
+  // may only offer the PIN pad when this says the server can actually honour
+  // it; otherwise the unlock "succeeds" and the next guarded page sends the
+  // person right back here.
+  const quickUnlockDevice = await getQuickUnlockDeviceState();
 
   const isStub = serverEnv().AUTH_PROVIDER === "stub";
   const users = await listDemoUsers();
@@ -88,7 +95,11 @@ export default async function SignInPage({
       ) : null}
 
       {/* ── Customer & Vendor Authentication (Google OAuth + Email/Password) ─────────── */}
-      <StudentAuthForm redirectTo={next ?? null} initialType={initialType} />
+      <StudentAuthForm
+        redirectTo={next ?? null}
+        initialType={initialType}
+        quickUnlockDevice={quickUnlockDevice}
+      />
 
       {/* ── Demo accounts (Stub mode only) ─────────────────────────── */}
       {isStub ? (

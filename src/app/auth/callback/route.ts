@@ -4,6 +4,7 @@ import * as db from "@/server/db/collections";
 import { ROLE } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { resolveLandingPath } from "@/lib/routes";
+import { ensureQuickUnlockDeviceCookie } from "@/server/auth/quick-unlock-cookies";
 import type { User } from "@/types/user";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,10 @@ export async function GET(request: NextRequest) {
         await usersCollection.insertOne(newStudent);
         mongoUser = newStudent;
       }
+
+      // Re-arm (or clear) quick unlock for this browser now that we know who
+      // just signed in, so the PIN screen after a sign-out belongs to them.
+      await ensureQuickUnlockDeviceCookie(mongoUser);
 
       // `next` is only honoured when it is a local path that leads somewhere.
       // A bare "/" means "no preference", and the answer to that is the

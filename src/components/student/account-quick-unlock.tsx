@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Fingerprint,
   KeyRound,
@@ -43,6 +44,7 @@ interface AccountQuickUnlockProps {
 }
 
 export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
+  const router = useRouter();
   const [profile, setProfile] = useState<StoredQuickUnlockProfile | null>(null);
   const [biometricsSupported, setBiometricsSupported] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,7 +119,13 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
   };
 
   const handleReset = async () => {
-    if (!confirm("Are you sure you want to turn off Quick PIN & Biometric unlock on this device?")) {
+    // Worth spelling out: the PIN may be the only credential holding this
+    // session up, in which case turning it off signs them out here and now.
+    if (
+      !confirm(
+        "Turn off Quick PIN & Biometric unlock on this device? You will need your password or Google account to sign in next time.",
+      )
+    ) {
       return;
     }
 
@@ -126,6 +134,7 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
       clearStoredQuickUnlockProfile();
       setProfile(null);
       await resetQuickUnlockSettings();
+      router.refresh();
     } catch (err) {
       console.error("Failed to reset quick unlock:", err);
     } finally {
