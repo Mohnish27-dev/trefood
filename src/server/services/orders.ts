@@ -4,6 +4,7 @@ import * as db from "@/server/db/collections";
 import { newId, newOrderNumber } from "@/lib/ids";
 import {
   ACTOR,
+  CUSTOMER_VISIBLE_STATUSES,
   DEFAULTS,
   ORDER_STATUS,
   PAYMENT_METHOD,
@@ -569,9 +570,16 @@ export async function getOrderForCustomer(orderId: string, customerId: string): 
   return (await db.orders()).findOne({ _id: orderId, customerId });
 }
 
-export async function listOrdersForCustomer(customerId: string, limit = 30): Promise<Order[]> {
+export async function listOrdersForCustomer(
+  customerId: string,
+  limit = 30,
+  statuses: readonly OrderStatus[] = CUSTOMER_VISIBLE_STATUSES,
+): Promise<Order[]> {
   return (await db.orders())
-    .find({ customerId })
+    .find({
+      customerId,
+      status: { $in: [...statuses] },
+    })
     .sort({ "timestamps.createdAt": -1 })
     .limit(limit)
     .toArray();

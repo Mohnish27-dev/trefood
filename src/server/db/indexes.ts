@@ -63,6 +63,7 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { idempotencyKey: 1 }, unique: true, name: "idempotencyKey_unique" },
     // Student history, newest first.
     { key: { customerId: 1, "timestamps.createdAt": -1 }, name: "customer_recent" },
+    { key: { customerId: 1, status: 1, "timestamps.createdAt": -1 }, name: "customer_status_recent" },
     // The vendor board poll, every 5 seconds. This one has to be fast.
     { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
     // The cron sweeps: expire-unacked, close-stale-gates, reconcile-payments.
