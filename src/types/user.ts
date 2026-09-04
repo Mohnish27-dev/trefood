@@ -33,6 +33,10 @@ export interface User {
     biometricEnabled?: boolean;
     credentialId?: string | null;
     requireOnOpen?: boolean;
+    /** Wrong-PIN counter. Reset on every successful unlock. */
+    failedAttempts?: number;
+    /** Set once the counter trips; quick unlock is refused until it passes. */
+    lockedUntil?: Date | null;
     updatedAt?: Date;
   } | null;
 

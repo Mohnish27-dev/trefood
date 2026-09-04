@@ -16,6 +16,14 @@ import { createServerClient } from "@supabase/ssr";
 
 const DEMO_SESSION_COOKIE = "trefood_demo_user";
 const VENDOR_SESSION_COOKIE = "trefood_vendor_session";
+/**
+ * Minted only after the server has verified a 4-digit PIN or the registered
+ * biometric credential. Listed here for the same reason the others are: the
+ * gate below is optimistic, and leaving it out would redirect a legitimately
+ * quick-unlocked student off /checkout and back to the PIN screen — the
+ * unlock loop, one layer up.
+ */
+const QUICK_UNLOCK_SESSION_COOKIE = "trefood_quick_session";
 
 /**
  * Route groups that are pointless to render without any session at all.
@@ -65,8 +73,15 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   const hasDemoCookie = request.cookies.has(DEMO_SESSION_COOKIE);
   const hasVendorCookie = request.cookies.has(VENDOR_SESSION_COOKIE);
+  const hasQuickUnlockCookie = request.cookies.has(QUICK_UNLOCK_SESSION_COOKIE);
 
-  if (isGuarded && !hasSupabaseUser && !hasDemoCookie && !hasVendorCookie) {
+  if (
+    isGuarded &&
+    !hasSupabaseUser &&
+    !hasDemoCookie &&
+    !hasVendorCookie &&
+    !hasQuickUnlockCookie
+  ) {
     const forwardedHost = request.headers.get("x-forwarded-host");
     const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
     const origin = forwardedHost

@@ -49,7 +49,7 @@ export function CampusRestaurantFeed({
         }
       }
 
-      // 2. Food type filter (all, fruits, juice/shakes, food)
+      // 2. Food type filter (all, food, fruits, juice_shakes)
       if (foodTypeFilter !== "all" && !matchesFoodType(r, foodTypeFilter)) {
         return false;
       }
@@ -136,7 +136,7 @@ export function CampusRestaurantFeed({
         onSelectCategory={setSelectedCategory}
       />
 
-      {/* ── PWA Mobile Sticky Food Type Filters (All, Fruits, Juice / Shakes, Food) ── */}
+      {/* ── PWA Mobile Sticky Food Type Filters (All, Food, Fruits, Juices) ── */}
       <FoodTypeFilterBar
         selected={foodTypeFilter}
         onChange={setFoodTypeFilter}

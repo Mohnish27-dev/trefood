@@ -19,6 +19,23 @@ export interface StoredQuickUnlockProfile {
   updatedAt: number;
 }
 
+/**
+ * What the server knows about this browser's quick-unlock trust, resolved from
+ * the signed httpOnly device cookie. Lives here rather than beside the server
+ * helpers so a Client Component can import the type without dragging
+ * `server-only` into the bundle.
+ */
+export interface QuickUnlockDeviceState {
+  /** True only when the device cookie verifies AND the account still has a PIN. */
+  trusted: boolean;
+  userId: string | null;
+  name: string | null;
+  email: string | null;
+  biometricEnabled: boolean;
+  /** Set while a lockout from repeated wrong PINs is still running. */
+  lockedUntilMs: number | null;
+}
+
 const STORAGE_KEY = "trefood_quick_unlock_v1";
 const LOCK_STATE_KEY = "trefood_app_locked";
 
@@ -199,7 +216,7 @@ export async function registerBiometrics(
  */
 export async function authenticateWithBiometrics(
   credentialId?: string | null,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; credentialId?: string; error?: string }> {
   if (typeof window === "undefined" || !navigator.credentials) {
     return { success: false, error: "Biometrics not supported on this browser." };
   }
@@ -225,15 +242,18 @@ export async function authenticateWithBiometrics(
       ...(allowCredentials.length > 0 ? { allowCredentials } : {}),
     };
 
-    const assertion = await navigator.credentials.get({
+    const assertion = (await navigator.credentials.get({
       publicKey: requestOptions,
-    });
+    })) as PublicKeyCredential | null;
 
     if (!assertion) {
       return { success: false, error: "Biometric authentication failed or cancelled." };
     }
 
-    return { success: true };
+    // The id goes back to the server, which checks it against the credential
+    // registered for this account. A local 'success' proves nothing on its
+    // own — only the server may decide that somebody is signed in.
+    return { success: true, credentialId: bufferToBase64Url(assertion.rawId) };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Biometric verification failed.";
     return { success: false, error: message };

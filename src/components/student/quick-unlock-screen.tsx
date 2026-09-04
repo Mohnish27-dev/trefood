@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Fingerprint,
   Delete,
-  ShieldCheck,
   AlertCircle,
   ArrowRightLeft,
   KeyRound,
@@ -13,14 +12,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  clearStoredQuickUnlockProfile,
   getStoredQuickUnlockProfile,
   setAppLockState,
-  verifyPin,
   authenticateWithBiometrics,
   isBiometricsAvailable,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
-import { resolveLandingPath } from "@/lib/routes";
+import { forgetQuickUnlockDevice, unlockWithQuickUnlock } from "@/server/actions/session";
 
 interface QuickUnlockScreenProps {
   profile?: StoredQuickUnlockProfile | null;
@@ -29,6 +28,16 @@ interface QuickUnlockScreenProps {
   onSwitchAccount?: () => void;
 }
 
+/**
+ * The lock screen.
+ *
+ * It used to verify the PIN in the browser and then navigate, which is why a
+ * signed-out person could loop here forever: the dots turned green, the page
+ * changed, and the very next guarded route bounced them straight back because
+ * no session had ever been created. Every unlock now goes through
+ * `unlockWithQuickUnlock()`, which checks the PIN against the account on the
+ * server and sets the session cookie before this component navigates anywhere.
+ */
 export function QuickUnlockScreen({
   profile: propProfile,
   redirectTo,
@@ -42,6 +51,8 @@ export function QuickUnlockScreen({
   const [authenticatingBiometric, setAuthenticatingBiometric] = useState(false);
   const [biometricsSupported, setBiometricsSupported] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  /** Set when the server says this device can no longer quick-unlock at all. */
+  const [blocked, setBlocked] = useState(false);
 
   const biometricAttemptedRef = useRef(false);
 
@@ -60,34 +71,73 @@ export function QuickUnlockScreen({
     });
   }, []);
 
-  const handleUnlockSuccess = useCallback(() => {
-    setAppLockState(false);
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      const target = resolveLandingPath(redirectTo, null);
-      window.location.href = target;
-    }
-  }, [redirectTo, onSuccess]);
+  const handleUnlocked = useCallback(
+    (target: string) => {
+      setAppLockState(false);
+      if (onSuccess) {
+        onSuccess();
+        return;
+      }
+      // A full load, not a client transition: the session cookie was just set
+      // on this response and every server component has to see it.
+      window.location.assign(target);
+    },
+    [onSuccess],
+  );
+
+  /** Stops offering a PIN that cannot work, and hands back to the normal form. */
+  const handleDeviceRejected = useCallback(
+    (message: string) => {
+      setBlocked(true);
+      setError(message);
+      clearStoredQuickUnlockProfile();
+      setTimeout(() => {
+        onSwitchAccount?.();
+      }, 2500);
+    },
+    [onSwitchAccount],
+  );
 
   const triggerBiometricUnlock = useCallback(async () => {
-    if (!profile?.biometricEnabled || authenticatingBiometric) return;
+    if (!profile?.biometricEnabled || authenticatingBiometric || blocked) return;
     setError(null);
     setAuthenticatingBiometric(true);
 
     try {
       const res = await authenticateWithBiometrics(profile.credentialId);
-      if (res.success) {
-        handleUnlockSuccess();
-      } else if (res.error && !res.error.toLowerCase().includes("cancelled")) {
-        setError("Biometric verification failed. Please enter your 4-digit PIN.");
+      if (!res.success || !res.credentialId) {
+        if (res.error && !res.error.toLowerCase().includes("cancel")) {
+          setError("Biometric verification failed. Please enter your 4-digit PIN.");
+        }
+        return;
+      }
+
+      const unlocked = await unlockWithQuickUnlock({
+        mode: "biometric",
+        credentialId: res.credentialId,
+        ...(redirectTo ? { redirectTo } : {}),
+      });
+
+      if (unlocked.status === "success") {
+        handleUnlocked(unlocked.redirectTo);
+      } else if (unlocked.reason === "untrusted") {
+        handleDeviceRejected(unlocked.message);
+      } else {
+        setError(unlocked.message);
       }
     } catch {
       setError("Biometric verification failed. Please enter your PIN.");
     } finally {
       setAuthenticatingBiometric(false);
     }
-  }, [profile, authenticatingBiometric, handleUnlockSuccess]);
+  }, [
+    profile,
+    authenticatingBiometric,
+    blocked,
+    redirectTo,
+    handleUnlocked,
+    handleDeviceRejected,
+  ]);
 
   // Auto-prompt biometrics once on mount if enabled
   useEffect(() => {
@@ -103,35 +153,45 @@ export function QuickUnlockScreen({
 
   const handlePinDigit = useCallback(
     async (digit: string) => {
-      if (pin.length >= 4 || verifying) return;
+      if (pin.length >= 4 || verifying || blocked) return;
       setError(null);
 
       const nextPin = pin + digit;
       setPin(nextPin);
+      if (nextPin.length < 4) return;
 
-      if (nextPin.length === 4) {
-        setVerifying(true);
-        if (!profile) {
-          setError("Quick unlock profile not found. Please sign in with email/password.");
-          setVerifying(false);
+      setVerifying(true);
+      try {
+        const unlocked = await unlockWithQuickUnlock({
+          mode: "pin",
+          pin: nextPin,
+          ...(redirectTo ? { redirectTo } : {}),
+        });
+
+        if (unlocked.status === "success") {
+          handleUnlocked(unlocked.redirectTo);
           return;
         }
 
-        const valid = await verifyPin(nextPin, profile.pinHash, profile.pinSalt);
-        if (valid) {
-          handleUnlockSuccess();
-        } else {
-          setShaking(true);
-          setError("Incorrect PIN. Please try again.");
-          setTimeout(() => {
-            setPin("");
-            setShaking(false);
-            setVerifying(false);
-          }, 600);
+        if (unlocked.reason === "untrusted") {
+          handleDeviceRejected(unlocked.message);
+          return;
         }
+
+        setShaking(true);
+        setError(unlocked.message);
+        setTimeout(() => {
+          setPin("");
+          setShaking(false);
+          setVerifying(false);
+        }, 600);
+      } catch {
+        setPin("");
+        setVerifying(false);
+        setError("Could not reach TREFOOD. Check your connection and try again.");
       }
     },
-    [pin, verifying, profile, handleUnlockSuccess],
+    [pin, verifying, blocked, redirectTo, handleUnlocked, handleDeviceRejected],
   );
 
   const handleDeleteDigit = useCallback(() => {
@@ -154,11 +214,22 @@ export function QuickUnlockScreen({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handlePinDigit, handleDeleteDigit]);
 
+  const handleSwitchAccount = useCallback(async () => {
+    clearStoredQuickUnlockProfile();
+    try {
+      await forgetQuickUnlockDevice();
+    } catch {
+      // The local profile is already gone, so the form shows either way.
+    }
+    onSwitchAccount?.();
+  }, [onSwitchAccount]);
+
   if (!profile) {
     return null;
   }
 
   const nameInitial = (profile.name || profile.email || "U").charAt(0).toUpperCase();
+  const disabled = verifying || blocked;
 
   return (
     <div className="flex flex-col items-center justify-between min-h-[520px] w-full max-w-sm mx-auto px-4 py-6">
@@ -217,6 +288,13 @@ export function QuickUnlockScreen({
         </div>
       ) : null}
 
+      {verifying && !error ? (
+        <div className="mb-4 flex items-center gap-2 text-xs text-saffron">
+          <Loader2 className="size-4 animate-spin" />
+          <span>Unlocking…</span>
+        </div>
+      ) : null}
+
       {authenticatingBiometric ? (
         <div className="mb-4 flex items-center gap-2 text-xs text-saffron animate-pulse">
           <Loader2 className="size-4 animate-spin" />
@@ -230,9 +308,9 @@ export function QuickUnlockScreen({
           <button
             key={digit}
             type="button"
-            disabled={verifying}
+            disabled={disabled}
             onClick={() => void handlePinDigit(digit)}
-            className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 font-display text-xl font-semibold text-bone shadow-sm active:scale-95 active:bg-surface-raised transition-all hover:border-saffron/40 hover:bg-surface-raised select-none"
+            className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 font-display text-xl font-semibold text-bone shadow-sm active:scale-95 active:bg-surface-raised transition-all hover:border-saffron/40 hover:bg-surface-raised select-none disabled:opacity-50"
           >
             {digit}
           </button>
@@ -242,9 +320,9 @@ export function QuickUnlockScreen({
         {profile.biometricEnabled && biometricsSupported ? (
           <button
             type="button"
-            disabled={authenticatingBiometric || verifying}
+            disabled={authenticatingBiometric || disabled}
             onClick={() => void triggerBiometricUnlock()}
-            className="flex size-16 items-center justify-center rounded-2xl border border-saffron/40 bg-saffron-wash text-saffron shadow-sm active:scale-95 active:bg-saffron/20 transition-all select-none"
+            className="flex size-16 items-center justify-center rounded-2xl border border-saffron/40 bg-saffron-wash text-saffron shadow-sm active:scale-95 active:bg-saffron/20 transition-all select-none disabled:opacity-50"
             aria-label="Use Biometrics"
             title="Use Biometric Unlock"
           >
@@ -261,9 +339,9 @@ export function QuickUnlockScreen({
         {/* 0 Key */}
         <button
           type="button"
-          disabled={verifying}
+          disabled={disabled}
           onClick={() => void handlePinDigit("0")}
-          className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 font-display text-xl font-semibold text-bone shadow-sm active:scale-95 active:bg-surface-raised transition-all hover:border-saffron/40 hover:bg-surface-raised select-none"
+          className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 font-display text-xl font-semibold text-bone shadow-sm active:scale-95 active:bg-surface-raised transition-all hover:border-saffron/40 hover:bg-surface-raised select-none disabled:opacity-50"
         >
           0
         </button>
@@ -271,9 +349,9 @@ export function QuickUnlockScreen({
         {/* Delete / Backspace Key */}
         <button
           type="button"
-          disabled={verifying}
+          disabled={disabled}
           onClick={handleDeleteDigit}
-          className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 text-muted active:scale-95 active:bg-surface-raised active:text-bone transition-all hover:text-bone select-none"
+          className="flex size-16 items-center justify-center rounded-2xl border border-line bg-surface/80 text-muted active:scale-95 active:bg-surface-raised active:text-bone transition-all hover:text-bone select-none disabled:opacity-50"
           aria-label="Delete"
         >
           <Delete className="size-5" />
@@ -287,7 +365,7 @@ export function QuickUnlockScreen({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={onSwitchAccount}
+            onClick={() => void handleSwitchAccount()}
             className="text-xs text-muted hover:text-bone flex items-center gap-2"
           >
             <ArrowRightLeft className="size-3.5" />

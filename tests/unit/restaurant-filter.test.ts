@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  FOOD_TYPE_OPTIONS,
   matchesFoodType,
   getFoodTypeCounts,
 } from "@/lib/restaurant-filter";
@@ -171,5 +172,10 @@ describe("matchesFoodType filter logic", () => {
       juice_shakes: 4,
       food: 7,
     });
+  });
+
+  it("FOOD_TYPE_OPTIONS has the expected order: all, food, fruits, juices", () => {
+    const ids = FOOD_TYPE_OPTIONS.map((opt) => opt.id);
+    expect(ids).toEqual(["all", "food", "fruits", "juice_shakes"]);
   });
 });

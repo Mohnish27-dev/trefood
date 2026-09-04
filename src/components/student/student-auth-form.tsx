@@ -17,30 +17,82 @@ import { Input, Label } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithEmail, signUpWithEmail, sendMagicLink } from "@/server/actions/session";
 import { QuickUnlockScreen } from "@/components/student/quick-unlock-screen";
-import { getStoredQuickUnlockProfile, type StoredQuickUnlockProfile } from "@/lib/quick-unlock";
+import {
+  clearStoredQuickUnlockProfile,
+  getStoredQuickUnlockProfile,
+  type QuickUnlockDeviceState,
+  type StoredQuickUnlockProfile,
+} from "@/lib/quick-unlock";
 
 interface StudentAuthFormProps {
   redirectTo: string | null;
   initialType?: "student" | "vendor";
+  /**
+   * Resolved on the server from the signed device cookie. The PIN pad is only
+   * rendered when this says the device is trusted — a PIN screen the server
+   * cannot honour is what left people cycling between /signin and a guarded
+   * page after signing out.
+   */
+  quickUnlockDevice?: QuickUnlockDeviceState | null;
 }
 
 type UserType = "student" | "vendor";
 type StudentAuthMode = "signin" | "signup" | "magic";
 
-export function StudentAuthForm({ redirectTo, initialType = "student" }: StudentAuthFormProps) {
+export function StudentAuthForm({
+  redirectTo,
+  initialType = "student",
+  quickUnlockDevice = null,
+}: StudentAuthFormProps) {
   const [userType, setUserType] = useState<UserType>(initialType);
   const [studentMode, setStudentMode] = useState<StudentAuthMode>("signin");
 
   const [storedProfile, setStoredProfile] = useState<StoredQuickUnlockProfile | null>(null);
   const [showQuickUnlock, setShowQuickUnlock] = useState<boolean>(false);
+  /** A local PIN profile left behind by a device the server no longer trusts. */
+  const [staleProfile, setStaleProfile] = useState(false);
+
+  const deviceTrusted = Boolean(quickUnlockDevice?.trusted);
 
   useEffect(() => {
     const profile = getStoredQuickUnlockProfile();
-    if (profile && profile.pinHash) {
+
+    if (!deviceTrusted) {
+      // Either quick unlock was never registered with the server (a profile
+      // written by the old client-only flow) or it belongs to a different
+      // account now. Drop it rather than showing a keypad that cannot sign
+      // anybody in.
+      if (profile?.pinHash) {
+        clearStoredQuickUnlockProfile();
+        setStaleProfile(true);
+      }
+      return;
+    }
+
+    if (profile?.pinHash) {
       setStoredProfile(profile);
       setShowQuickUnlock(true);
+      return;
     }
-  }, []);
+
+    // The server remembers this device but the browser storage was cleared,
+    // so rebuild just enough of a profile for the lock screen to render. The
+    // hashes stay on the server; this copy is only a name and an avatar.
+    if (quickUnlockDevice?.userId) {
+      setStoredProfile({
+        userId: quickUnlockDevice.userId,
+        name: quickUnlockDevice.name ?? "",
+        email: quickUnlockDevice.email ?? "",
+        pinHash: "",
+        pinSalt: "",
+        biometricEnabled: quickUnlockDevice.biometricEnabled,
+        credentialId: null,
+        requireOnOpen: true,
+        updatedAt: Date.now(),
+      });
+      setShowQuickUnlock(true);
+    }
+  }, [deviceTrusted, quickUnlockDevice]);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -177,6 +229,16 @@ export function StudentAuthForm({ redirectTo, initialType = "student" }: Student
   return (
     <div className="mt-6 space-y-6">
       {/* ── Quick Unlock Banner (if profile exists and switched to standard login) ── */}
+      {staleProfile ? (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber-wash p-3.5 text-xs text-amber shadow-sm">
+          <KeyRound className="size-4 shrink-0 mt-0.5" />
+          <span>
+            Sign in once below to switch your 4-digit PIN back on for this phone. Your PIN itself
+            has not changed.
+          </span>
+        </div>
+      ) : null}
+
       {storedProfile ? (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-saffron/30 bg-saffron-wash p-3.5 text-xs shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
