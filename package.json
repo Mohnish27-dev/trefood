@@ -21,6 +21,7 @@
     "seed:prince": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-prince-juice.ts",
     "seed:vendors": "npm run seed:prince && npm run seed:zaika && npm run seed:rajdarbar && npm run seed:sonezone && npm run seed:wrapchik && npm run seed:kolkata && npm run seed:royal && npm run seed:csb",
     "db:indexes": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/ensure-indexes.ts",
+    "db:cleanup-pending": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/cleanup-abandoned-orders.ts",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "docker:up": "docker compose up --build",

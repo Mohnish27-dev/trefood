@@ -55,6 +55,32 @@ export const VENDOR_ACTIVE_STATUSES: readonly OrderStatus[] = [
 ];
 
 /**
+ * Statuses visible in a customer's order history.
+ *
+ * In-progress, delivered, and rejected/cancelled orders are shown.
+ * Abandoned checkout attempts (PAYMENT_PENDING, PAYMENT_FAILED) are excluded so
+ * customer order history is never cluttered with unfulfilled payment attempts.
+ */
+export const CUSTOMER_VISIBLE_STATUSES: readonly OrderStatus[] = [
+  ORDER_STATUS.PLACED,
+  ORDER_STATUS.ACCEPTED,
+  ORDER_STATUS.PREPARING,
+  ORDER_STATUS.READY,
+  ORDER_STATUS.OUT_FOR_DELIVERY,
+  ORDER_STATUS.AT_GATE,
+  ORDER_STATUS.DELIVERED,
+  ORDER_STATUS.DELIVERED_TO_SECURITY,
+  ORDER_STATUS.NO_SHOW,
+  ORDER_STATUS.REJECTED_BY_VENDOR,
+  ORDER_STATUS.EXPIRED_NO_ACK,
+  ORDER_STATUS.CANCELLED_BY_ADMIN,
+  ORDER_STATUS.DISPUTED,
+  ORDER_STATUS.DISPUTE_UPHELD,
+  ORDER_STATUS.DISPUTE_REJECTED,
+  ORDER_STATUS.SETTLED,
+];
+
+/**
  * The steps a student sees on the tracker.
  */
 export const STUDENT_STEPPER: readonly {
