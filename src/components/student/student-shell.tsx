@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BottomNav } from "./bottom-nav";
-import { InstallPrompt } from "@/components/shared/pwa";
 import { QuickUnlockPrompt } from "./quick-unlock-prompt";
 import { useCart } from "@/hooks/use-cart";
 
@@ -37,8 +36,6 @@ export function StudentShell({ children, user }: StudentShellProps) {
       <div className="flex-1 pb-24">{children}</div>
       {/* Quick Unlock Onboarding Prompt */}
       <QuickUnlockPrompt user={user} />
-      {/* Deferred until after a delivered order, when intent peaks. */}
-      <InstallPrompt />
       <BottomNav campusSlug={campusSlug} />
     </div>
   );

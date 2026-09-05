@@ -1,6 +1,6 @@
 import "server-only";
 
-import { clientEnv, serverEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/env";
 import { type Paise, rupeesToPaise } from "@/lib/money";
 import PaytmChecksum from "paytmchecksum";
 
@@ -101,6 +101,9 @@ const paytmProvider: PaymentProvider = {
     const merchantKey = env.PAYTM_MERCHANT_KEY ?? "";
     const website = env.PAYTM_WEBSITE ?? (env.PAYTM_ENVIRONMENT === "production" ? "DEFAULT" : "WEBSTAGING");
     const host = getPaytmHost();
+    const callbackUrl =
+      env.PAYTM_CALLBACK_URL ??
+      `${env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/webhooks/paytm`;
 
     const valueRupees = paiseToPaytmAmount(amountPaise);
     const custId = customerPhone.replace(/\D/g, "") || `CUST_${orderId.slice(-8)}`;
@@ -111,7 +114,7 @@ const paytmProvider: PaymentProvider = {
         mid,
         websiteName: website,
         orderId: orderNumber,
-        callbackUrl: `${clientEnv.NEXT_PUBLIC_APP_URL}/api/webhooks/paytm`,
+        callbackUrl,
         txnAmount: {
           value: valueRupees,
           currency: "INR",
@@ -164,8 +167,15 @@ const paytmProvider: PaymentProvider = {
 
     const resultInfo = resData.body?.resultInfo;
     if (resultInfo?.resultStatus !== "S" || !resData.body?.txnToken) {
+      const resultCode = resultInfo?.resultCode ?? "unknown";
+      if (resultCode === "501") {
+        throw new Error(
+          `Paytm ${env.PAYTM_ENVIRONMENT} gateway returned System Error (code 501). ` +
+            "The transaction token was not created. Verify that this MID, merchant key, and website name belong to the same Paytm environment; if they do, retry later or contact Paytm because this response originates from their gateway.",
+        );
+      }
       throw new Error(
-        `Paytm transaction token generation failed: ${resultInfo?.resultMsg ?? "Unknown error"}`,
+        `Paytm transaction token generation failed (code ${resultCode}): ${resultInfo?.resultMsg ?? "Unknown error"}`,
       );
     }
 

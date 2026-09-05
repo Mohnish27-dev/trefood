@@ -17,7 +17,7 @@
  * anyway.
  */
 
-const VERSION = "trefood-v1";
+const VERSION = "trefood-v2";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 
@@ -38,8 +38,10 @@ const NEVER_CACHE = [
   /^\/checkout(\/|$)/,
   /^\/cart(\/|$)/,
   /^\/demo(\/|$)/,
-  /^\/_next\/webpack-hmr/,
-  /^\/_next\/turbopack-hmr/,
+  // Next build assets contain Server Action references. Let Next/the browser
+  // manage its content-hashed files so an old service-worker cache cannot pair
+  // a previous client bundle with the current server deployment.
+  /^\/_next\//,
 ];
 
 self.addEventListener("install", (event) => {
@@ -84,8 +86,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache first, because a font that is one build old is
-  // indistinguishable from a fresh one and costs nothing to be wrong about.
+  // Public static assets: cache first. `/_next/` is excluded above because
+  // framework-generated JS can contain deployment-specific Server Action IDs.
   if (isStaticAsset(url.pathname)) {
     event.respondWith(
       caches.match(request).then(
