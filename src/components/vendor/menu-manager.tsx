@@ -13,6 +13,7 @@ import { Money } from "@/components/shared/money";
 import { VegMark } from "@/components/shared/veg-mark";
 import { setItemAvailability, type AffectedOrder } from "@/server/actions/vendor";
 import { cn } from "@/lib/utils";
+import { useVendorLanguage } from "@/context/vendor-language-context";
 
 export interface MenuManagerItem {
   itemId: string;
@@ -48,6 +49,7 @@ export interface MenuManagerSection {
  * never keep accurate.
  */
 export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
+  const { t } = useVendorLanguage();
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [available, setAvailable] = useState<Record<string, boolean>>(() =>
@@ -94,23 +96,30 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
 
   return (
     <div className="space-y-5">
+      <header className="mb-5">
+        <h1 className="font-display text-xl font-semibold text-bone">{t("menuPageTitle")}</h1>
+        <p className="mt-1 text-sm text-muted">
+          {t("menuPageSubtitle")}
+        </p>
+      </header>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-56 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find an item"
+            placeholder={t("findAnItem")}
             className="pl-9"
-            aria-label="Find an item"
+            aria-label={t("findAnItem")}
           />
         </div>
         {offCount > 0 ? (
           <Badge tone="warning">
-            {offCount} item{offCount === 1 ? "" : "s"} off the menu
+            {offCount} {offCount === 1 ? t("itemOffMenu") : t("itemsOffMenu")}
           </Badge>
         ) : (
-          <Badge tone="success">Everything is on</Badge>
+          <Badge tone="success">{t("everythingOn")}</Badge>
         )}
       </div>
 
@@ -121,13 +130,14 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber" />
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-semibold text-bone">
-                {affected.orders.length} order{affected.orders.length === 1 ? "" : "s"} already
-                contain {affected.itemName}
+                {affected.orders.length}{" "}
+                {affected.orders.length === 1
+                  ? t("orderAlreadyContains")
+                  : t("ordersAlreadyContain")}{" "}
+                {affected.itemName}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted">
-                Open each one on the board and tap 86 on that line. The student then gets five
-                minutes to swap it, drop it, or cancel — after which we drop it for them and
-                refund that line.
+                {t("affectedOrdersExplanation")}
               </p>
               <ul className="mt-2.5 flex flex-wrap gap-2">
                 {affected.orders.map((order) => (
@@ -144,7 +154,7 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
                 onClick={() => setAffected(null)}
                 className="mt-3 min-h-11 text-xs text-muted hover:text-bone"
               >
-                Dismiss
+                {t("dismiss")}
               </button>
             </div>
           </div>
@@ -155,11 +165,11 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
         <Card>
           <EmptyState
             icon={UtensilsCrossed}
-            title={needle.length > 0 ? "Nothing matches that" : "No menu yet"}
+            title={needle.length > 0 ? t("nothingMatches") : t("noMenuYet")}
             description={
               needle.length > 0
-                ? "Try a shorter search, or clear it to see the whole menu."
-                : "Your menu has not been published. Ask TREFOOD ops to load it and it will appear here."
+                ? t("nothingMatchesDesc")
+                : t("noMenuYetDesc")
             }
           />
         </Card>
@@ -194,8 +204,8 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
                         <Money paise={item.pricePaise} className="font-semibold text-bone" />
                         {item.addOnGroupCount > 0 ? (
                           <span className="text-faint">
-                            · {item.addOnGroupCount} add-on group
-                            {item.addOnGroupCount === 1 ? "" : "s"}
+                            · {item.addOnGroupCount}{" "}
+                            {item.addOnGroupCount === 1 ? t("addOnGroup") : t("addOnGroups")}
                           </span>
                         ) : null}
                       </p>
@@ -211,16 +221,16 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
                         {pending === item.itemId ? (
                           <Loader2 className="size-4 animate-spin" />
                         ) : isOn ? (
-                          "On"
+                          t("statusOn")
                         ) : (
-                          "86"
+                          t("status86")
                         )}
                       </span>
                       <Switch
                         checked={isOn}
                         disabled={pending === item.itemId}
                         onCheckedChange={(next) => void toggle(item, next)}
-                        aria-label={`${item.name} ${isOn ? "is available" : "is out of stock"}`}
+                        aria-label={`${item.name} ${isOn ? t("inStock") : t("outOfStock")}`}
                       />
                     </div>
                   </div>
