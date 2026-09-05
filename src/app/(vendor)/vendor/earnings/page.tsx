@@ -23,16 +23,7 @@ export default async function VendorEarningsPage() {
   const commissionBps = restaurant.commissionBpsOverride ?? campus.settings.commissionBps;
 
   return (
-    <>
-      <header className="mb-5">
-        <h1 className="font-display text-xl font-semibold text-bone">Earnings</h1>
-        <p className="mt-1 text-sm text-muted">
-          Cash orders are settled the moment the rider is paid — only prepaid orders wait for a
-          bank transfer.
-        </p>
-      </header>
-
-      <EarningsView
+    <EarningsView
         days={earnings.days}
         today={earnings.today}
         commissionPct={String(bpsToPct(commissionBps))}
@@ -56,6 +47,5 @@ export default async function VendorEarningsPage() {
           utrReference: row.utrReference,
         }))}
       />
-    </>
   );
 }

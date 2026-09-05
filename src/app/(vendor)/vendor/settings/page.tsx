@@ -30,28 +30,19 @@ export default async function VendorSettingsPage() {
   const commissionBps = restaurant.commissionBpsOverride ?? campus.settings.commissionBps;
 
   return (
-    <>
-      <header className="mb-5">
-        <h1 className="font-display text-xl font-semibold text-bone">Settings</h1>
-        <p className="mt-1 text-sm text-muted">
-          Hours, fees and the gates you serve. Everything here is visible to students.
-        </p>
-      </header>
-
-      <VendorSettingsForm
-        deliveryFeePaise={campus.settings.deliveryFeePaise}
-        commissionPct={String(bpsToPct(commissionBps))}
-        zones={zones}
-        initial={{
-          phone: restaurant.phone,
-          prepMinutes: restaurant.prepMinutes,
-          opensMinutes: restaurant.opensMinutes,
-          closesMinutes: restaurant.closesMinutes,
-          packagingFeePaise: restaurant.packagingFeePaise,
-          minOrderPaise: restaurant.minOrderPaise,
-          servedZoneIds: restaurant.servedZoneIds,
-        }}
-      />
-    </>
+    <VendorSettingsForm
+      deliveryFeePaise={campus.settings.deliveryFeePaise}
+      commissionPct={String(bpsToPct(commissionBps))}
+      zones={zones}
+      initial={{
+        phone: restaurant.phone,
+        prepMinutes: restaurant.prepMinutes,
+        opensMinutes: restaurant.opensMinutes,
+        closesMinutes: restaurant.closesMinutes,
+        packagingFeePaise: restaurant.packagingFeePaise,
+        minOrderPaise: restaurant.minOrderPaise,
+        servedZoneIds: restaurant.servedZoneIds,
+      }}
+    />
   );
 }

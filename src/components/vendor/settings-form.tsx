@@ -12,6 +12,7 @@ import { updateVendorSettings } from "@/server/actions/vendor";
 import { PAISE_PER_RUPEE } from "@/lib/money";
 import { DEFAULTS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useVendorLanguage } from "@/context/vendor-language-context";
 
 export interface SettingsZone {
   id: string;
@@ -53,6 +54,7 @@ export function VendorSettingsForm({
   deliveryFeePaise: number;
   commissionPct: string;
 }) {
+  const { t } = useVendorLanguage();
   const [values, setValues] = useState(initial);
   const [saving, setSaving] = useState(false);
 
@@ -74,22 +76,28 @@ export function VendorSettingsForm({
     setSaving(false);
 
     if (result.status === "error") toast.error(result.message);
-    else toast.success(result.message ?? "Saved");
+    else toast.success(result.message ?? t("savedSuccessfully"));
   };
 
   return (
     <div className="max-w-3xl space-y-5">
+      <header className="mb-5">
+        <h1 className="font-display text-xl font-semibold text-bone">{t("settingsPageTitle")}</h1>
+        <p className="mt-1 text-sm text-muted">
+          {t("settingsPageSubtitle")}
+        </p>
+      </header>
+
       {/* ── Service ──────────────────────────────────────────────── */}
       <Card className="p-4">
-        <h2 className="font-display text-sm font-semibold text-bone">Service</h2>
+        <h2 className="font-display text-sm font-semibold text-bone">{t("serviceSection")}</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Prep time is the estimate students see before they order. The real one is set per
-          order when you accept.
+          {t("serviceSectionDesc")}
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="prep">Typical prep time (minutes)</Label>
+            <Label htmlFor="prep">{t("typicalPrepTime")}</Label>
             <Input
               id="prep"
               type="number"
@@ -102,7 +110,7 @@ export function VendorSettingsForm({
           </div>
 
           <div>
-            <Label htmlFor="phone">Phone students and TREFOOD call</Label>
+            <Label htmlFor="phone">{t("phoneStudentsCall")}</Label>
             <Input
               id="phone"
               type="tel"
@@ -115,13 +123,13 @@ export function VendorSettingsForm({
 
           <TimeField
             id="opens"
-            label="Opens"
+            label={t("opens")}
             minutes={values.opensMinutes}
             onChange={(minutes) => set("opensMinutes", minutes)}
           />
           <TimeField
             id="closes"
-            label="Closes"
+            label={t("closes")}
             minutes={values.closesMinutes}
             onChange={(minutes) => set("closesMinutes", minutes)}
           />
@@ -130,22 +138,21 @@ export function VendorSettingsForm({
         {values.closesMinutes < values.opensMinutes ? (
           <p className="mt-3 flex items-center gap-2 text-xs text-muted">
             <Clock className="size-3.5 text-faint" />
-            Closing after midnight — that is fine, and it is how the late-night window works.
+            {t("closingAfterMidnight")}
           </p>
         ) : null}
       </Card>
 
       {/* ── Charges ──────────────────────────────────────────────── */}
       <Card className="p-4">
-        <h2 className="font-display text-sm font-semibold text-bone">Charges</h2>
+        <h2 className="font-display text-sm font-semibold text-bone">{t("chargesSection")}</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          TREFOOD takes {commissionPct}% of food, packaging and delivery combined. The delivery
-          fee is set per campus and comes to you in full.
+          {t("chargesSectionDesc").replace("{pct}", commissionPct)}
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="packaging">Packaging fee (rupees)</Label>
+            <Label htmlFor="packaging">{t("packagingFee")}</Label>
             <Input
               id="packaging"
               type="number"
@@ -159,7 +166,7 @@ export function VendorSettingsForm({
           </div>
 
           <div>
-            <Label htmlFor="minorder">Minimum order (rupees)</Label>
+            <Label htmlFor="minorder">{t("minOrder")}</Label>
             <Input
               id="minorder"
               type="number"
@@ -174,17 +181,16 @@ export function VendorSettingsForm({
         </div>
 
         <p className="mt-3 text-xs text-muted">
-          Campus delivery fee, paid to you:{" "}
+          {t("campusDeliveryFee")}{" "}
           <Money paise={deliveryFeePaise} className="font-semibold text-bone" />
         </p>
       </Card>
 
       {/* ── Zones ────────────────────────────────────────────────── */}
       <Card className="p-4">
-        <h2 className="font-display text-sm font-semibold text-bone">Gates you deliver to</h2>
+        <h2 className="font-display text-sm font-semibold text-bone">{t("gatesYouDeliverTo")}</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          This decides who can see you at all. A student picks their gate before browsing, so
-          unticking one removes you from that hostel&apos;s list entirely.
+          {t("gatesDesc")}
         </p>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -215,7 +221,7 @@ export function VendorSettingsForm({
                     {zone.name}
                   </span>
                   <span className="block text-xs text-muted">
-                    {zone.curfewLabel === null ? "Open 24×7" : `Shuts ${zone.curfewLabel}`}
+                    {zone.curfewLabel === null ? t("open247") : `${t("shuts")} ${zone.curfewLabel}`}
                   </span>
                 </span>
               </button>
@@ -226,7 +232,7 @@ export function VendorSettingsForm({
         {values.servedZoneIds.length === 0 ? (
           <p className="mt-3 flex items-center gap-2 rounded-lg border border-chili/30 bg-chili-wash px-3 py-2 text-xs text-chili">
             <MapPin className="size-3.5 shrink-0" />
-            With no gates selected, no student on this campus can order from you.
+            {t("noGatesSelected")}
           </p>
         ) : null}
       </Card>
@@ -250,7 +256,7 @@ export function VendorSettingsForm({
         onClick={() => void submit()}
       >
         {saving ? <Loader2 className="animate-spin" /> : <Save />}
-        Save settings
+        {saving ? t("saving") : t("saveSettings")}
       </Button>
     </div>
   );

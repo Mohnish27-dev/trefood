@@ -43,6 +43,7 @@ import {
   reportNoShow,
   rerouteToFallbackGate,
 } from "@/server/actions/vendor";
+import { useVendorLanguage } from "@/context/vendor-language-context";
 import { DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { VendorBoardOrder } from "@/server/services/vendor";
@@ -64,6 +65,7 @@ export function VendorOrderCard({
   order: VendorBoardOrder;
   onChanged: () => void;
 }) {
+  const { t, language } = useVendorLanguage();
   const [busy, setBusy] = useState(false);
 
   const isNew = order.status === ORDER_STATUS.PLACED;
@@ -104,10 +106,10 @@ export function VendorOrderCard({
           <CountdownRing
             deadline={new Date(order.ackDeadline)}
             totalSeconds={order.ackWindowSeconds}
-            label="Accept within"
+            label={t("acceptWithin")}
           />
         ) : (
-          <Badge tone={isCod ? "warning" : "neutral"}>{isCod ? "Cash" : "Prepaid"}</Badge>
+          <Badge tone={isCod ? "warning" : "neutral"}>{isCod ? t("cash") : t("prepaid")}</Badge>
         )}
       </div>
 
@@ -161,14 +163,20 @@ export function VendorOrderCard({
         <div className="mx-3.5 mb-3 flex items-start gap-2 rounded-xl border border-amber/30 bg-amber-wash p-3 text-xs text-amber">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <div>
-            <p className="font-semibold">{order.stockout.itemName} ran out</p>
+            <p className="font-semibold">
+              {order.stockout.itemName} {language === "hi" ? "खत्म हो गया" : "ran out"}
+            </p>
             <p className="mt-0.5 leading-relaxed">
-              The student is choosing what to do.{" "}
+              {language === "hi"
+                ? "छात्र विकल्प चुन रहा है। "
+                : "The student is choosing what to do. "}
               <CountdownText
                 deadline={new Date(order.stockout.expiresAt)}
-                expiredLabel="deciding for them now"
+                expiredLabel={language === "hi" ? "समय समाप्त" : "deciding for them now"}
               />{" "}
-              left, then we remove the item and keep the rest of the order.
+              {language === "hi"
+                ? "बाकी है, फिर आइटम हटाकर बाकी डिलीवर होगा।"
+                : "left, then we remove the item and keep the rest of the order."}
             </p>
           </div>
         </div>
@@ -177,7 +185,7 @@ export function VendorOrderCard({
       {/* ── Money ────────────────────────────────────────────────── */}
       <div className="mt-auto flex items-baseline justify-between gap-3 border-t border-line px-3.5 py-2.5 text-xs">
         <span className="text-muted">
-          {isCod ? "Collect at the gate" : "Your share"}
+          {isCod ? t("collectOnDelivery") : t("yourShare")}
         </span>
         <Money
           paise={isCod ? order.cashDueOnDeliveryPaise : order.vendorReceivablePaise}
@@ -199,7 +207,7 @@ export function VendorOrderCard({
               <GateCodeDisplay
                 code={order.gateCode}
                 size="board"
-                label="Write this OTP on packet"
+                label={t("packetCodeWrittenPrompt")}
               />
             ) : null}
 
@@ -208,7 +216,11 @@ export function VendorOrderCard({
             order.status === ORDER_STATUS.AT_GATE ? (
               <div className="flex items-center gap-2 rounded-xl border border-saffron/30 bg-saffron-wash px-3 py-2 text-xs font-semibold text-saffron">
                 <Truck className="size-4 shrink-0" />
-                <span>On the way to {order.zoneName}</span>
+                <span>
+                  {language === "hi"
+                    ? `रास्ते में है (${order.zoneName})`
+                    : `On the way to ${order.zoneName}`}
+                </span>
               </div>
             ) : (
               <Button
@@ -218,7 +230,7 @@ export function VendorOrderCard({
                 onClick={() => void run(() => dispatchRider({ orderId: order.orderId }))}
               >
                 {busy ? <Loader2 className="animate-spin" /> : <Truck />}
-                Mark on the way
+                {t("markOnTheWay")}
               </Button>
             )}
 
@@ -229,7 +241,7 @@ export function VendorOrderCard({
                 className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface-raised px-3 text-xs font-semibold text-bone hover:border-mint/40 hover:text-mint"
               >
                 <Phone className="size-3.5 text-mint" />
-                Call Student
+                {t("callCustomer")}
               </a>
 
               <Link
@@ -237,14 +249,14 @@ export function VendorOrderCard({
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line px-3 text-xs text-muted hover:text-bone"
               >
                 <Printer className="size-3.5" />
-                KOT
+                {t("printKot")}
               </Link>
             </div>
 
             {/* Prep countdown info */}
             <div className="flex items-center justify-between gap-2 text-xs text-muted">
               <span>
-                {order.prepMinutes} min promised
+                {order.prepMinutes} {t("minPrep")}
                 {order.acceptedAt ? (
                   <>
                     {" · "}
@@ -254,7 +266,7 @@ export function VendorOrderCard({
                           new Date(order.acceptedAt).getTime() + (order.prepMinutes ?? 0) * 60_000,
                         )
                       }
-                      expiredLabel="over"
+                      expiredLabel={language === "hi" ? "समय समाप्त" : "over"}
                     />
                   </>
                 ) : null}
@@ -266,7 +278,7 @@ export function VendorOrderCard({
                 onClick={() => void run(() => rerouteToFallbackGate({ orderId: order.orderId }))}
                 className="text-[11px] text-muted hover:text-amber"
               >
-                Reroute gate
+                {t("rerouteGate")}
               </button>
             </div>
 
@@ -281,7 +293,7 @@ export function VendorOrderCard({
                   onClick={() => void run(() => confirmCashCollected({ orderId: order.orderId }))}
                 >
                   <Banknote />
-                  Cash collected — <Money paise={order.cashDueOnDeliveryPaise} />
+                  {t("confirmCashReceived")} — <Money paise={order.cashDueOnDeliveryPaise} />
                 </Button>
                 <div className="flex gap-2">
                   <Button
@@ -294,7 +306,7 @@ export function VendorOrderCard({
                     }
                   >
                     <Ban />
-                    No-show
+                    {t("noShowAction")}
                   </Button>
                   <Button
                     block
@@ -306,7 +318,7 @@ export function VendorOrderCard({
                     }
                   >
                     <Ban />
-                    Refused
+                    {t("cashRefusedAction")}
                   </Button>
                 </div>
               </div>
@@ -336,6 +348,7 @@ function AcceptDialog({
   busy: boolean;
   onDone: () => void;
 }) {
+  const { t } = useVendorLanguage();
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -365,16 +378,15 @@ function AcceptDialog({
       <DialogTrigger asChild>
         <Button block size="lg" disabled={busy}>
           <Check />
-          Accept
+          {t("accept")}
         </Button>
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>How long will this take?</DialogTitle>
+          <DialogTitle>{t("customTimeDialogTitle")}</DialogTitle>
           <DialogDescription>
-            The student sees this as their arrival time — prep time plus the ride to the gate.
-            Be honest rather than optimistic; it is the only estimate they get.
+            {t("customTimeDialogDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -388,13 +400,13 @@ function AcceptDialog({
                 disabled={submitting}
                 onClick={() => void accept(minutes)}
               >
-                {minutes} min
+                {minutes} {t("minutes")}
               </Button>
             ))}
           </div>
 
           <div>
-            <Label htmlFor={`prep-${orderId}`}>Or something else</Label>
+            <Label htmlFor={`prep-${orderId}`}>{t("customTime")}</Label>
             <div className="flex gap-2">
               <Input
                 id={`prep-${orderId}`}
@@ -411,7 +423,7 @@ function AcceptDialog({
                 onClick={() => void accept(customMinutes)}
               >
                 {submitting ? <Loader2 className="animate-spin" /> : null}
-                Accept
+                {t("accept")}
               </Button>
             </div>
           </div>
@@ -425,13 +437,6 @@ function AcceptDialog({
    Reject — F5. A written reason is mandatory; the student reads it.
    ══════════════════════════════════════════════════════════════════════ */
 
-const REJECT_REASONS = [
-  "Kitchen is closing",
-  "Too many orders right now",
-  "Out of ingredients",
-  "Power cut",
-];
-
 function RejectDialog({
   orderId,
   busy,
@@ -441,9 +446,17 @@ function RejectDialog({
   busy: boolean;
   onDone: () => void;
 }) {
+  const { t, language } = useVendorLanguage();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const rejectPresets = [
+    { en: "Kitchen is closing", hi: "रसोई बंद हो रही है" },
+    { en: "Too many orders right now", hi: "अभी बहुत ज्यादा ऑर्डर हैं" },
+    { en: "Out of ingredients", hi: "सामग्री खत्म हो गई" },
+    { en: "Power cut", hi: "बिजली चली गई" },
+  ];
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);
@@ -464,49 +477,51 @@ function RejectDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button block size="lg" variant="secondary" disabled={busy}>
-          Reject
+          {t("reject")}
         </Button>
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Why can you not take this order?</DialogTitle>
+          <DialogTitle>{t("rejectDialogTitle")}</DialogTitle>
           <DialogDescription>
-            The student sees this sentence, and the refund goes out immediately. The gateway
-            fee on the refund is deducted from your next payout, so rejecting is not free.
+            {t("rejectDialogDesc")}
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {REJECT_REASONS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setReason(preset)}
-                className={cn(
-                  "min-h-11 rounded-xl border px-3 text-sm transition-colors",
-                  reason === preset
-                    ? "border-saffron bg-saffron-wash text-saffron"
-                    : "border-line text-muted hover:text-bone",
-                )}
-              >
-                {preset}
-              </button>
-            ))}
+            {rejectPresets.map((preset) => {
+              const label = language === "hi" ? preset.hi : preset.en;
+              return (
+                <button
+                  key={preset.en}
+                  type="button"
+                  onClick={() => setReason(label)}
+                  className={cn(
+                    "min-h-11 rounded-xl border px-3 text-sm transition-colors",
+                    reason === label
+                      ? "border-saffron bg-saffron-wash text-saffron"
+                      : "border-line text-muted hover:text-bone",
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <Textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Or write your own reason"
+            placeholder={t("rejectReasonPlaceholder")}
             maxLength={200}
           />
         </DialogBody>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
-            Keep the order
+            {t("cancel")}
           </Button>
           <Button
             variant="danger"
@@ -514,7 +529,7 @@ function RejectDialog({
             onClick={() => void submit()}
           >
             {submitting ? <Loader2 className="animate-spin" /> : null}
-            Reject and refund
+            {t("confirmReject")}
           </Button>
         </DialogFooter>
       </DialogContent>
