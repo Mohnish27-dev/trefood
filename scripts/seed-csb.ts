@@ -1286,17 +1286,20 @@ export async function seedChaiSuttaBar(): Promise<void> {
     ],
     phone: "9905773851",
     description:
-      "Chai Sutta Bar (CSB) - Cuddle the Kulhad. Hot Chai, Coffee, Maggi, Pizzas, Burgers, Pastas, Sandwiches & Shakes with free delivery across campus.",
+      "Chai Sutta Bar (CSB) - Cuddle the Kulhad. Hot Chai, Coffee, Maggi, Pizzas, Burgers, Pastas, Sandwiches & Shakes. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
     minOrderPaise: R(40),
+    lateNightMinOrderPaise: R(300),
+    lateNightStartMinutes: 0, // 12:00 AM
+    lateNightEndMinutes: 60, // 1:00 AM
     prepMinutes: 15,
     foodGstBps: 0,
     commissionBpsOverride: null,
     servedZoneIds,
-    opensMinutes: 0, // 24x7 service
-    closesMinutes: 1439,
+    opensMinutes: 10 * 60 + 30, // 10:30 AM
+    closesMinutes: 1 * 60, // 1:00 AM
     isOpen: true,
     isApproved: true,
     rating: 4.5,

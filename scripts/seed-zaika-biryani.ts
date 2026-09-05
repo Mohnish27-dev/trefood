@@ -92,7 +92,7 @@ export async function seedZaikaBiryani(): Promise<void> {
     cuisines: ["Biryani", "Mughlai"],
     phone: "9876543213",
     description:
-      "Zaika Biryani - Authentic, flavorful, slow-cooked Dum Chicken Biryani served hot with raita and gravy.",
+      "Zaika Biryani - Authentic, flavorful, slow-cooked Dum Chicken Biryani served hot with raita and gravy. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),

@@ -111,8 +111,8 @@ describe("prepaid order, cart to DELIVERED", () => {
 
     expect(order.restaurantSnapshot.name).toBe("NIT Canteen");
     expect(order.deliveryZoneSnapshot.name).toBe("Boys Hostel");
-    // 22:00, stored as minutes from midnight
-    expect(order.deliveryZoneSnapshot.curfewMinutes).toBe(22 * 60);
+    // 21:00, stored as minutes from midnight
+    expect(order.deliveryZoneSnapshot.curfewMinutes).toBe(21 * 60);
 
     /* ── The gate code is server-side redacted at every step ── */
 

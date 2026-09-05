@@ -154,6 +154,13 @@ export function KotTicket({ order }: { order: KotOrder }) {
           )}
 
           <Rule />
+          <p className="text-center text-[10px] font-bold uppercase tracking-wide">
+            CAMPUS SAFETY PROTOCOL
+          </p>
+          <p className="mt-0.5 text-center text-[10px] leading-tight">
+            Deliveries after 7:00 PM must be handled personally by the owner or co-owner to maintain security inside campus premises.
+          </p>
+          <Rule />
           <p className="text-center text-[10px]">Handover at the gate, always.</p>
         </div>
       </div>

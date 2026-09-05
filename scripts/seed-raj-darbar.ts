@@ -904,17 +904,17 @@ export async function seedRajDarbar(): Promise<void> {
     ],
     phone: "7209046762",
     description:
-      "Raj Darbar - Exclusive campus provider of Farm-Fresh Fruits, Fresh Juices & Coconut Water alongside Homestyle Bihari Meals, Fast Food, Thalis, Rolls & Biryani.",
+      "Raj Darbar - Farm-Fresh Fruits, Fresh Juices & Coconut Water alongside Homestyle Bihari Meals, Fast Food, Thalis, Rolls & Biryani. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
-    minOrderPaise: R(40),
+    minOrderPaise: R(50),
     prepMinutes: 15,
     foodGstBps: 0,
     commissionBpsOverride: null,
     servedZoneIds,
-    opensMinutes: 0, // 24x7 service
-    closesMinutes: 1439,
+    opensMinutes: 7 * 60, // 07:00 AM
+    closesMinutes: 22 * 60, // 10:00 PM
     isOpen: true,
     isApproved: true,
     rating: 4.8,

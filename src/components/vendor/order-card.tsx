@@ -9,6 +9,7 @@ import {
   MapPin,
   Phone,
   Printer,
+  ShieldCheck,
   Truck,
 } from "lucide-react";
 import Link from "next/link";
@@ -324,6 +325,11 @@ export function VendorOrderCard({
             ) : null}
           </div>
         )}
+      </div>
+
+      <div className="px-3.5 py-1.5 bg-surface/50 border-t border-line/40 text-[10px] text-faint flex items-center gap-1.5">
+        <ShieldCheck className="size-3 text-emerald-400 shrink-0" />
+        <span>After 7 PM: Delivery must be handled by owner/co-owner.</span>
       </div>
     </Card>
   );

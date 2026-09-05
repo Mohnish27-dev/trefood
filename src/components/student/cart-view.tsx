@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { AlertTriangle, Minus, Plus, ShieldCheck, ShoppingCart, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -177,10 +177,18 @@ export function CartView() {
 
       {data.belowMinimum ? (
         <p className="mt-3 rounded-xl border border-amber/30 bg-amber-wash px-3.5 py-3 text-xs leading-relaxed text-amber">
-          {data.restaurantName} has a minimum order of <Money paise={data.minOrderPaise} />. Add{" "}
+          {data.restaurantName} has a minimum order of <Money paise={data.minOrderPaise} />
+          {data.isLateNightMinOrder ? " after 12:00 AM" : ""}. Add{" "}
           <Money paise={data.minOrderPaise - quote.subtotalPaise} /> more to continue.
         </p>
       ) : null}
+
+      <div className="mt-3 flex items-start gap-2 rounded-xl border border-line bg-surface p-2.5 text-xs text-muted">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+        <p className="leading-relaxed">
+          <strong className="text-bone">Campus Safety:</strong> After 7:00 PM, deliveries are handled personally by the restaurant owner or verified co-owner for complete security inside campus.
+        </p>
+      </div>
 
       <div className="mt-4 flex gap-2">
         <Button variant="ghost" onClick={clear} aria-label="Empty cart">

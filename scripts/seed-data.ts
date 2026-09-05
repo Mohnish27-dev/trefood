@@ -55,7 +55,7 @@ export const ZONES: DeliveryZone[] = [
     id: "zone_boys_hostel",
     name: "Boys Hostel",
     zoneType: ZONE_TYPE.HOSTEL_BOYS,
-    curfewMinutes: HM(22), // 22:00 — covers Kautilya, Nagarjuna, Aryabhatta
+    curfewMinutes: HM(21), // 21:00 (9:00 PM) — covers Kautilya, Nagarjuna, Aryabhatta
     opensMinutes: HM(6),
     lat: 25.6225,
     lng: 85.1725,
@@ -67,7 +67,7 @@ export const ZONES: DeliveryZone[] = [
     id: "zone_cse_dept",
     name: "CSE Department",
     zoneType: ZONE_TYPE.ACADEMIC,
-    curfewMinutes: HM(19), // 19:00 — academic block closing
+    curfewMinutes: HM(21), // 21:00 (9:00 PM) — academic block closing
     opensMinutes: HM(8),
     lat: 25.6201,
     lng: 85.173,
@@ -79,7 +79,7 @@ export const ZONES: DeliveryZone[] = [
     id: "zone_ece_dept",
     name: "ECE Department",
     zoneType: ZONE_TYPE.ACADEMIC,
-    curfewMinutes: HM(19), // 19:00 — academic block closing
+    curfewMinutes: HM(21), // 21:00 (9:00 PM) — academic block closing
     opensMinutes: HM(8),
     lat: 25.6203,
     lng: 85.1738,
@@ -91,7 +91,7 @@ export const ZONES: DeliveryZone[] = [
     id: "zone_girls_hostel",
     name: "Girls Hostel",
     zoneType: ZONE_TYPE.HOSTEL_GIRLS,
-    curfewMinutes: HM(21, 30), // 21:30 — covers Kadambini and Sarojini
+    curfewMinutes: HM(19, 30), // 19:30 (7:30 PM) — covers Kadambini and Sarojini
     opensMinutes: HM(6),
     lat: 25.6195,
     lng: 85.1748,

@@ -310,6 +310,13 @@ export function CheckoutView({
             About {data.prepMinutes + data.transitMinutes} minutes from now
           </p>
         ) : null}
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-line bg-surface p-3 text-xs text-muted">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+          <div className="leading-relaxed">
+            <span className="font-semibold text-bone">Campus Delivery Protocol:</span> Deliveries after 7:00 PM are conducted directly by restaurant owners or verified co-owners to ensure complete safety and security inside campus premises.
+          </div>
+        </div>
       </section>
 
       {/* ── Phone (D7) ────────────────────────────────────────── */}

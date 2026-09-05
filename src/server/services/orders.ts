@@ -20,6 +20,7 @@ import { computePricing, type PricingLineInput } from "./pricing";
 import { generateGateCode } from "./gate-code";
 import { writeAudit } from "./audit";
 import { getCampusById, getMenuItemsByIds, getRestaurantById } from "./catalog";
+import { campusLocalMinutes, getEffectiveMinOrderPaise } from "./curfew";
 import { validateCouponForOrder } from "./coupons";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuItem, Restaurant } from "@/types/restaurant";
@@ -71,6 +72,7 @@ export interface CartPreview {
   /** Below the restaurant's minimum order. */
   belowMinimum: boolean;
   minOrderPaise: Paise;
+  isLateNightMinOrder?: boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ export async function previewCart(params: {
   lines: readonly CartLineInput[];
   method: PaymentMethod;
   discountPaise?: Paise;
+  now?: Date;
 }): Promise<CartPreview | null> {
   const restaurant = await getRestaurantById(params.restaurantId);
   if (!restaurant) return null;
@@ -170,6 +173,10 @@ export async function previewCart(params: {
     item.lineTotalPaise = result.lineTotalsPaise[i] ?? 0;
   });
 
+  const now = params.now ?? new Date();
+  const nowMinutes = campusLocalMinutes(now, campus.timezone);
+  const minOrderInfo = getEffectiveMinOrderPaise(restaurant, nowMinutes);
+
   return {
     restaurant,
     campus,
@@ -178,8 +185,9 @@ export async function previewCart(params: {
     onlinePaidPaise: result.onlinePaidPaise,
     cashDueOnDeliveryPaise: result.cashDueOnDeliveryPaise,
     issues,
-    belowMinimum: result.pricing.subtotalPaise < restaurant.minOrderPaise,
-    minOrderPaise: restaurant.minOrderPaise,
+    belowMinimum: result.pricing.subtotalPaise < minOrderInfo.minOrderPaise,
+    minOrderPaise: minOrderInfo.minOrderPaise,
+    isLateNightMinOrder: minOrderInfo.isLateNight,
   };
 }
 
@@ -274,10 +282,12 @@ export async function createOrder(params: {
   }
 
   if (preview.belowMinimum) {
+    const minRupees = preview.minOrderPaise / 100;
+    const lateNightSuffix = preview.isLateNightMinOrder ? " after 12:00 AM" : "";
     return {
       ok: false,
       code: "BELOW_MINIMUM",
-      message: `${preview.restaurant.name} has a minimum order of ${preview.minOrderPaise / 100} rupees.`,
+      message: `${preview.restaurant.name} has a minimum order of ₹${minRupees}${lateNightSuffix}.`,
     };
   }
 

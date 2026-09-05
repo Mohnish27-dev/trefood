@@ -517,7 +517,7 @@ export async function seedKolkataBiryani(): Promise<void> {
     ],
     phone: "6203875025",
     description:
-      "Kolkata Biryani Fast-Food Pizza House - Delicious Kolkata Dum Biryani, Rolls, Fried Rice, Chowmein, Chilli Starters, Momos & Pizzas at NIT Patna.",
+      "Kolkata Biryani Fast-Food Pizza House - Delicious Kolkata Dum Biryani, Rolls, Fried Rice, Chowmein, Chilli Starters, Momos & Pizzas. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
@@ -526,8 +526,8 @@ export async function seedKolkataBiryani(): Promise<void> {
     foodGstBps: 0,
     commissionBpsOverride: null,
     servedZoneIds,
-    opensMinutes: 0, // Open for campus orders
-    closesMinutes: 1439,
+    opensMinutes: 10 * 60, // 10:00 AM
+    closesMinutes: 22 * 60, // 10:00 PM
     isOpen: true,
     isApproved: true,
     rating: 4.6,
