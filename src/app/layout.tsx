@@ -32,7 +32,10 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const siteUrl = "https://www.trefood.in";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "TREFOOD — Campus food, delivered to your gate",
     template: "%s · TREFOOD",
@@ -48,13 +51,82 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/icons/icon-96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icons/icon-144.png", sizes: "144x144", type: "image/png" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: siteUrl,
+    siteName: "TREFOOD",
+    title: "TREFOOD — Campus food, delivered to your gate",
+    description:
+      "Hyperlocal food delivery built for Indian college campuses. Order from your campus canteens, collect at your hostel gate.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "TREFOOD — Campus food, delivered to your gate",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TREFOOD — Campus food, delivered to your gate",
+    description:
+      "Hyperlocal food delivery built for Indian college campuses. Order from your campus canteens, collect at your hostel gate.",
+    images: ["/og-image.png"],
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   formatDetection: { telephone: false },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: "TREFOOD",
+      alternateName: ["TreFood", "trefood.in"],
+      description:
+        "Hyperlocal campus food delivery built for Indian college campuses. Order from campus canteens and collect at your hostel gate.",
+    },
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      name: "TREFOOD",
+      url: siteUrl,
+      logo: `${siteUrl}/logo.png`,
+      image: `${siteUrl}/og-image.png`,
+      description: "Hyperlocal food delivery built for Indian college campuses.",
+    },
+  ],
 };
 
 export const viewport: Viewport = {
@@ -81,6 +153,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script dangerouslySetInnerHTML={{ __html: pwaInitScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="min-h-dvh antialiased" suppressHydrationWarning>
         <ThemeProvider>

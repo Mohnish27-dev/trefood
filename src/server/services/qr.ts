@@ -1,20 +1,32 @@
+/* eslint-disable no-restricted-syntax */
 import fs from "node:fs";
 import path from "node:path";
 import QRCode from "qrcode";
 
-export interface GenerateQROptions {
-  url?: string;
-  outputPath?: string;
+export interface GenerateTreFoodQrOptions {
+  url: string;
   brandColor?: string;
   size?: number;
+  logoPath?: string;
+  logoBase64?: string;
 }
 
-export async function generateTreFoodQR({
-  url = "https://trefood.in",
-  outputPath = path.join(process.cwd(), "public", "trefood-qr.svg"),
+/**
+ * Generates an official branded TreFood QR Code SVG string matching the
+ * TreFood physical ID card design:
+ * - High Error Correction (30% redundancy) for center logo overlay
+ * - Rounded squircle data modules
+ * - Custom smooth rounded finder patterns (eyes)
+ * - Centered TreFood orange badge with white logo
+ * - Rounded brand border in signature TreFood orange (#ff5414)
+ */
+export async function generateTreFoodQrSvg({
+  url,
   brandColor = "#ff5414",
   size = 1000,
-}: GenerateQROptions = {}) {
+  logoPath,
+  logoBase64,
+}: GenerateTreFoodQrOptions): Promise<string> {
   // Generate QR matrix with High error correction (30% redundancy)
   const qr = QRCode.create(url, {
     errorCorrectionLevel: "H",
@@ -22,13 +34,13 @@ export async function generateTreFoodQR({
 
   const matrixSize = qr.modules.size;
 
-  // SVG dimensions
+  // SVG dimensions & grid calculations
   const viewBoxSize = 1000;
   const frameMargin = 35;
   const frameRadius = 70;
   const borderWidth = 20;
 
-  const contentPadding = 65; // breathing space between border and QR matrix
+  const contentPadding = 65; // breathing room between border and QR matrix
   const qrAreaSize = viewBoxSize - (frameMargin + borderWidth) * 2 - contentPadding * 2;
   const qrOffset = frameMargin + borderWidth + contentPadding;
 
@@ -39,7 +51,7 @@ export async function generateTreFoodQR({
   const logoStart = Math.floor((matrixSize - logoModules) / 2);
   const logoEnd = logoStart + logoModules;
 
-  // Check if a cell is in the 3 finder pattern areas (7x7 corners)
+  // Finder pattern areas (7x7 corners)
   function isFinderPattern(r: number, c: number): boolean {
     if (r < 7 && c < 7) return true; // Top-Left
     if (r < 7 && c >= matrixSize - 7) return true; // Top-Right
@@ -47,12 +59,12 @@ export async function generateTreFoodQR({
     return false;
   }
 
-  // Check if a cell is covered by the center logo badge
+  // Center logo badge exclusion area
   function isCenterLogoArea(r: number, c: number): boolean {
     return r >= logoStart - 1 && r <= logoEnd && c >= logoStart - 1 && c <= logoEnd;
   }
 
-  // Build SVG data modules
+  // Build SVG data modules with smooth rounded squircles
   const modulesSvg: string[] = [];
   for (let r = 0; r < matrixSize; r++) {
     for (let c = 0; c < matrixSize; c++) {
@@ -69,7 +81,7 @@ export async function generateTreFoodQR({
     }
   }
 
-  // Helper to render styled finder pattern with smooth rounded corners
+  // Custom styled finder pattern with smooth rounded corners
   function renderFinderEye(startRow: number, startCol: number) {
     const x = qrOffset + startCol * moduleSize;
     const y = qrOffset + startRow * moduleSize;
@@ -100,12 +112,18 @@ export async function generateTreFoodQR({
   const finderTR = renderFinderEye(0, matrixSize - 7);
   const finderBL = renderFinderEye(matrixSize - 7, 0);
 
-  // Read logo.png and convert to base64
-  const logoPath = path.join(process.cwd(), "public", "logo.png");
-  let logoBase64 = "";
-  if (fs.existsSync(logoPath)) {
-    const buf = fs.readFileSync(logoPath);
-    logoBase64 = `data:image/png;base64,${buf.toString("base64")}`;
+  // Determine logo image base64
+  let resolvedLogo = logoBase64 || "";
+  if (!resolvedLogo) {
+    const targetLogoPath = logoPath || path.join(process.cwd(), "public", "logo.png");
+    try {
+      if (fs.existsSync(targetLogoPath)) {
+        const buf = fs.readFileSync(targetLogoPath);
+        resolvedLogo = `data:image/png;base64,${buf.toString("base64")}`;
+      }
+    } catch {
+      // Fallback to stylized vector badge if file system read is unavailable
+    }
   }
 
   // Center logo positioning
@@ -114,7 +132,7 @@ export async function generateTreFoodQR({
   const logoPixelSize = (logoModules + 1) * moduleSize;
   const logoRadius = logoPixelSize * 0.22;
 
-  // Zoom logo slightly (5%) to push any exterior image crop artifacts beyond the rounded clip mask
+  // Zoom logo slightly (5%) to push exterior borders beyond clip mask
   const zoom = 0.05;
   const imgX = logoX - logoPixelSize * zoom;
   const imgY = logoY - logoPixelSize * zoom;
@@ -124,7 +142,7 @@ export async function generateTreFoodQR({
   const cardY = frameMargin + borderWidth / 2;
   const cardSize = viewBoxSize - (frameMargin + borderWidth / 2) * 2;
 
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" width="${size}" height="${size}">
   <defs>
     <clipPath id="logoClip">
@@ -155,28 +173,24 @@ export async function generateTreFoodQR({
     
     <!-- Logo Image cropped to smooth rounded squircle -->
     ${
-      logoBase64
-        ? `<image href="${logoBase64}" x="${imgX.toFixed(2)}" y="${imgY.toFixed(2)}" width="${imgSize.toFixed(2)}" height="${imgSize.toFixed(2)}" clip-path="url(#logoClip)" />`
-        : `<rect x="${logoX.toFixed(2)}" y="${logoY.toFixed(2)}" width="${logoPixelSize.toFixed(2)}" height="${logoPixelSize.toFixed(2)}" rx="${logoRadius.toFixed(2)}" fill="${brandColor}" />`
+      resolvedLogo
+        ? `<image href="${resolvedLogo}" x="${imgX.toFixed(2)}" y="${imgY.toFixed(2)}" width="${imgSize.toFixed(2)}" height="${imgSize.toFixed(2)}" clip-path="url(#logoClip)" />`
+        : `
+          <rect x="${logoX.toFixed(2)}" y="${logoY.toFixed(2)}" width="${logoPixelSize.toFixed(2)}" height="${logoPixelSize.toFixed(2)}" rx="${logoRadius.toFixed(2)}" fill="${brandColor}" />
+          <text x="${(logoX + logoPixelSize / 2).toFixed(2)}" y="${(logoY + logoPixelSize / 2 + logoPixelSize * 0.15).toFixed(2)}" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="${(logoPixelSize * 0.55).toFixed(2)}" fill="#ffffff" text-anchor="middle">Tf</text>
+        `
     }
   </g>
 </svg>`;
-
-  fs.writeFileSync(outputPath, svg, "utf-8");
-  console.log(`✅ TreFood QR Code generated successfully at: ${outputPath}`);
-  return { outputPath, svg };
 }
 
-// CLI Execution
-if (process.argv[1]?.includes("generate-qr")) {
-  let targetUrl = process.argv[2] || "https://trefood.in";
-  // If user passed a badge ID like TF-NITP-001, form the verification URL
-  if (targetUrl.startsWith("TF-") || targetUrl.startsWith("del_")) {
-    targetUrl = `https://trefood.in/verify/delivery/${targetUrl}`;
-  }
-  const customOutputPath = process.argv[3];
-  generateTreFoodQR({
-    url: targetUrl,
-    ...(customOutputPath ? { outputPath: path.resolve(customOutputPath) } : {}),
-  });
+/**
+ * Returns a base64 SVG data URL for direct embedding in <img src="..." />
+ */
+export async function generateTreFoodQrDataUrl(
+  options: GenerateTreFoodQrOptions
+): Promise<string> {
+  const svg = await generateTreFoodQrSvg(options);
+  const base64 = Buffer.from(svg).toString("base64");
+  return `data:image/svg+xml;base64,${base64}`;
 }

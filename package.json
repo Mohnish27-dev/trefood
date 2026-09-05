@@ -31,7 +31,8 @@
     "docker:down": "docker compose down",
     "verify": "npm run typecheck && npm run lint && npm test",
     "db:local": "tsx scripts/local-mongo.ts",
-    "generate:qr": "tsx scripts/generate-qr.ts"
+    "generate:qr": "tsx scripts/generate-qr.ts",
+    "seed:delivery": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-delivery-partner.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
