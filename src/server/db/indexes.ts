@@ -119,6 +119,12 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
   ],
 
   [COLLECTION.counters]: [],
+
+  [COLLECTION.deliveryPartners]: [
+    { key: { badgeId: 1 }, unique: true, name: "badgeId_unique" },
+    { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
+    { key: { campusId: 1, status: 1 }, name: "campus_status" },
+  ],
 };
 
 /** IndexOptionsConflict (85) and IndexKeySpecsConflict (86). */

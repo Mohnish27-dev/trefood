@@ -4,3 +4,4 @@ export type * from "./user";
 export type * from "./order";
 export type * from "./finance";
 export type * from "./ops";
+export type * from "./delivery-partner";

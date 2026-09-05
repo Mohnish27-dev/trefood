@@ -8,6 +8,7 @@ import type {
   Campus,
   Coupon,
   Counter,
+  DeliveryPartner,
   Dispute,
   LedgerEntry,
   MenuCategory,
@@ -46,6 +47,7 @@ export const COLLECTION = {
   pushSubscriptions: "pushSubscriptions",
   disputes: "disputes",
   counters: "counters",
+  deliveryPartners: "deliveryPartners",
 } as const;
 
 export type CollectionName = (typeof COLLECTION)[keyof typeof COLLECTION];
@@ -91,3 +93,6 @@ export const disputes = async (): Promise<Collection<Dispute>> =>
 
 export const counters = async (): Promise<Collection<Counter>> =>
   (await getDb()).collection<Counter>(COLLECTION.counters);
+
+export const deliveryPartners = async (): Promise<Collection<DeliveryPartner>> =>
+  (await getDb()).collection<DeliveryPartner>(COLLECTION.deliveryPartners);
