@@ -69,6 +69,7 @@ export interface CartPricingResponse {
   transitMinutes: number;
   minOrderPaise: number;
   belowMinimum: boolean;
+  isLateNightMinOrder?: boolean;
   codEnabled: boolean;
   items: {
     itemId: string;
@@ -168,6 +169,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     transitMinutes: prepaid.campus.settings.transitMinutes,
     minOrderPaise: prepaid.minOrderPaise,
     belowMinimum: prepaid.belowMinimum,
+    isLateNightMinOrder: prepaid.isLateNightMinOrder ?? false,
     codEnabled: prepaid.campus.settings.codEnabled,
     items: prepaid.items.map((i) => ({
       itemId: i.itemId,

@@ -84,6 +84,12 @@ export interface Restaurant {
   /** Included in the commission base (D6). */
   packagingFeePaise: Paise;
   minOrderPaise: Paise;
+  /** Late-night minimum order override (e.g. ₹300 after 12:00 AM). */
+  lateNightMinOrderPaise?: Paise | null;
+  /** When late-night min order starts, minutes from midnight (e.g. 0 for 12:00 AM). */
+  lateNightStartMinutes?: number | null;
+  /** When late-night min order ends, minutes from midnight (e.g. 60 for 1:00 AM). */
+  lateNightEndMinutes?: number | null;
   /** Default prep estimate shown before acceptance; the vendor sets the real one on accept. */
   prepMinutes: number;
 

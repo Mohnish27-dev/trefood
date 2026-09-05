@@ -463,11 +463,11 @@ export async function seedPrinceJuice(): Promise<void> {
     ],
     phone: "9113723907",
     description:
-      "Prince Juice & Shakes Corner - Special Thick Shakes, Cold-Pressed Fresh Juices, Sugarcane Juice, Fruit Chaat & Farm-Fresh Fruits by KG delivered to your hostel.",
+      "Prince Juice & Shakes Corner - Special Thick Shakes, Cold-Pressed Fresh Juices, Sugarcane Juice, Fruit Chaat & Farm-Fresh Fruits. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
-    minOrderPaise: R(40),
+    minOrderPaise: R(100),
     prepMinutes: 10,
     foodGstBps: 0,
     commissionBpsOverride: null,

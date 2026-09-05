@@ -1257,7 +1257,7 @@ export async function seedWrapchik(): Promise<void> {
     ],
     phone: "9876543210",
     description:
-      "Wrapchik Pizza - Gourmet Pizzas, Crispy Fried Chicken, Juicy Burgers, Loaded Wraps, Waffles & Coolers delivered hot across campus.",
+      "Wrapchik Pizza - Gourmet Pizzas, Crispy Fried Chicken, Juicy Burgers, Loaded Wraps, Waffles & Coolers. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
@@ -1266,8 +1266,8 @@ export async function seedWrapchik(): Promise<void> {
     foodGstBps: 0,
     commissionBpsOverride: null,
     servedZoneIds,
-    opensMinutes: 0, // 24x7 service
-    closesMinutes: 1439,
+    opensMinutes: 10 * 60, // 10:00 AM
+    closesMinutes: 23 * 60, // 11:00 PM
     isOpen: true,
     isApproved: true,
     rating: 4.7,

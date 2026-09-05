@@ -1775,17 +1775,17 @@ export async function seedSoneZone(): Promise<void> {
     ],
     phone: "9876543212",
     description:
-      "Sone Zone Cafe - Hot Tea, Shakes, Mocktails, Pizzas, Burgers, South Indian Dosas, Thalis, Momos & Chinese Delicacies.",
+      "Sone Zone Cafe - Hot Tea, Shakes, Mocktails, Pizzas, Burgers, South Indian Dosas, Thalis, Momos & Chinese Delicacies. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
     bannerUrl: null,
     packagingFeePaise: R(10),
-    minOrderPaise: R(40),
+    minOrderPaise: R(50),
     prepMinutes: 15,
     foodGstBps: 0,
     commissionBpsOverride: null,
     servedZoneIds,
-    opensMinutes: 0, // 24x7 service
-    closesMinutes: 1439,
+    opensMinutes: 10 * 60, // 10:00 AM
+    closesMinutes: 23 * 60, // 11:00 PM
     isOpen: true,
     isApproved: true,
     rating: 4.6,

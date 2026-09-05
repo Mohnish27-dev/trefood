@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Loader2, MapPin, Save } from "lucide-react";
+import { Clock, Loader2, MapPin, Save, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -229,6 +229,19 @@ export function VendorSettingsForm({
             With no gates selected, no student on this campus can order from you.
           </p>
         ) : null}
+      </Card>
+
+      {/* ── Campus Delivery Safety Directive ───────────────────────── */}
+      <Card className="p-4 border-emerald-500/30 bg-emerald-500/5">
+        <div className="flex items-start gap-2.5">
+          <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-400" />
+          <div>
+            <h2 className="font-display text-sm font-semibold text-bone">Campus Delivery Protocol (After 7:00 PM)</h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              For campus security reasons, all deliveries after 7:00 PM must be handled personally by the restaurant owner or verified co-owner (or trusted personnel with the owner&apos;s complete trust) so that safety inside campus premises is guaranteed.
+            </p>
+          </div>
+        </div>
       </Card>
 
       <Button

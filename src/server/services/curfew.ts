@@ -20,6 +20,7 @@
  */
 
 import type { DeliveryZone } from "@/types/campus";
+import type { Paise } from "@/lib/money";
 
 export const MINUTES_PER_DAY = 1_440;
 
@@ -263,3 +264,58 @@ export function curfewMessageWithFallback(
   }
   return parts.join(" ");
 }
+
+/* ------------------------------------------------------------------ */
+/* Time formatting and dynamic minimum order                           */
+/* ------------------------------------------------------------------ */
+
+/** 630 -> "10:30 AM", 60 -> "1:00 AM", 1320 -> "10:00 PM" */
+export function formatTime12h(minutes: number): string {
+  const normalised = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const h24 = Math.trunc(normalised / 60);
+  const m = normalised % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+export interface MinOrderInfo {
+  minOrderPaise: Paise;
+  isLateNight: boolean;
+}
+
+/**
+ * Calculates the active minimum order for a restaurant at the given time.
+ * For example, Chai Sutta Bar requires min order of ₹300 after 12:00 AM (midnight to closing at 1:00 AM),
+ * and ₹40/₹50 during regular daytime hours.
+ */
+export function getEffectiveMinOrderPaise(
+  restaurant: {
+    minOrderPaise: Paise;
+    lateNightMinOrderPaise?: Paise | null;
+    lateNightStartMinutes?: number | null;
+    lateNightEndMinutes?: number | null;
+    closesMinutes?: number | null;
+  },
+  nowMinutes: number,
+): MinOrderInfo {
+  if (
+    restaurant.lateNightMinOrderPaise !== undefined &&
+    restaurant.lateNightMinOrderPaise !== null &&
+    restaurant.lateNightMinOrderPaise > 0
+  ) {
+    const start = restaurant.lateNightStartMinutes ?? 0;
+    const end = restaurant.lateNightEndMinutes ?? restaurant.closesMinutes ?? 60;
+    const isLateNight =
+      start < end
+        ? nowMinutes >= start && nowMinutes < end
+        : nowMinutes >= start || nowMinutes < end;
+
+    if (isLateNight) {
+      return { minOrderPaise: restaurant.lateNightMinOrderPaise, isLateNight: true };
+    }
+  }
+
+  return { minOrderPaise: restaurant.minOrderPaise, isLateNight: false };
+}
+

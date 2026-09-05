@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Phone, Star } from "lucide-react";
+import { ArrowLeft, Clock, Phone, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -14,7 +14,7 @@ import {
   getRestaurantBySlug,
   isRestaurantServing,
 } from "@/server/services/catalog";
-import { campusLocalMinutes, formatMinutes } from "@/server/services/curfew";
+import { campusLocalMinutes, formatTime12h } from "@/server/services/curfew";
 
 export const dynamic = "force-dynamic";
 
@@ -87,11 +87,11 @@ export default async function MenuPage({
             {isServing ? (
               <Badge tone="success" className="px-2.5 py-0.5 text-[11px] font-medium shadow-2xs">
                 <span className="size-1.5 rounded-full bg-mint" />
-                Open now
+                Open now ({formatTime12h(restaurant.opensMinutes)} – {formatTime12h(restaurant.closesMinutes)})
               </Badge>
             ) : (
               <Badge tone="warning" className="px-2.5 py-0.5 text-[11px] font-medium shadow-2xs">
-                Closed · opens {formatMinutes(restaurant.opensMinutes)}
+                Closed · opens {formatTime12h(restaurant.opensMinutes)}
               </Badge>
             )}
           </div>
@@ -128,6 +128,8 @@ export default async function MenuPage({
             </span>
             <span className="opacity-40">•</span>
             <span className="hero-card-strong font-medium">{campus.name}</span>
+            <span className="opacity-40">•</span>
+            <span>{formatTime12h(restaurant.opensMinutes)} to {formatTime12h(restaurant.closesMinutes)}</span>
           </div>
 
           {/* Cuisines & Min Order Line */}
@@ -137,7 +139,20 @@ export default async function MenuPage({
             </p>
             <span className="hero-card-strong shrink-0 font-semibold">
               Min <Money paise={restaurant.minOrderPaise} />
+              {restaurant.lateNightMinOrderPaise ? (
+                <span className="text-[11px] font-normal text-muted ml-1">
+                  (₹{restaurant.lateNightMinOrderPaise / 100} after 12:00 AM)
+                </span>
+              ) : null}
             </span>
+          </div>
+
+          {/* Campus Night Safety Protocol */}
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-xs text-emerald-300">
+            <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-400" />
+            <p className="leading-relaxed">
+              <span className="font-semibold text-white">Campus Night Safety:</span> After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.
+            </p>
           </div>
 
           {/* Divider */}

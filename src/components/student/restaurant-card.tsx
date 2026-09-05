@@ -93,6 +93,11 @@ export function RestaurantCard({
             </p>
             <span className="shrink-0 pl-2 font-medium text-bone/90">
               Min <Money paise={restaurant.minOrderPaise} />
+              {restaurant.lateNightMinOrderPaise ? (
+                <span className="text-[10px] text-faint ml-1">
+                  (₹{restaurant.lateNightMinOrderPaise / 100} late night)
+                </span>
+              ) : null}
             </span>
           </div>
         </div>

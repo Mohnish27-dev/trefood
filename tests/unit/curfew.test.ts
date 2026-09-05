@@ -6,6 +6,8 @@ import {
   checkCurfew,
   curfewMessageWithFallback,
   formatMinutes,
+  formatTime12h,
+  getEffectiveMinOrderPaise,
   isGateOpenAt,
   minutesUntilClose,
   parseMinutes,
@@ -291,3 +293,67 @@ describe("an inactive zone", () => {
     expect(verdict.code).toBe("ZONE_INACTIVE");
   });
 });
+
+describe("formatTime12h", () => {
+  it("formats 24-hour minutes to 12-hour AM/PM string", () => {
+    expect(formatTime12h(630)).toBe("10:30 AM");
+    expect(formatTime12h(60)).toBe("1:00 AM");
+    expect(formatTime12h(1320)).toBe("10:00 PM");
+    expect(formatTime12h(1380)).toBe("11:00 PM");
+    expect(formatTime12h(0)).toBe("12:00 AM");
+    expect(formatTime12h(720)).toBe("12:00 PM");
+  });
+});
+
+describe("getEffectiveMinOrderPaise", () => {
+  const csbRestaurant = {
+    minOrderPaise: 4000, // ₹40
+    lateNightMinOrderPaise: 30000, // ₹300
+    lateNightStartMinutes: 0, // 12:00 AM
+    lateNightEndMinutes: 60, // 1:00 AM
+    closesMinutes: 60,
+  };
+
+  it("returns regular daytime minimum order before midnight", () => {
+    // 11:30 AM (690 min)
+    const resultDay = getEffectiveMinOrderPaise(csbRestaurant, 690);
+    expect(resultDay.minOrderPaise).toBe(4000);
+    expect(resultDay.isLateNight).toBe(false);
+
+    // 11:45 PM (1425 min)
+    const resultNight = getEffectiveMinOrderPaise(csbRestaurant, 1425);
+    expect(resultNight.minOrderPaise).toBe(4000);
+    expect(resultNight.isLateNight).toBe(false);
+  });
+
+  it("returns late-night minimum order after 12:00 AM", () => {
+    // Exactly 12:00 AM (0 min)
+    const resultMidnight = getEffectiveMinOrderPaise(csbRestaurant, 0);
+    expect(resultMidnight.minOrderPaise).toBe(30000);
+    expect(resultMidnight.isLateNight).toBe(true);
+
+    // 12:30 AM (30 min)
+    const resultHalfPast = getEffectiveMinOrderPaise(csbRestaurant, 30);
+    expect(resultHalfPast.minOrderPaise).toBe(30000);
+    expect(resultHalfPast.isLateNight).toBe(true);
+
+    // 12:59 AM (59 min)
+    const resultBeforeClose = getEffectiveMinOrderPaise(csbRestaurant, 59);
+    expect(resultBeforeClose.minOrderPaise).toBe(30000);
+    expect(resultBeforeClose.isLateNight).toBe(true);
+  });
+
+  it("returns standard min order when no late-night rule is configured", () => {
+    const kolkataBiryani = {
+      minOrderPaise: 5000,
+    };
+    const afternoon = getEffectiveMinOrderPaise(kolkataBiryani, 840);
+    expect(afternoon.minOrderPaise).toBe(5000);
+    expect(afternoon.isLateNight).toBe(false);
+
+    const evening = getEffectiveMinOrderPaise(kolkataBiryani, 1260);
+    expect(evening.minOrderPaise).toBe(5000);
+    expect(evening.isLateNight).toBe(false);
+  });
+});
+
