@@ -31,7 +31,60 @@ export async function getDeliveryPartnerForVerification(
     $or: [{ badgeId: identifier }, { _id: identifier }],
   });
 
-  if (!partner) return null;
+  if (!partner) {
+    // Fallback: Check if identifier corresponds to a Vendor / Restaurant directly (e.g. TF-VND-CSB, csb, rest_csb)
+    const [restaurantsCol, campusesCol] = await Promise.all([
+      db.restaurants(),
+      db.campuses(),
+    ]);
+
+    const cleanSlug = identifier.replace(/^TF-VND-/i, "").toLowerCase();
+    const restaurant = await restaurantsCol.findOne({
+      $or: [
+        { _id: identifier },
+        { slug: identifier },
+        { slug: cleanSlug },
+        { _id: `rest_${cleanSlug}_nitp` },
+      ],
+    });
+
+    if (!restaurant) return null;
+
+    const campus = await campusesCol.findOne({ _id: restaurant.campusId });
+    const isAuthorized = restaurant.isApproved;
+
+    const vendorPartner: DeliveryPartner = {
+      _id: `vnd_${restaurant._id}`,
+      badgeId: `TF-VND-${restaurant.slug.toUpperCase()}`,
+      name: "Authorized Delivery Staff",
+      phone: restaurant.phone,
+      photoUrl: restaurant.imageUrl || null,
+      restaurantId: restaurant._id,
+      restaurantName: restaurant.name,
+      campusId: restaurant.campusId,
+      campusName: campus?.name || "Campus",
+      vehicleNumber: "Canteen Delivery Fleet",
+      status: isAuthorized ? "ACTIVE" : "INACTIVE",
+      allowedGates: ["All Campus Gates", "Hostel Delivery Points"],
+      emergencyContact: restaurant.kyc?.ownerPhone ?? null,
+      issuedAt: restaurant.createdAt,
+      expiresAt: null,
+      createdAt: restaurant.createdAt,
+      updatedAt: restaurant.updatedAt,
+    };
+
+    return {
+      partner: vendorPartner,
+      restaurant: {
+        name: restaurant.name,
+        phone: restaurant.phone,
+        isApproved: restaurant.isApproved,
+        fssai: restaurant.kyc?.fssai ?? null,
+      },
+      campus: campus ? { name: campus.name } : null,
+      isAuthorized,
+    };
+  }
 
   const [restaurantsCol, campusesCol] = await Promise.all([
     db.restaurants(),
