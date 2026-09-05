@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/shared/logo";
+import { InstallHeaderButton } from "@/components/shared/pwa";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import {
   CravingRail,
@@ -48,7 +49,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-line/60 bg-ink/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
           <BrandLogo size="md" />
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <InstallHeaderButton />
             <ThemeToggle />
             <Suspense fallback={<HeaderCtaShell href={SIGN_IN}>Sign in</HeaderCtaShell>}>
               <HeaderCta />

@@ -1,7 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 
-import { OfflineBanner, ServiceWorkerRegistrar } from "@/components/shared/pwa";
+import {
+  InstallPrompt,
+  OfflineBanner,
+  ServiceWorkerRegistrar,
+  pwaInitScript,
+} from "@/components/shared/pwa";
 import { ThemeProvider, themeInitScript } from "@/components/shared/theme-provider";
 import "./globals.css";
 
@@ -75,11 +80,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: pwaInitScript }} />
       </head>
       <body className="min-h-dvh antialiased" suppressHydrationWarning>
         <ThemeProvider>
           <OfflineBanner />
           {children}
+          <InstallPrompt />
           <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>

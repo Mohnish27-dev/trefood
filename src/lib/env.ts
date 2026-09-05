@@ -68,6 +68,10 @@ const serverSchema = z
     PAYTM_MERCHANT_KEY: optionalString,
     PAYTM_WEBSITE: z.string().default("WEBSTAGING"),
     PAYTM_ENVIRONMENT: z.enum(["staging", "production"]).default("staging"),
+    PAYTM_CALLBACK_URL: optionalUrl,
+    // Also parsed server-side so Docker runtime configuration is not replaced
+    // by the NEXT_PUBLIC_APP_URL value that was inlined during `next build`.
+    NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000").transform((v) => v.trim().replace(/^=+/, "").trim()),
 
     VAPID_PRIVATE_KEY: optionalString,
     VAPID_SUBJECT: z.string().default("mailto:ops@trefood.in"),
