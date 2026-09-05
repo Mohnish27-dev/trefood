@@ -131,7 +131,19 @@ export function getRestaurantImages(restaurant: {
     ];
   }
 
-  // 8. Custom DB image or banner if provided
+  // 8. Vrindavan Bhog Pure Vegetarian Restaurant
+  if (
+    slug.includes("vrindavan") ||
+    name.includes("vrindavan")
+  ) {
+    return [
+      "/kolkata_biyani/paneerDoPyaza.jpg",
+      "/kolkata_biyani/paneerChilli.jpg",
+      "/kolkata_biyani/chowmein.jpg",
+    ];
+  }
+
+  // 9. Custom DB image or banner if provided
   const dbImages = [restaurant.bannerUrl, restaurant.imageUrl].filter(
     (url): url is string => Boolean(url),
   );
