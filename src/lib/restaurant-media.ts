@@ -143,7 +143,38 @@ export function getRestaurantImages(restaurant: {
     ];
   }
 
-  // 9. Custom DB image or banner if provided
+  // 9. Mokila Restaurant
+  if (
+    slug.includes("mokila") ||
+    name.includes("mokila")
+  ) {
+    return [
+      "/mokila/chad-montano--GFCYhoRe48-unsplash.jpg",
+      "/mokila/mohammad-fahim-OPFPUjdi9BI-unsplash.jpg",
+      "/mokila/mustafa-fatemi-YTmdwZiuqS4-unsplash.jpg",
+      "/mokila/pixelsnap-visualz-jmp5ztWNPnU-unsplash.jpg",
+    ];
+  }
+
+  // 10. Prince Juice & Shakes Corner
+  if (
+    slug.includes("prince") ||
+    slug.includes("princejuice") ||
+    slug.includes("prince-juice") ||
+    name.includes("prince") ||
+    name.includes("prince juice")
+  ) {
+    return [
+      "/princeJuiceAndShake/allec-gomes-CqPjQBJOXWA-unsplash.jpg",
+      "/princeJuiceAndShake/chumil-photo-NpFlchDTB6o-unsplash.jpg",
+      "/princeJuiceAndShake/engin-akyurt-jPVcZsxRGJo-unsplash.jpg",
+      "/princeJuiceAndShake/joshua-hoehne-uy5uBpovw5g-unsplash.jpg",
+      "/princeJuiceAndShake/kiran-ck-RdI-YMBLhNY-unsplash.jpg",
+      "/princeJuiceAndShake/yulia-khlebnikova-yIE7pZUmT_s-unsplash.jpg",
+    ];
+  }
+
+  // 11. Custom DB image or banner if provided
   const dbImages = [restaurant.bannerUrl, restaurant.imageUrl].filter(
     (url): url is string => Boolean(url),
   );
