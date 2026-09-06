@@ -233,17 +233,23 @@ export function StudentAuthForm({
   return (
     <div className="relative w-full max-w-md mx-auto min-h-dvh bg-ink text-bone flex flex-col justify-between overflow-hidden shadow-2xl">
       {/* ── Background Photo Layer ── */}
-      <div className="absolute inset-x-0 top-0 h-[420px] sm:h-[460px] w-full overflow-hidden pointer-events-none z-0">
+      <div className="absolute inset-x-0 top-0 h-[480px] sm:h-[520px] w-full overflow-hidden pointer-events-none z-0">
         <Image
           src="/images/auth-hero.jpg"
           alt="TREFOOD Food and Drinks"
           fill
           priority
-          className="object-cover object-[center_top]"
+          className="object-cover object-[82%_24%]"
+          unoptimized
         />
-        {/* Gradients blending into the dark ink ground */}
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/30 via-ink/65 via-50% to-ink" />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/50 to-transparent" />
+        {/* Soft top gradient for header legibility */}
+        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-ink/60 via-ink/20 to-transparent" />
+
+        {/* Left-to-right gradient protecting text while keeping the food crisp and bright on the right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/95 via-ink/80 via-40% to-transparent to-70%" />
+
+        {/* Bottom gradient blending smoothly into the ink background above Continue with Google */}
+        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-ink via-ink/80 via-30% to-transparent" />
       </div>
 
       {/* ── Content Layer ── */}

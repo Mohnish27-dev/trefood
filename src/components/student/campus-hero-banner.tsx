@@ -94,9 +94,9 @@ export function CampusHeroBanner({
     <div
       className="relative -mx-4 -mt-4 pt-3 pb-4 rounded-b-[2.5rem] shadow-xl overflow-hidden bg-[#270c5e]"
       style={{
-        backgroundImage: "url('/homePageBackground.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center top",
+        backgroundImage: "url('/homepage.png')",
+        backgroundSize: "94% auto",
+        backgroundPosition: "center 30px",
         backgroundRepeat: "no-repeat",
       }}
     >
@@ -126,7 +126,7 @@ export function CampusHeroBanner({
       </div>
 
       {/* ── Delivery Guy, Scooter & Food Artwork Space (Reduced height, zero overlap) ─── */}
-      <div className="h-[270px] sm:h-[320px] w-full pointer-events-none" aria-hidden="true" />
+      <div className="h-[calc(min(100vw,32rem)-3.5rem)] w-full pointer-events-none" aria-hidden="true" />
 
       {/* ── 6 Yellow Boxes Carousel (Indented from left initially, smooth scroll left) ─── */}
       <div className="px-4 scroll-px-4 flex gap-3 sm:gap-3.5 overflow-x-auto scrollbar-none snap-x snap-mandatory scroll-smooth">
