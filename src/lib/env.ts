@@ -150,6 +150,13 @@ const clientSchema = z.object({
   NEXT_PUBLIC_POLL_VENDOR_MS: intFromString(5_000),
   NEXT_PUBLIC_POLL_STUDENT_MS: intFromString(8_000),
   NEXT_PUBLIC_POLL_ADMIN_MS: intFromString(10_000),
+
+  // Support channels shown on the account screens. Unset means the channel is
+  // not offered — better a missing row than a published number nobody answers.
+  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().default("support@trefood.in"),
+  /** Digits only, with country code, e.g. 919876543210. */
+  NEXT_PUBLIC_SUPPORT_WHATSAPP: optionalString,
+  NEXT_PUBLIC_SUPPORT_PHONE: optionalString,
 });
 
 // Literal references: Next inlines these at build time.
@@ -164,6 +171,9 @@ const rawClientEnv = {
   NEXT_PUBLIC_POLL_VENDOR_MS: process.env.NEXT_PUBLIC_POLL_VENDOR_MS,
   NEXT_PUBLIC_POLL_STUDENT_MS: process.env.NEXT_PUBLIC_POLL_STUDENT_MS,
   NEXT_PUBLIC_POLL_ADMIN_MS: process.env.NEXT_PUBLIC_POLL_ADMIN_MS,
+  NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
+  NEXT_PUBLIC_SUPPORT_WHATSAPP: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP,
+  NEXT_PUBLIC_SUPPORT_PHONE: process.env.NEXT_PUBLIC_SUPPORT_PHONE,
 };
 
 /** Validated public environment. Safe to import from a Client Component. */

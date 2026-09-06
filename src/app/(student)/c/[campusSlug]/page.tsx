@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/states";
 import { CampusRestaurantFeed } from "@/components/student/campus-restaurant-feed";
 import { ZonePicker, type ZoneOption } from "@/components/student/zone-picker";
 import { zoneCookieName } from "@/lib/cookies";
+import { getSession } from "@/server/auth/session";
 import { getCampusBySlug, listRestaurantsForZone } from "@/server/services/catalog";
 import {
   checkCampusCurfews,
@@ -21,6 +22,9 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
   const { campusSlug } = await params;
   const campus = await getCampusBySlug(campusSlug);
   if (!campus) notFound();
+
+  const session = await getSession();
+  const favouriteIds = session?.user.favouriteRestaurantIds ?? [];
 
   const cookieStore = await cookies();
   const storedZoneId = cookieStore.get(zoneCookieName(campusSlug))?.value ?? null;
@@ -92,6 +96,8 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
             campusSlug={campusSlug}
             transitMinutes={campus.settings.transitMinutes}
             restaurants={restaurants}
+            favouriteIds={favouriteIds}
+            signedIn={session !== null}
           />
         )}
       </div>

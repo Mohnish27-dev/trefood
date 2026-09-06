@@ -6,6 +6,7 @@ import { Money } from "@/components/shared/money";
 import { cn, formatRating } from "@/lib/utils";
 import { getRestaurantImages } from "@/lib/restaurant-media";
 import { RestaurantCarousel } from "./restaurant-carousel";
+import { FavouriteButton } from "./account/favourite-button";
 import type { RestaurantListItem } from "@/server/services/catalog";
 
 /**
@@ -16,13 +17,21 @@ import type { RestaurantListItem } from "@/server/services/catalog";
  *
  * Closed restaurants are RENDERED, greyed, at the bottom — never hidden.
  * The whole card stays a link so students can still read the menu and plan tomorrow.
+ *
+ * The favourite heart is a SIBLING of that link, not a child: a <button>
+ * inside an <a> is invalid HTML, and browsers resolve it by making the heart
+ * un-tappable on exactly the touch devices this app is built for.
  */
 export function RestaurantCard({
   restaurant,
   campusSlug,
+  favourited = false,
+  signedIn = false,
 }: {
   restaurant: RestaurantListItem;
   campusSlug: string;
+  favourited?: boolean;
+  signedIn?: boolean;
 }) {
   const { isServingNow } = restaurant;
   const images = getRestaurantImages(restaurant);
@@ -34,74 +43,84 @@ export function RestaurantCard({
       : null;
 
   return (
-    <Link href={`/c/${campusSlug}/r/${restaurant.slug}`} className="block group">
-      <Card
-        className={cn(
-          "overflow-hidden border border-line bg-surface transition-all duration-300 rounded-2xl group-active:scale-[0.99]",
-          isServingNow
-            ? "hover:border-saffron/50 hover:shadow-lg"
-            : "opacity-65 hover:opacity-85",
-        )}
-      >
-        {/* ── 16:9 Image Carousel ──────────────────────────────────── */}
-        <RestaurantCarousel
-          images={images}
-          restaurantName={restaurant.name}
-          etaLabel={etaLabel}
-          isServingNow={isServingNow}
-        />
+    <div className="relative">
+      <FavouriteButton
+        restaurantId={restaurant._id}
+        restaurantName={restaurant.name}
+        initialFavourited={favourited}
+        signedIn={signedIn}
+        className="absolute right-2 top-2 z-20"
+      />
 
-        {/* ── Details Section (Matching Swiggy Card) ────────────────── */}
-        <div className="p-3.5 sm:p-4">
-          {/* Highlight Tag */}
-          {highlightTag ? (
-            <p className="mb-1 text-xs font-semibold text-saffron tracking-tight">
-              {highlightTag}
-            </p>
-          ) : null}
+      <Link href={`/c/${campusSlug}/r/${restaurant.slug}`} className="block group">
+        <Card
+          className={cn(
+            "overflow-hidden border border-line bg-surface transition-all duration-300 rounded-2xl group-active:scale-[0.99]",
+            isServingNow
+              ? "hover:border-saffron/50 hover:shadow-lg"
+              : "opacity-65 hover:opacity-85",
+          )}
+        >
+          {/* ── 16:9 Image Carousel ──────────────────────────────────── */}
+          <RestaurantCarousel
+            images={images}
+            restaurantName={restaurant.name}
+            etaLabel={etaLabel}
+            isServingNow={isServingNow}
+          />
 
-          {/* Restaurant Name */}
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-bone group-hover:text-saffron transition-colors truncate">
-              {restaurant.name}
-            </h3>
-          </div>
+          {/* ── Details Section (Matching Swiggy Card) ────────────────── */}
+          <div className="p-3.5 sm:p-4">
+            {/* Highlight Tag */}
+            {highlightTag ? (
+              <p className="mb-1 text-xs font-semibold text-saffron tracking-tight">
+                {highlightTag}
+              </p>
+            ) : null}
 
-          {/* Rating, Gate & Transit Line */}
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-            <span className="inline-flex items-center gap-1 rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-bold text-white shadow-xs">
-              <Star className="size-3 fill-white text-white" />
-              <span>
-                {restaurant.rating !== null ? formatRating(restaurant.rating) : "New"}
-              </span>
-              {restaurant.ratingCount ? (
-                <span className="opacity-90">({restaurant.ratingCount})</span>
-              ) : null}
-            </span>
+            {/* Restaurant Name */}
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-bone group-hover:text-saffron transition-colors truncate">
+                {restaurant.name}
+              </h3>
+            </div>
 
-            <span className="text-line">•</span>
-            <span className="font-medium text-bone/80">NIT Patna</span>
-
-            <span className="text-line">•</span>
-            <span>{restaurant.prepMinutes} min prep</span>
-          </div>
-
-          {/* Cuisines & Min Order Line */}
-          <div className="mt-1.5 flex items-center justify-between text-xs text-muted truncate">
-            <p className="truncate">
-              {restaurant.cuisines.join(", ")}
-            </p>
-            <span className="shrink-0 pl-2 font-medium text-bone/90">
-              Min <Money paise={restaurant.minOrderPaise} />
-              {restaurant.lateNightMinOrderPaise ? (
-                <span className="text-[10px] text-faint ml-1">
-                  (₹{restaurant.lateNightMinOrderPaise / 100} late night)
+            {/* Rating, Gate & Transit Line */}
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+              <span className="inline-flex items-center gap-1 rounded bg-emerald-600 px-1.5 py-0.5 text-xs font-bold text-white shadow-xs">
+                <Star className="size-3 fill-white text-white" />
+                <span>
+                  {restaurant.rating !== null ? formatRating(restaurant.rating) : "New"}
                 </span>
-              ) : null}
-            </span>
+                {restaurant.ratingCount ? (
+                  <span className="opacity-90">({restaurant.ratingCount})</span>
+                ) : null}
+              </span>
+
+              <span className="text-line">•</span>
+              <span className="font-medium text-bone/80">NIT Patna</span>
+
+              <span className="text-line">•</span>
+              <span>{restaurant.prepMinutes} min prep</span>
+            </div>
+
+            {/* Cuisines & Min Order Line */}
+            <div className="mt-1.5 flex items-center justify-between text-xs text-muted truncate">
+              <p className="truncate">
+                {restaurant.cuisines.join(", ")}
+              </p>
+              <span className="shrink-0 pl-2 font-medium text-bone/90">
+                Min <Money paise={restaurant.minOrderPaise} />
+                {restaurant.lateNightMinOrderPaise ? (
+                  <span className="text-[10px] text-faint ml-1">
+                    (₹{restaurant.lateNightMinOrderPaise / 100} late night)
+                  </span>
+                ) : null}
+              </span>
+            </div>
           </div>
-        </div>
-      </Card>
-    </Link>
+        </Card>
+      </Link>
+    </div>
   );
 }
