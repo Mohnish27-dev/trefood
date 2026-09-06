@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the template. src/lib/env.ts tells you to copy this file when a
+# var is missing, so a clone that does not contain it makes that message a lie.
+# It holds shapes and local defaults only — never a real secret.
+!.env.local.example
 
 # vercel
 .vercel

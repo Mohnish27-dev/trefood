@@ -22,13 +22,21 @@ interface CampusRestaurantFeedProps {
   campusSlug: string;
   transitMinutes: number;
   restaurants: RestaurantListItem[];
+  /** Restaurant ids this student starred. Empty when signed out. */
+  favouriteIds?: string[];
+  signedIn?: boolean;
 }
 
 export function CampusRestaurantFeed({
   campusSlug,
   transitMinutes,
   restaurants,
+  favouriteIds = [],
+  signedIn = false,
 }: CampusRestaurantFeedProps) {
+  // A Set, because this is checked once per card on every keystroke of the
+  // search box.
+  const favourites = useMemo(() => new Set(favouriteIds), [favouriteIds]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [foodTypeFilter, setFoodTypeFilter] = useState<FoodTypeFilter>("all");
@@ -224,6 +232,8 @@ export function CampusRestaurantFeed({
                 key={restaurant._id}
                 restaurant={restaurant}
                 campusSlug={campusSlug}
+                favourited={favourites.has(restaurant._id)}
+                signedIn={signedIn}
               />
             ))}
           </div>
@@ -258,6 +268,8 @@ export function CampusRestaurantFeed({
                   key={restaurant._id}
                   restaurant={restaurant}
                   campusSlug={campusSlug}
+                  favourited={favourites.has(restaurant._id)}
+                  signedIn={signedIn}
                 />
               ))}
             </div>

@@ -143,3 +143,21 @@ export async function getMenuItemsByIds(ids: readonly string[]): Promise<Map<str
   const rows = await items.find({ _id: { $in: [...ids] } }).toArray();
   return new Map(rows.map((item) => [item._id, item]));
 }
+
+/**
+ * Restaurants by id, in the order the ids were given.
+ *
+ * The favourites screen needs this: the ids live on the user document in the
+ * order they were starred, and a `$in` query comes back in whatever order
+ * Mongo pleases. Re-ordering here keeps "most recently starred first" true
+ * without a second field to maintain.
+ */
+export async function getRestaurantsByIds(
+  ids: readonly string[],
+): Promise<Restaurant[]> {
+  if (ids.length === 0) return [];
+  const restaurants = await db.restaurants();
+  const rows = await restaurants.find({ _id: { $in: [...ids] } }).toArray();
+  const byId = new Map(rows.map((r) => [r._id, r]));
+  return ids.map((id) => byId.get(id)).filter((r): r is Restaurant => r !== undefined);
+}

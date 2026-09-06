@@ -1,40 +1,54 @@
 import {
-  Banknote,
-  ChevronRight,
+  BadgeIndianRupee,
+  BellRing,
+  ClipboardList,
+  FileText,
+  Heart,
+  Info,
+  LifeBuoy,
   LogOut,
-  Phone,
+  MapPin,
+  MessageSquareMore,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
+  Store,
   UserRound,
 } from "lucide-react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
-import { PushPermissionCard } from "@/components/student/push-permission-card";
-import { AccountQuickUnlock } from "@/components/student/account-quick-unlock";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { ProfileHero } from "@/components/student/account/profile-hero";
+import { SettingsGroup, SettingsRow } from "@/components/student/account/settings-list";
 import { getSession } from "@/server/auth/session";
 import { signOut } from "@/server/actions/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
 import { getCampusById } from "@/server/services/catalog";
-import { DEFAULTS, ORDER_STATUS } from "@/lib/constants";
+import { zoneCookieName } from "@/lib/cookies";
+import { DEFAULT_CAMPUS_SLUG } from "@/lib/routes";
+import { ORDER_STATUS } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Account" };
 export const dynamic = "force-dynamic";
 
 /**
- * The account screen.
+ * The account hub.
  *
- * Its real job is the cash-on-delivery section. F8 and F9 both end with COD
- * being switched off, and a student who discovers that at checkout — with a
- * cart full of food and no explanation — is a student who stops using the app.
- * So the block is explained here in plain language, with the count, the
- * reason, and what to do next: pay online, which still works perfectly.
+ * A directory, not a settings dump. Everything that needs explaining — the
+ * cash-at-the-gate rules, the PIN, the notification permission — lives on its
+ * own screen behind a row here, so this page stays scannable at a glance and
+ * each of those screens has room to say the whole truth instead of a sentence
+ * squeezed into a card.
+ *
+ * The one thing that does NOT wait behind a row is a COD block. F8 and F9 both
+ * end with cash switched off, and a student who discovers that at checkout —
+ * cart full, no explanation — is a student who stops using the app. So the
+ * block is surfaced here, in plain language, the moment it exists.
  *
  * There is no delete-account button and no ban. A blocked-COD student who must
  * prepay is a better customer than a lost one.
@@ -61,154 +75,189 @@ export default async function AccountPage() {
   }
 
   const { user } = session;
-  const orders = await listOrdersForCustomer(user._id, 100);
-  const campus = user.campusId ? await getCampusById(user.campusId) : null;
+  const [orders, campus] = await Promise.all([
+    listOrdersForCustomer(user._id, 100),
+    user.campusId ? getCampusById(user.campusId) : Promise.resolve(null),
+  ]);
 
-  const delivered = orders.filter(
-    (order) =>
-      order.status === ORDER_STATUS.DELIVERED ||
-      order.status === ORDER_STATUS.DELIVERED_TO_SECURITY ||
-      order.status === ORDER_STATUS.SETTLED,
-  );
   const noShows = orders.filter((order) => order.status === ORDER_STATUS.NO_SHOW);
-  const spentPaise = delivered.reduce(
-    (total, order) => total + order.payment.onlinePaidPaise + order.payment.cashDueOnDeliveryPaise,
-    0,
-  );
-
   const codAvailable = !user.codBlocked && (campus?.settings.codEnabled ?? true);
-  const strikesLeft = Math.max(0, DEFAULTS.codStrikeThreshold - user.strikes);
+
+  const favouriteCount = user.favouriteRestaurantIds?.length ?? 0;
+  const campusSlug = campus?.slug ?? DEFAULT_CAMPUS_SLUG;
+
+  // The gate lives in a cookie because the restaurant list is filtered on the
+  // server; reading it here is the same read the list does.
+  const cookieStore = await cookies();
+  const zoneId = cookieStore.get(zoneCookieName(campusSlug))?.value ?? null;
+  const zone = campus?.zones.find((z) => z.id === zoneId) ?? null;
+
+  const pinSet = Boolean(user.quickUnlock?.pinHash);
 
   return (
     <>
       <Header />
 
-      <div className="space-y-4 p-4">
-        {/* ── Who ──────────────────────────────────────────────── */}
-        <Card className="p-4">
-          <div className="flex items-center gap-3.5">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-saffron-wash border border-saffron/25 font-display text-xl font-semibold text-saffron">
-              {user.name.charAt(0)}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate font-display text-base font-semibold text-bone">
-                {user.name}
-              </p>
-              <p className="truncate text-sm text-muted">{user.email}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                <Phone className="size-3 text-faint" />
-                {user.phone ?? "No number yet — we ask at your first checkout"}
-              </p>
-            </div>
-          </div>
+      <div className="space-y-5 p-4">
+        {/* ── 1. Who ───────────────────────────────────────────── */}
+        <ProfileHero
+          name={user.name}
+          email={user.email}
+          phone={user.phone}
+          orderCount={orders.length}
+          noShowCount={noShows.length}
+          codAvailable={codAvailable}
+        />
 
-          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3.5">
-            <Stat label="Delivered" value={String(delivered.length)} />
-            <Stat label="Spent" value={<Money paise={spentPaise} />} />
-            <Stat
-              label="Not collected"
-              value={String(noShows.length)}
-              tone={noShows.length > 0 ? "chili" : "bone"}
-            />
-          </div>
-        </Card>
-
-        {/* ── Cash on delivery — F8 / F9 ───────────────────────── */}
-        <Card className="p-4">
-          <div className="flex items-start gap-3">
-            <span
-              className={
-                codAvailable
-                  ? "flex size-10 shrink-0 items-center justify-center rounded-xl bg-mint-wash border border-mint/25"
-                  : "flex size-10 shrink-0 items-center justify-center rounded-xl bg-chili-wash border border-chili/25"
-              }
-            >
-              {codAvailable ? (
-                <Banknote className="size-5 text-mint" />
-              ) : (
-                <ShieldAlert className="size-5 text-chili" />
-              )}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+        {/* ── The one thing that cannot wait behind a row ───────── */}
+        {user.codBlocked ? (
+          <Card className="border-chili/30 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-chili/25 bg-chili-wash">
+                <ShieldAlert className="size-4 text-chili" />
+              </span>
+              <div className="min-w-0">
                 <p className="font-display text-sm font-semibold text-bone">
-                  Cash at the gate
+                  Cash at the gate is switched off
                 </p>
-                {codAvailable ? (
-                  <Badge tone="success">Available</Badge>
-                ) : (
-                  <Badge tone="danger">Not available</Badge>
-                )}
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  {user.codBlockedReason ??
+                    "Cash on delivery is switched off on your account."}{" "}
+                  You can still order anything you like — just pay online at checkout. This
+                  is not permanent.
+                </p>
+                <Link
+                  href="/account/payments"
+                  className="mt-2 inline-block text-sm font-medium text-saffron underline-offset-4 hover:underline"
+                >
+                  How to get it back
+                </Link>
               </div>
-
-              {user.codBlocked ? (
-                <>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                    {user.codBlockedReason ??
-                      "Cash on delivery is switched off on your account."}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-bone">
-                    You can still order anything you like — just pay online at checkout.
-                    Nothing else about your account has changed, and this is not permanent.
-                  </p>
-                </>
-              ) : campus?.settings.codEnabled === false ? (
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                  Cash orders are paused across this campus at the moment. Paying online works
-                  as usual.
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                  Pay 10% online now and the rest in cash when you collect. If an order is not
-                  collected {strikesLeft === 1 ? "once more" : `${strikesLeft} more times`},
-                  cash is switched off and you would need to pay online.
-                </p>
-              )}
             </div>
-          </div>
-
-          {user.strikes > 0 ? (
-            <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-xs text-amber">
-              <ShieldCheck className="size-3.5 shrink-0" />
-              {user.strikes} strike{user.strikes === 1 ? "" : "s"} on this account. They come
-              from cash orders left uncollected at the gate.
+          </Card>
+        ) : user.strikes > 0 ? (
+          <Card className="border-amber/30 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber/25 bg-amber-wash">
+                <ShieldCheck className="size-4 text-amber" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-display text-sm font-semibold text-bone">
+                  {user.strikes} strike{user.strikes === 1 ? "" : "s"} on this account
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  They come from cash orders left uncollected at the gate. Collect your next
+                  few and cash stays available.
+                </p>
+              </div>
             </div>
-          ) : null}
-        </Card>
+          </Card>
+        ) : null}
 
-        {/* ── Quick Unlock & Biometrics ─────────────────────────── */}
-        <AccountQuickUnlock user={user} />
-
-        {/* ── F17 — push is never the only channel ─────────────── */}
-        <PushPermissionCard />
-
-        {/* ── Appearance & Theme ─────────────────────────────────── */}
-        <Card>
-          <ThemeToggle variant="row" />
-        </Card>
-
-        {/* ── Links ────────────────────────────────────────────── */}
-        <Card className="divide-y divide-line">
-          <Row href="/orders" label="Your orders" hint={`${orders.length} in total`} />
-          <Row
-            href={campus ? `/c/${campus.slug}` : "/c/nit-patna"}
-            label="Browse restaurants"
-            hint={campus?.name ?? "NIT Patna"}
+        {/* ── 2. Your Account ──────────────────────────────────── */}
+        <SettingsGroup title="Your account">
+          <SettingsRow
+            href="/account/favourites"
+            icon={Heart}
+            label="Favourites"
+            hint={
+              favouriteCount === 0
+                ? "Nothing starred yet"
+                : `${favouriteCount} restaurant${favouriteCount === 1 ? "" : "s"}`
+            }
+            tone="chili"
           />
-        </Card>
+          <SettingsRow
+            href="/orders"
+            icon={ClipboardList}
+            label="My orders"
+            hint={orders.length === 0 ? "No orders yet" : `${orders.length} in total`}
+            tone="saffron"
+          />
+          <SettingsRow
+            href="/account/pickup"
+            icon={MapPin}
+            label="Pickup location"
+            hint={zone?.name ?? "No gate picked yet"}
+            tone="sky"
+          />
+          <SettingsRow
+            href="/account/payments"
+            icon={BadgeIndianRupee}
+            label="Payments"
+            hint={codAvailable ? "Online and cash at the gate" : "Online only"}
+            tone={codAvailable ? "mint" : "chili"}
+          />
+        </SettingsGroup>
 
+        {/* ── 3. Preferences & Security ────────────────────────── */}
+        <SettingsGroup title="Preferences & security">
+          <SettingsRow
+            href="/account/app-lock"
+            icon={ShieldCheck}
+            label="App lock"
+            hint={pinSet ? "4-digit PIN active" : "Not set up"}
+            tone={pinSet ? "mint" : "neutral"}
+          />
+          <SettingsRow
+            href="/account/notifications"
+            icon={BellRing}
+            label="Notifications"
+            hint="Get buzzed the moment food reaches your gate"
+            tone="amber"
+          />
+          <ThemeToggle variant="row" />
+        </SettingsGroup>
+
+        {/* ── 4. Help & Support ────────────────────────────────── */}
+        <SettingsGroup title="Help & support">
+          <SettingsRow
+            href="/account/help"
+            icon={LifeBuoy}
+            label="Help centre"
+            hint="Gate codes, refunds, stockouts, curfew"
+          />
+          <SettingsRow
+            href="/account/support"
+            icon={MessageSquareMore}
+            label="Contact support"
+            hint="A human, on WhatsApp or email"
+          />
+        </SettingsGroup>
+
+        {/* ── 5. Legal & About ─────────────────────────────────── */}
+        <SettingsGroup title="Legal & about">
+          <SettingsRow href="/legal/terms" icon={FileText} label="Terms & conditions" />
+          <SettingsRow href="/legal/privacy" icon={ShieldCheck} label="Privacy policy" />
+          <SettingsRow
+            href="/legal/refunds"
+            icon={RotateCcw}
+            label="Refund & cancellation policy"
+          />
+          <SettingsRow href="/legal/about" icon={Info} label="About TREFOOD" />
+        </SettingsGroup>
+
+        {/* ── 6. Out ───────────────────────────────────────────── */}
         <form action={signOut}>
           <Button type="submit" variant="secondary" block size="lg">
             <LogOut />
-            Sign out
+            Log out
           </Button>
         </form>
 
-        <p className="px-1 pb-2 text-center text-[11px] leading-relaxed text-faint">
-          Your food is delivered by the restaurant&apos;s own staff, so there is no live map.
-          You are told the moment it reaches your gate.
-        </p>
+        <div className="pb-2 text-center">
+          <Link
+            href={`/c/${campusSlug}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-bone"
+          >
+            <Store className="size-3.5" />
+            Browse restaurants at {campus?.name ?? "NIT Patna"}
+          </Link>
+          <p className="mt-3 px-1 text-[11px] leading-relaxed text-faint">
+            Your food is delivered by the restaurant&apos;s own staff, so there is no live
+            map. You are told the moment it reaches your gate.
+          </p>
+        </div>
       </div>
     </>
   );
@@ -222,42 +271,5 @@ function Header() {
       <h1 className="font-display text-base font-semibold text-bone">Account</h1>
       <ThemeToggle />
     </header>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = "bone",
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "bone" | "chili";
-}) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-faint">{label}</p>
-      <p
-        className={
-          tone === "chili"
-            ? "mt-0.5 font-display text-lg font-semibold text-chili"
-            : "mt-0.5 font-display text-lg font-semibold text-bone"
-        }
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function Row({ href, label, hint }: { href: string; label: string; hint: string }) {
-  return (
-    <Link href={href} className="flex min-h-14 items-center gap-3 px-4 hover:bg-surface-raised">
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-bone">{label}</span>
-        <span className="block truncate text-xs text-muted">{hint}</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-faint" />
-    </Link>
   );
 }

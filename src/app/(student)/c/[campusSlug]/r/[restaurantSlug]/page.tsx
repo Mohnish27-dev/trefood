@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Money } from "@/components/shared/money";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { CartBar } from "@/components/student/cart-bar";
+import { FavouriteButton } from "@/components/student/account/favourite-button";
 import { RestaurantMenuSearch } from "@/components/student/restaurant-menu-search";
 import { formatRating } from "@/lib/utils";
 import {
@@ -15,6 +16,7 @@ import {
   isRestaurantServing,
 } from "@/server/services/catalog";
 import { campusLocalMinutes, formatTime12h } from "@/server/services/curfew";
+import { getSession } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +25,10 @@ export default async function MenuPage({
 }: PageProps<"/c/[campusSlug]/r/[restaurantSlug]">) {
   const { campusSlug, restaurantSlug } = await params;
 
-  const [campus, restaurant] = await Promise.all([
+  const [campus, restaurant, session] = await Promise.all([
     getCampusBySlug(campusSlug),
     getRestaurantBySlug(restaurantSlug),
+    getSession(),
   ]);
 
   if (!campus || !restaurant || restaurant.campusId !== campus._id) notFound();
@@ -38,6 +41,8 @@ export default async function MenuPage({
     (n, s) => n + s.items.filter((i) => !i.isAvailable).length,
     0,
   );
+
+  const favourited = session?.user.favouriteRestaurantIds?.includes(restaurant._id) ?? false;
 
   const highlightTag =
     restaurant.rating !== null && restaurant.rating >= 4.5
@@ -59,6 +64,14 @@ export default async function MenuPage({
           <h1 className="min-w-0 flex-1 truncate font-display text-base font-semibold text-white">
             {restaurant.name}
           </h1>
+          <FavouriteButton
+            restaurantId={restaurant._id}
+            restaurantName={restaurant.name}
+            initialFavourited={favourited}
+            signedIn={session !== null}
+            variant="overlay"
+            className="bg-transparent hover:bg-white/10"
+          />
           <a
             href={`tel:${restaurant.phone}`}
             className="flex size-11 shrink-0 items-center justify-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors"

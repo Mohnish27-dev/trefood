@@ -18,6 +18,14 @@ export interface User {
   restaurantId: string | null;
 
   /**
+   * Restaurants the student starred. Stored on the user rather than in a
+   * join collection: the list is small, it is only ever read for one person
+   * at a time, and it must survive a device change — which localStorage
+   * would not.
+   */
+  favouriteRestaurantIds?: string[];
+
+  /**
    * F8/F9 — COD is disabled after two no-shows, or immediately on a refusal
    * to pay. Never a permanent ban: a blocked-COD student who must prepay is a
    * better customer than a lost one, and prepaid carries zero collection risk.
