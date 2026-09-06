@@ -1,7 +1,7 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR } from "@/lib/constants";
+import { ACTOR, type Actor } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { type Paise } from "@/lib/money";
 import { writeAudit } from "./audit";
@@ -49,6 +49,7 @@ export async function createMenuCategoryAdmin(params: {
   name: string;
   sortOrder?: number | undefined;
   actorId: string;
+  actorRole?: Actor | undefined;
 }): Promise<{ ok: true; category: MenuCategory } | { ok: false; message: string }> {
   const restaurants = await db.restaurants();
   const restaurant = await restaurants.findOne({ _id: params.restaurantId });
@@ -82,7 +83,7 @@ export async function createMenuCategoryAdmin(params: {
     from: "NONE",
     to: `category:${category.name}`,
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Added category "${category.name}" to ${restaurant.name}`,
   });
 
@@ -95,6 +96,7 @@ export async function updateMenuCategoryAdmin(params: {
   name: string;
   sortOrder?: number | undefined;
   actorId: string;
+  actorRole?: Actor | undefined;
 }): Promise<{ ok: true; category: MenuCategory } | { ok: false; message: string }> {
   const categoriesCollection = await db.menuCategories();
   const before = await categoriesCollection.findOne({
@@ -124,7 +126,7 @@ export async function updateMenuCategoryAdmin(params: {
     from: `category:${before.name}`,
     to: `category:${updated.name}`,
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Updated category "${updated.name}"`,
   });
 
@@ -135,6 +137,7 @@ export async function deleteMenuCategoryAdmin(params: {
   categoryId: string;
   restaurantId: string;
   actorId: string;
+  actorRole?: Actor | undefined;
 }): Promise<{ ok: true; deletedItemsCount: number } | { ok: false; message: string }> {
   const categoriesCollection = await db.menuCategories();
   const category = await categoriesCollection.findOne({
@@ -161,7 +164,7 @@ export async function deleteMenuCategoryAdmin(params: {
     from: `category:${category.name}`,
     to: "DELETED",
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Deleted category "${category.name}" and ${deletedItems.deletedCount ?? 0} item(s)`,
   });
 
@@ -185,6 +188,7 @@ export interface CreateMenuItemAdminParams {
   addOnGroups?: AddOnGroup[] | undefined;
   sortOrder?: number | undefined;
   actorId: string;
+  actorRole?: Actor | undefined;
 }
 
 export async function createMenuItemAdmin(
@@ -233,7 +237,7 @@ export async function createMenuItemAdmin(
     from: "NONE",
     to: `item:${item.name}`,
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Added menu item "${item.name}" (₹${item.pricePaise / 100}) to category "${category.name}"`,
   });
 
@@ -254,6 +258,7 @@ export interface UpdateMenuItemAdminParams {
   addOnGroups?: AddOnGroup[] | undefined;
   sortOrder?: number | undefined;
   actorId: string;
+  actorRole?: Actor | undefined;
 }
 
 export async function updateMenuItemAdmin(
@@ -295,7 +300,7 @@ export async function updateMenuItemAdmin(
     from: `item:${before.name} (₹${before.pricePaise / 100})`,
     to: `item:${updated.name} (₹${updated.pricePaise / 100})`,
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Updated menu item "${updated.name}"`,
   });
 
@@ -306,6 +311,7 @@ export async function deleteMenuItemAdmin(params: {
   itemId: string;
   restaurantId: string;
   actorId: string;
+  actorRole?: Actor | undefined;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   const itemsCollection = await db.menuItems();
   const item = await itemsCollection.findOne({
@@ -322,7 +328,7 @@ export async function deleteMenuItemAdmin(params: {
     from: `item:${item.name}`,
     to: "DELETED",
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Deleted menu item "${item.name}"`,
   });
 
@@ -334,6 +340,7 @@ export async function toggleMenuItemAvailabilityAdmin(params: {
   restaurantId: string;
   isAvailable: boolean;
   actorId: string;
+  actorRole?: Actor | undefined;
 }): Promise<{ ok: true; isAvailable: boolean } | { ok: false; message: string }> {
   const itemsCollection = await db.menuItems();
   const updated = await itemsCollection.findOneAndUpdate(
@@ -350,7 +357,7 @@ export async function toggleMenuItemAvailabilityAdmin(params: {
     from: params.isAvailable ? "unavailable" : "available",
     to: params.isAvailable ? "available" : "unavailable",
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Item "${updated.name}" set to ${params.isAvailable ? "available" : "86-ed (out of stock)"}`,
   });
 

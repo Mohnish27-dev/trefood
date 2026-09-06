@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import * as db from "@/server/db/collections";
 import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
-import { formatINR } from "@/lib/money";
+import { formatINR, rupeesToPaise } from "@/lib/money";
+import { newId } from "@/lib/ids";
 import { requireVendor } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
@@ -14,7 +15,16 @@ import { raiseStockout } from "@/server/services/stockout";
 import { recordStrike } from "@/server/services/students";
 import { notifyOrderEvent } from "@/server/services/push";
 import { writeAudit } from "@/server/services/audit";
+import {
+  createMenuCategoryAdmin,
+  createMenuItemAdmin,
+  deleteMenuCategoryAdmin,
+  deleteMenuItemAdmin,
+  updateMenuCategoryAdmin,
+  updateMenuItemAdmin,
+} from "@/server/services/admin-menu";
 import type { Order } from "@/types/order";
+import type { AddOnGroup } from "@/types/restaurant";
 
 /**
  * Vendor Server Actions — thin adapters.
@@ -534,6 +544,264 @@ export async function raiseStockoutForOrder(input: unknown): Promise<VendorActio
 
   revalidatePath("/vendor/orders");
   return { status: "ok", message: "The student has 5 minutes to choose" };
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Menu Management — Vendor editable items & categories
+   ══════════════════════════════════════════════════════════════════════ */
+
+const vendorAddOnOptionSchema = z.object({
+  id: z.string().default(() => newId("opt")),
+  name: z.string().trim().min(1, "Option name is required"),
+  priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
+  isAvailable: z.boolean().default(true),
+});
+
+const vendorAddOnGroupSchema = z.object({
+  id: z.string().default(() => newId("grp")),
+  name: z.string().trim().min(1, "Group name is required"),
+  minSelect: z.coerce.number().int().min(0),
+  maxSelect: z.coerce.number().int().min(1),
+  options: z.array(vendorAddOnOptionSchema),
+});
+
+const createVendorItemSchema = z.object({
+  categoryId: z.string().min(1, "Select a category"),
+  name: z.string().trim().min(1, "Item name is required").max(100),
+  description: z.string().trim().optional(),
+  isVeg: z.boolean().default(true),
+  priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
+  imageUrl: z.string().url().nullable().optional(),
+  isAvailable: z.boolean().default(true),
+  isPopular: z.boolean().default(false),
+  addOnGroups: z.array(vendorAddOnGroupSchema).optional(),
+  sortOrder: z.coerce.number().int().optional(),
+});
+
+export async function createVendorMenuItem(input: unknown): Promise<VendorActionState> {
+  const parsed = createVendorItemSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid item data." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const data = parsed.data;
+
+  const addOnGroups: AddOnGroup[] = (data.addOnGroups ?? []).map((grp) => ({
+    id: grp.id || newId("grp"),
+    name: grp.name,
+    minSelect: grp.minSelect,
+    maxSelect: Math.max(grp.minSelect, grp.maxSelect),
+    options: grp.options.map((opt) => ({
+      id: opt.id || newId("opt"),
+      name: opt.name,
+      pricePaise: rupeesToPaise(opt.priceRupees),
+      isAvailable: opt.isAvailable,
+    })),
+  }));
+
+  const result = await createMenuItemAdmin({
+    restaurantId,
+    categoryId: data.categoryId,
+    name: data.name,
+    description: data.description,
+    isVeg: data.isVeg,
+    pricePaise: rupeesToPaise(data.priceRupees),
+    imageUrl: data.imageUrl,
+    isAvailable: data.isAvailable,
+    isPopular: data.isPopular,
+    addOnGroups,
+    sortOrder: data.sortOrder,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return { status: "ok", message: `Item "${result.item.name}" added to menu` };
+}
+
+const updateVendorItemSchema = z.object({
+  itemId: z.string().min(1),
+  categoryId: z.string().min(1, "Select a category"),
+  name: z.string().trim().min(1, "Item name is required").max(100),
+  description: z.string().trim().optional(),
+  isVeg: z.boolean().default(true),
+  priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
+  imageUrl: z.string().url().nullable().optional(),
+  isAvailable: z.boolean().default(true),
+  isPopular: z.boolean().default(false),
+  addOnGroups: z.array(vendorAddOnGroupSchema).optional(),
+  sortOrder: z.coerce.number().int().optional(),
+});
+
+export async function updateVendorMenuItem(input: unknown): Promise<VendorActionState> {
+  const parsed = updateVendorItemSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid item data." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const data = parsed.data;
+
+  const addOnGroups: AddOnGroup[] = (data.addOnGroups ?? []).map((grp) => ({
+    id: grp.id || newId("grp"),
+    name: grp.name,
+    minSelect: grp.minSelect,
+    maxSelect: Math.max(grp.minSelect, grp.maxSelect),
+    options: grp.options.map((opt) => ({
+      id: opt.id || newId("opt"),
+      name: opt.name,
+      pricePaise: rupeesToPaise(opt.priceRupees),
+      isAvailable: opt.isAvailable,
+    })),
+  }));
+
+  const result = await updateMenuItemAdmin({
+    itemId: data.itemId,
+    restaurantId,
+    categoryId: data.categoryId,
+    name: data.name,
+    description: data.description,
+    isVeg: data.isVeg,
+    pricePaise: rupeesToPaise(data.priceRupees),
+    imageUrl: data.imageUrl,
+    isAvailable: data.isAvailable,
+    isPopular: data.isPopular,
+    addOnGroups,
+    sortOrder: data.sortOrder,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return { status: "ok", message: `Item "${result.item.name}" updated` };
+}
+
+const deleteVendorItemSchema = z.object({
+  itemId: z.string().min(1),
+});
+
+export async function deleteVendorMenuItem(input: unknown): Promise<VendorActionState> {
+  const parsed = deleteVendorItemSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Invalid request." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const result = await deleteMenuItemAdmin({
+    itemId: parsed.data.itemId,
+    restaurantId,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return { status: "ok", message: "Item deleted from menu" };
+}
+
+const createVendorCategorySchema = z.object({
+  name: z.string().trim().min(1, "Category name is required").max(60),
+  sortOrder: z.coerce.number().int().optional(),
+});
+
+export async function createVendorCategory(input: unknown): Promise<VendorActionState> {
+  const parsed = createVendorCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid category data." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const result = await createMenuCategoryAdmin({
+    restaurantId,
+    name: parsed.data.name,
+    sortOrder: parsed.data.sortOrder,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return { status: "ok", message: `Category "${result.category.name}" created` };
+}
+
+const updateVendorCategorySchema = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().trim().min(1, "Category name is required").max(60),
+  sortOrder: z.coerce.number().int().optional(),
+});
+
+export async function updateVendorCategory(input: unknown): Promise<VendorActionState> {
+  const parsed = updateVendorCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid category data." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const result = await updateMenuCategoryAdmin({
+    categoryId: parsed.data.categoryId,
+    restaurantId,
+    name: parsed.data.name,
+    sortOrder: parsed.data.sortOrder,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return { status: "ok", message: `Category "${result.category.name}" updated` };
+}
+
+const deleteVendorCategorySchema = z.object({
+  categoryId: z.string().min(1),
+});
+
+export async function deleteVendorCategory(input: unknown): Promise<VendorActionState> {
+  const parsed = deleteVendorCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Invalid request." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const result = await deleteMenuCategoryAdmin({
+    categoryId: parsed.data.categoryId,
+    restaurantId,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return {
+    status: "ok",
+    message: `Category and ${result.deletedItemsCount} item(s) deleted`,
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
  * Not a dashboard — a queue of things that need a person. Healthy orders are
  * listed for context, but the screen is sorted and coloured entirely around
  * the stuck ones: a vendor who has not accepted, a gate whose grace ran out, a
- * payment that never confirmed, a stockout nobody answered.
+ * stockout nobody answered.
  *
  * "Run timers now" fires the same sweeps the cron calls. It exists because
  * waiting sixty seconds to see whether a stuck order resolves itself is a

@@ -8,7 +8,6 @@ import {
   Sparkles,
   Store,
   UtensilsCrossed,
-  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -105,10 +104,9 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <dl className="mt-9 grid max-w-md grid-cols-3 gap-3">
+            <dl className="mt-9 grid max-w-md grid-cols-2 gap-3">
               <Stat value="7" label="canteens live" />
               <Stat value="~20" label="min to your gate" />
-              <Stat value="10%" label="commission, not 30%" />
             </dl>
           </div>
 
@@ -175,20 +173,12 @@ export default function LandingPage() {
       <section className="mx-auto max-w-5xl px-5 pb-14">
         <SectionHeading
           eyebrow="Built for a campus, not a city"
-          title="Why it is cheaper and calmer here"
+          title="Why it is calmer and simpler here"
         />
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <FeatureCard
             index={0}
-            tone="saffron"
-            icon={Wallet}
-            eyebrow="Student pricing"
-            title="A ₹60 roll stays ₹60"
-            body="We take 10%, not the 25–30% an aggregator charges. That is the difference between a canteen cooking for you and a canteen quietly raising its menu."
-          />
-          <FeatureCard
-            index={1}
             tone="mint"
             icon={ShieldCheck}
             eyebrow="Handover"
@@ -196,7 +186,7 @@ export default function LandingPage() {
             body="Four digits, written on your order. Match them at the gate and tap confirm. No order can be closed without the person holding it."
           />
           <FeatureCard
-            index={2}
+            index={1}
             tone="amber"
             icon={Clock}
             eyebrow="Curfew aware"
@@ -204,7 +194,7 @@ export default function LandingPage() {
             body="An order that cannot reach you before curfew is never taken. You get told which gate still works and why, not a blank refusal."
           />
           <FeatureCard
-            index={3}
+            index={2}
             tone="sky"
             icon={BellRing}
             eyebrow="Hostel wifi"
