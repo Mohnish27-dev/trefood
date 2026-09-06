@@ -24,6 +24,7 @@ import {
   type CampusSearchIndex,
   type Suggestion,
 } from "@/lib/dish-search";
+import { compareRestaurantsForDisplay } from "@/lib/restaurant-order";
 import type { RestaurantListItem } from "@/server/services/catalog";
 
 /** A dish the student tapped in the suggestions, pinning the feed to it. */
@@ -61,6 +62,11 @@ export function CampusRestaurantFeed({
   const fetchedFor = useRef<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  const orderedRestaurants = useMemo(
+    () => [...restaurants].sort(compareRestaurantsForDisplay),
+    [restaurants],
+  );
+
   /**
    * The set of kitchens this student can currently order from. Switching gates
    * re-renders this component with a different list, and the dish index must
@@ -68,8 +74,8 @@ export function CampusRestaurantFeed({
    * mistake zone-scoping exists to prevent.
    */
   const zoneSignature = useMemo(
-    () => restaurants.map((r) => r._id).join(","),
-    [restaurants],
+    () => orderedRestaurants.map((r) => r._id).join(","),
+    [orderedRestaurants],
   );
 
   /**
@@ -138,7 +144,7 @@ export function CampusRestaurantFeed({
     }
 
     if (suggestion.restaurantIds.length === 1) {
-      const only = restaurants.find((r) => r._id === suggestion.restaurantIds[0]);
+      const only = orderedRestaurants.find((r) => r._id === suggestion.restaurantIds[0]);
       if (only) {
         setSearchQuery("");
         setDishFilter(null);
@@ -166,7 +172,7 @@ export function CampusRestaurantFeed({
     });
   };
 
-  const foodTypeCounts = useMemo(() => getFoodTypeCounts(restaurants), [restaurants]);
+  const foodTypeCounts = useMemo(() => getFoodTypeCounts(orderedRestaurants), [orderedRestaurants]);
 
   /**
    * Restaurants whose MENU matches the raw query, even though their name and
@@ -180,7 +186,7 @@ export function CampusRestaurantFeed({
 
   // Filter restaurants based on search query and selected category box
   const filteredRestaurants = useMemo(() => {
-    return restaurants.filter((r) => {
+    return orderedRestaurants.filter((r) => {
       // 0. A tapped dish pins the feed to the kitchens that actually cook it.
       if (dishFilter) {
         if (!dishFilter.restaurantIds.has(r._id)) return false;
@@ -241,7 +247,7 @@ export function CampusRestaurantFeed({
 
       return true;
     });
-  }, [restaurants, searchQuery, selectedCategory, foodTypeFilter, dishFilter, dishMatchIds]);
+  }, [orderedRestaurants, searchQuery, selectedCategory, foodTypeFilter, dishFilter, dishMatchIds]);
 
   const openRestaurants = useMemo(
     () => filteredRestaurants.filter((r) => r.isServingNow),
