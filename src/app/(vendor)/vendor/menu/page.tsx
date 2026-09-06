@@ -21,14 +21,18 @@ export default async function VendorMenuPage() {
   const view: MenuManagerSection[] = sections.map((section) => ({
     categoryId: section.category._id,
     categoryName: section.category.name,
+    category: section.category,
     items: section.items.map((item) => ({
       itemId: item._id,
+      categoryId: item.categoryId,
       name: item.name,
       description: item.description,
       isVeg: item.isVeg,
       pricePaise: item.pricePaise,
       isAvailable: item.isAvailable,
-      addOnGroupCount: item.addOnGroups.length,
+      isPopular: item.isPopular ?? false,
+      addOnGroups: item.addOnGroups ?? [],
+      addOnGroupCount: item.addOnGroups?.length ?? 0,
     })),
   }));
 

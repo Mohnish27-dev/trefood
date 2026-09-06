@@ -102,7 +102,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_oreo_shake",
     categoryId: "cat_pj_shakes",
-    name: "Oreo Shake (ओरियो शेक)",
+    name: "Oreo Shake",
     description: "Thick creamy shake blended with real crunchy Oreo cookies and ice cream.",
     isVeg: true,
     pricePaise: R(80),
@@ -113,7 +113,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_kitkat_shake",
     categoryId: "cat_pj_shakes",
-    name: "KitKat Shake (किटकेट शेक)",
+    name: "KitKat Shake",
     description: "Delicious thick chocolate shake blended with crunchy KitKat bars.",
     isVeg: true,
     pricePaise: R(80),
@@ -124,7 +124,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_chocolate_shake",
     categoryId: "cat_pj_shakes",
-    name: "Chocolate Shake (चॉकलेट शेक)",
+    name: "Chocolate Shake",
     description: "Rich dark chocolate shake blended thick and smooth.",
     isVeg: true,
     pricePaise: R(90),
@@ -135,7 +135,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_strawberry_shake",
     categoryId: "cat_pj_shakes",
-    name: "Strawberry Shake (स्ट्रॉबेरी शेक)",
+    name: "Strawberry Shake",
     description: "Luscious chilled strawberry shake with rich milk and cream.",
     isVeg: true,
     pricePaise: R(90),
@@ -145,7 +145,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_butterscotch_shake",
     categoryId: "cat_pj_shakes",
-    name: "Butter Scotch Shake (बटरस्कॉच शेक)",
+    name: "Butter Scotch Shake",
     description: "Sweet creamy shake loaded with crunchy butterscotch praline.",
     isVeg: true,
     pricePaise: R(99),
@@ -156,7 +156,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_banana_shake",
     categoryId: "cat_pj_shakes",
-    name: "Banana Shake (बनाना शेक)",
+    name: "Banana Shake",
     description: "Fresh banana milkshake full of natural nutrition and energy.",
     isVeg: true,
     pricePaise: R(70),
@@ -167,7 +167,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_mango_shake",
     categoryId: "cat_pj_shakes",
-    name: "Mango Shake (मैंगो शेक)",
+    name: "Mango Shake",
     description: "Classic thick mango pulp shake made with rich milk.",
     isVeg: true,
     pricePaise: R(70),
@@ -178,7 +178,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_papaya_shake",
     categoryId: "cat_pj_shakes",
-    name: "Papaya Shake (पपाया शेक)",
+    name: "Papaya Shake",
     description: "Healthy and refreshing sweet papaya shake.",
     isVeg: true,
     pricePaise: R(60),
@@ -190,7 +190,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_pomegranate_juice",
     categoryId: "cat_pj_juices",
-    name: "Pomegranate Juice (अनार का जूस)",
+    name: "Pomegranate Juice",
     description: "100% pure cold-pressed fresh pomegranate juice with rich antioxidants.",
     isVeg: true,
     pricePaise: R(100),
@@ -201,7 +201,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_sweet_lime_juice",
     categoryId: "cat_pj_juices",
-    name: "Sweet Lime Juice (मोसम्बी का जूस)",
+    name: "Sweet Lime Juice",
     description: "Freshly squeezed vitamin-C rich sweet mosambi juice.",
     isVeg: true,
     pricePaise: R(50),
@@ -212,7 +212,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_mix_juice",
     categoryId: "cat_pj_juices",
-    name: "Mix Fruit Juice (मिक्स जूस)",
+    name: "Mix Fruit Juice",
     description: "Power-packed blend of seasonal fresh fruits with a dash of chaat masala.",
     isVeg: true,
     pricePaise: R(60),
@@ -223,7 +223,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_pineapple_juice",
     categoryId: "cat_pj_juices",
-    name: "Pineapple Juice (अनानास का जूस)",
+    name: "Pineapple Juice",
     description: "Tangy and sweet pure freshly extracted pineapple juice.",
     isVeg: true,
     pricePaise: R(60),
@@ -233,7 +233,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_sugarcane_juice",
     categoryId: "cat_pj_juices",
-    name: "Sugarcane Juice (गन्ने का जूस)",
+    name: "Sugarcane Juice",
     description: "Refreshing natural sugarcane juice with ginger, lemon and mint.",
     isVeg: true,
     pricePaise: R(30),
@@ -246,7 +246,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_mix_fruit_chaat",
     categoryId: "cat_pj_chaat_coconut",
-    name: "Mix Fruit Chaat (मिक्स फ्रूट चाट)",
+    name: "Mix Fruit Chaat",
     description: "Assorted fresh cut seasonal fruits tossed with special tangy chaat spices and lemon juice.",
     isVeg: true,
     pricePaise: R(50),
@@ -256,7 +256,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_pineapple_fruit_chaat",
     categoryId: "cat_pj_chaat_coconut",
-    name: "Pineapple Fruit Chaat (केवल अनानास फ्रूट चाट)",
+    name: "Pineapple Fruit Chaat",
     description: "Freshly sliced juicy pineapple pieces seasoned with rock salt and roasted spices.",
     isVeg: true,
     pricePaise: R(50),
@@ -266,7 +266,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_dabh_coconut",
     categoryId: "cat_pj_chaat_coconut",
-    name: "Fresh Coconut Water / Dabh (नारियल / डाब)",
+    name: "Fresh Coconut Water / Dabh",
     description: "100% natural, refreshing green tender coconut with sweet hydrating water and malai.",
     isVeg: true,
     pricePaise: R(70),
@@ -300,7 +300,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_pomegranate",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Pomegranate (Anar)",
+    name: "Pomegranate",
     description: "Fresh premium ruby red pomegranate pearls.",
     isVeg: true,
     pricePaise: R(80),
@@ -311,7 +311,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_banana",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Banana (Kela)",
+    name: "Banana",
     description: "Fresh naturally ripened sweet bananas.",
     isVeg: true,
     pricePaise: R(35),
@@ -322,7 +322,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_papaya",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Papaya (Papita)",
+    name: "Papaya",
     description: "Sweet and nutritious ripe golden papaya (approx 1 kg).",
     isVeg: true,
     pricePaise: R(70),
@@ -351,7 +351,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_watermelon",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Watermelon (Tarbooz)",
+    name: "Watermelon",
     description: "Refreshing sweet red watermelon (per kg / half fruit).",
     isVeg: true,
     pricePaise: R(30),
@@ -360,7 +360,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_pear",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Pear (Nashpati)",
+    name: "Pear",
     description: "Crisp and juicy seasonal pears.",
     isVeg: true,
     pricePaise: R(60),
@@ -370,7 +370,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_mango",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Mango (Aam)",
+    name: "Mango",
     description: "Delicious sweet ripe seasonal mangoes.",
     isVeg: true,
     pricePaise: R(40),
@@ -381,7 +381,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_orange",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Orange (Santra)",
+    name: "Orange",
     description: "Juicy sweet Nagpur oranges.",
     isVeg: true,
     pricePaise: R(40),
@@ -391,7 +391,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_kinnow",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Kinnow (Kino)",
+    name: "Kinnow",
     description: "Fresh high-juice citrus kinnow.",
     isVeg: true,
     pricePaise: R(40),
@@ -422,7 +422,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "pj_guava",
     categoryId: "cat_pj_fresh_fruits",
-    name: "Guava (Amrood)",
+    name: "Guava",
     description: "Sweet fresh green Allahabad guavas.",
     isVeg: true,
     pricePaise: R(60),

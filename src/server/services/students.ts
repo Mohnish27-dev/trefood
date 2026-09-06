@@ -1,7 +1,7 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULTS, type Actor } from "@/lib/constants";
+import { ACTOR, CUSTOMER_VISIBLE_STATUSES, DEFAULTS, type Actor } from "@/lib/constants";
 import { writeAudit } from "./audit";
 import type { User } from "@/types/user";
 
@@ -179,7 +179,10 @@ export async function listStudents(params: {
   if (users.length === 0) return [];
 
   const orders = await (await db.orders())
-    .find({ customerId: { $in: users.map((u) => u._id) } })
+    .find({
+      customerId: { $in: users.map((u) => u._id) },
+      status: { $in: [...CUSTOMER_VISIBLE_STATUSES] },
+    })
     .project<{ customerId: string; status: string; timestamps: { createdAt: Date } }>({
       customerId: 1,
       status: 1,

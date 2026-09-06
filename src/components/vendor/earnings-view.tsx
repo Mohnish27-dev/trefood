@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
-import { formatCampusDate } from "@/lib/campus-time";
 import { formatINRPlain } from "@/lib/money";
 import { useVendorLanguage } from "@/context/vendor-language-context";
 import {
@@ -68,7 +67,6 @@ export function EarningsView({
   ledgerTotalPaise,
   settlements,
   pendingPayoutPaise,
-  commissionPct,
 }: {
   days: EarningsDayView[];
   today: EarningsDayView;
@@ -76,7 +74,7 @@ export function EarningsView({
   ledgerTotalPaise: number;
   settlements: SettlementRowView[];
   pendingPayoutPaise: number;
-  commissionPct: string;
+  commissionPct?: string;
 }) {
   const { t, lang } = useVendorLanguage();
 
@@ -90,18 +88,12 @@ export function EarningsView({
       </header>
 
       {/* ── Today ────────────────────────────────────────────────── */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-3">
         <Stat
           icon={TrendingUp}
           label={t("todayGross")}
           paise={today.grossPaise}
           hint={`${today.orderCount} ${today.orderCount === 1 ? t("deliveredOrder") : t("deliveredOrders")}`}
-        />
-        <Stat
-          icon={Receipt}
-          label={`${t("trefoodCommission")} (${commissionPct}%)`}
-          paise={today.commissionPaise}
-          hint={t("commissionChargedOn")}
         />
         <Stat
           icon={Banknote}

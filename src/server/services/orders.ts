@@ -605,7 +605,7 @@ export async function listActiveOrdersForRestaurant(restaurantId: string): Promi
 
 export async function listOrdersForCampus(campusId: string, limit = 100): Promise<Order[]> {
   return (await db.orders())
-    .find({ campusId })
+    .find({ campusId, status: { $in: [...CUSTOMER_VISIBLE_STATUSES] } })
     .sort({ "timestamps.createdAt": -1 })
     .limit(limit)
     .toArray();

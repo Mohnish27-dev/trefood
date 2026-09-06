@@ -114,7 +114,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_pomegranate",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Pomegranate (Anar)",
+    name: "Pomegranate",
     description: "Fresh premium ruby red pomegranate pearls.",
     isVeg: true,
     pricePaise: R(80),
@@ -125,7 +125,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_banana",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Banana (Kela)",
+    name: "Banana",
     description: "Fresh naturally ripened sweet bananas.",
     isVeg: true,
     pricePaise: R(35),
@@ -136,7 +136,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_papaya",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Papaya (Papita)",
+    name: "Papaya",
     description: "Sweet and nutritious ripe golden papaya (approx 1 kg).",
     isVeg: true,
     pricePaise: R(70),
@@ -165,7 +165,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_watermelon",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Watermelon (Tarbooz)",
+    name: "Watermelon",
     description: "Refreshing sweet red watermelon (per kg / half fruit).",
     isVeg: true,
     pricePaise: R(30),
@@ -174,7 +174,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_pear",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Pear (Nashpati)",
+    name: "Pear",
     description: "Crisp and juicy seasonal pears.",
     isVeg: true,
     pricePaise: R(60),
@@ -184,7 +184,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_mango",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Mango (Aam)",
+    name: "Mango",
     description: "Delicious sweet ripe seasonal mangoes.",
     isVeg: true,
     pricePaise: R(40),
@@ -195,7 +195,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_orange",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Orange (Santra)",
+    name: "Orange",
     description: "Juicy sweet Nagpur oranges.",
     isVeg: true,
     pricePaise: R(40),
@@ -205,7 +205,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_kinnow",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Kinnow (Kino)",
+    name: "Kinnow",
     description: "Fresh high-juice citrus kinnow.",
     isVeg: true,
     pricePaise: R(40),
@@ -236,7 +236,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_guava",
     categoryId: "cat_rd_fresh_fruits",
-    name: "Guava (Amrood)",
+    name: "Guava",
     description: "Sweet fresh green Allahabad guavas.",
     isVeg: true,
     pricePaise: R(60),
@@ -248,7 +248,7 @@ const ITEMS: ItemDef[] = [
   {
     id: "rd_coconut_water",
     categoryId: "cat_rd_fresh_juices",
-    name: "Fresh Coconut Water (Daab)",
+    name: "Fresh Coconut Water",
     description: "100% natural, refreshing green tender coconut water with malai.",
     isVeg: true,
     pricePaise: R(80),

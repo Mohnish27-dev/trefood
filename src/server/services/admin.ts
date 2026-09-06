@@ -505,7 +505,9 @@ export async function getRadar(params: {
   const campuses = await (await db.campuses()).find({}).toArray();
   const campusById = new Map(campuses.map((c) => [c._id, c]));
 
-  const filter: Record<string, unknown> = { status: { $nin: [...TERMINAL_STATUSES] } };
+  const filter: Record<string, unknown> = {
+    status: { $nin: [...TERMINAL_STATUSES, ORDER_STATUS.PAYMENT_PENDING] },
+  };
   if (params.campusId) filter.campusId = params.campusId;
 
   const orders = await (await db.orders())
@@ -583,13 +585,6 @@ function stuckReasons(order: Order, campus: Campus | undefined, now: Date): Stuc
     ms > acceptedAt + order.prepMinutes * DEFAULTS.atGateNagMultiplier * 60_000
   ) {
     reasons.push("AT_GATE_NOT_TAPPED");
-  }
-
-  if (
-    order.status === ORDER_STATUS.PAYMENT_PENDING &&
-    ms > order.timestamps.createdAt.getTime() + DEFAULTS.reconcileAfterMinutes * 60_000
-  ) {
-    reasons.push("PAYMENT_HANGING");
   }
 
   if (order.stockout && order.stockout.resolvedAt === null && ms > order.stockout.expiresAt.getTime()) {
