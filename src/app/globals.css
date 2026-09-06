@@ -52,6 +52,7 @@
   --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
   --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-mono-code), ui-monospace, "Cascadia Code", monospace;
+  --font-handwriting: var(--font-caveat), "Caveat", cursive;
 
   /* ── Radii ──────────────────────────────────────────────────────── */
   --radius-card: 1rem;

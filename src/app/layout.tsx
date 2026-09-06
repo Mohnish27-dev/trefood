@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Caveat, Inter, JetBrains_Mono } from "next/font/google";
 
 import {
   InstallPrompt,
@@ -32,6 +32,11 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
+  display: "swap",
+});
 const siteUrl = "https://www.trefood.in";
 
 export const metadata: Metadata = {
@@ -148,7 +153,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${bricolage.variable} ${inter.variable} ${mono.variable}`}
+      className={`${bricolage.variable} ${inter.variable} ${mono.variable} ${caveat.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
