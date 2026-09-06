@@ -51,7 +51,7 @@ export function SignInPicker({
     },
     {
       heading: "TREFOOD ops",
-      blurb: "Radar, disputes, settlements and campus data.",
+      blurb: "Radar, settlements and campus data.",
       roles: [ROLE.ADMIN, ROLE.SUPER_ADMIN],
       icon: Wrench,
     },

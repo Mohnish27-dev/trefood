@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * Modal dialog.
  *
  * Used for the decisions that must not be made by accident: accepting an order
- * with a prep time, rejecting one with a written reason, ruling on a dispute.
+ * with a prep time, rejecting one with a written reason, cancelling one as an admin.
  * Every one of those writes an audit entry, so none of them is a place for a
  * mis-tap on a greasy tablet.
  */

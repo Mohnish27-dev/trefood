@@ -140,7 +140,6 @@ export const CAMPUS: Campus = {
     gateGraceSeconds: DEFAULTS.gateGraceSeconds,
     curfewBufferMinutes: DEFAULTS.curfewBufferMinutes,
     stockoutResolutionSeconds: DEFAULTS.stockoutResolutionSeconds,
-    disputeWindowMinutes: DEFAULTS.disputeWindowMinutes,
     codEnabled: true,
   },
   isActive: true,

@@ -226,7 +226,7 @@ describe("the nightly settlement run", () => {
   });
 
   it("carries a negative net forward instead of clawing money back", async () => {
-    // A dispute debit comfortably bigger than the day's takings AND anything
+    // A penalty comfortably bigger than the day's takings AND anything
     // carried in from day one, which can be up to the payout floor. The vendor
     // must not be billed; the shortfall follows them into the next run.
     const order = await deliveredOrderOn(DAY_TWO, PAYMENT_METHOD.ONLINE_100);
@@ -237,7 +237,7 @@ describe("the nightly settlement run", () => {
       campusId: campus._id,
       orderId: order._id,
       orderNumber: order.orderNumber,
-      type: "DISPUTE_DEBIT",
+      type: "PENALTY",
       amountPaise: -(order.pricing.vendorReceivablePaise + PAYOUT_FLOOR_PAISE + R(500)),
       note: "settlement test: debit exceeding the day's takings",
     });

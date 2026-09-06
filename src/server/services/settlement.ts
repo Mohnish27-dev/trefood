@@ -42,7 +42,6 @@ export const PAYOUT_FLOOR_PAISE: Paise = 10_000;
 const SETTLEABLE_STATUSES = [
   ORDER_STATUS.DELIVERED,
   ORDER_STATUS.DELIVERED_TO_SECURITY,
-  ORDER_STATUS.DISPUTE_REJECTED,
 ] as const;
 
 export interface SettlementRunResult {

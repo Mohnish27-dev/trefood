@@ -21,7 +21,6 @@ import {
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
 import { issueRefund } from "@/server/services/refunds";
-import { ruleDispute } from "@/server/services/disputes";
 import { markSettlementPaid, runSettlement } from "@/server/services/settlement";
 import { clearStrikes, setCodBlocked } from "@/server/services/students";
 import { runAllSweeps } from "@/server/services/sweeps";
@@ -57,7 +56,6 @@ const settingsSchema = z.object({
   gateGraceSeconds: z.number().int().min(120).max(3_600),
   curfewBufferMinutes: z.number().int().min(0).max(60),
   stockoutResolutionSeconds: z.number().int().min(60).max(1_800),
-  disputeWindowMinutes: z.number().int().min(5).max(240),
   codEnabled: z.boolean(),
 });
 
@@ -373,7 +371,7 @@ export async function deleteVendorAccount(input: unknown): Promise<AdminActionSt
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Orders and disputes
+   Orders
    ══════════════════════════════════════════════════════════════════════ */
 
 /** The override for a power cut, a closure, an emergency. Always a full refund. */
@@ -421,31 +419,6 @@ export async function cancelOrderAsAdmin(input: unknown): Promise<AdminActionSta
 
   revalidatePath("/admin/orders");
   return { status: "ok", message: `${order.orderNumber} cancelled and refunded` };
-}
-
-export async function ruleOnDispute(input: unknown): Promise<AdminActionState> {
-  const parsed = z
-    .object({
-      disputeId: z.string().min(1),
-      uphold: z.boolean(),
-      refundAmountPaise: z.number().int().min(0).max(1_000_000).optional(),
-      vendorDebitPaise: z.number().int().min(0).max(1_000_000).optional(),
-      ruling: z.string().trim().min(5, "Write the ruling. Both sides can see it."),
-    })
-    .safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid ruling." };
-  }
-
-  const { user } = await requireAdmin();
-  const result = await ruleDispute({ ...parsed.data, actorId: user._id });
-  if (!result.ok) return { status: "error", message: result.message };
-
-  revalidatePath("/admin/disputes");
-  return {
-    status: "ok",
-    message: parsed.data.uphold ? "Upheld, refunded and vendor debited" : "Report closed",
-  };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

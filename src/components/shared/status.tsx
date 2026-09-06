@@ -94,21 +94,6 @@ const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
     tone: "danger",
     studentBlurb: "This order was cancelled by TREFOOD. Your refund is on its way.",
   },
-  [ORDER_STATUS.DISPUTED]: {
-    label: "Under review",
-    tone: "warning",
-    studentBlurb: "We are reviewing your report. You will hear back shortly.",
-  },
-  [ORDER_STATUS.DISPUTE_UPHELD]: {
-    label: "Refund approved",
-    tone: "success",
-    studentBlurb: "We ruled in your favour. Your refund is on its way.",
-  },
-  [ORDER_STATUS.DISPUTE_REJECTED]: {
-    label: "Report closed",
-    tone: "neutral",
-    studentBlurb: "We could not uphold this report. Contact support if you disagree.",
-  },
   [ORDER_STATUS.SETTLED]: {
     label: "Delivered",
     tone: "success",
@@ -116,16 +101,35 @@ const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
   },
 };
 
+/**
+ * A status the enum no longer recognises.
+ *
+ * The type above is exhaustive at compile time, but Mongo is the one boundary
+ * the type system does not reach: a row written by an older deploy is cast to
+ * `OrderStatus` on the way in and can name a state that has since been
+ * removed. Reading it must degrade to a dull badge, never take the page down
+ * with it — a stale order is not worth a 500 on the tracker or the radar.
+ */
+const UNRECOGNISED: StatusPresentation = {
+  label: "Closed",
+  tone: "neutral",
+  studentBlurb: "This order is closed. Contact support if you need anything about it.",
+};
+
+function presentation(status: OrderStatus): StatusPresentation {
+  return PRESENTATION[status] ?? UNRECOGNISED;
+}
+
 export function statusLabel(status: OrderStatus): string {
-  return PRESENTATION[status].label;
+  return presentation(status).label;
 }
 
 export function statusBlurb(status: OrderStatus): string {
-  return PRESENTATION[status].studentBlurb;
+  return presentation(status).studentBlurb;
 }
 
 export function StatusBadge({ status, className }: { status: OrderStatus; className?: string }) {
-  const p = PRESENTATION[status];
+  const p = presentation(status);
   return (
     <Badge tone={p.tone} className={className}>
       {p.label}

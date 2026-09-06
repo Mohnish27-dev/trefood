@@ -66,9 +66,10 @@ export default function RefundPolicyPage() {
 
           <ProseSection heading="When the food is wrong">
             <p>
-              Raise a dispute from the order within 30 minutes of delivery. If it is upheld
-              you are refunded for the affected items, or for the whole order where the
-              whole order was unusable. Photographs help and are usually decisive.
+              Contact support as soon as you can, with your order number and what went
+              wrong. Where the complaint is upheld you are refunded for the affected
+              items, or for the whole order where the whole order was unusable.
+              Photographs help and are usually decisive.
             </p>
           </ProseSection>
 

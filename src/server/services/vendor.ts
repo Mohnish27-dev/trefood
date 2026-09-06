@@ -265,7 +265,6 @@ export async function getVendorEarnings(params: {
         $in: [
           ORDER_STATUS.DELIVERED,
           ORDER_STATUS.DELIVERED_TO_SECURITY,
-          ORDER_STATUS.DISPUTE_REJECTED,
           ORDER_STATUS.SETTLED,
         ],
       },

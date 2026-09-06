@@ -8,7 +8,6 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import {
-  disputeWindowOpen,
   estimatedArrival,
   gateDeadline,
   getOrderForCustomer,
@@ -66,7 +65,6 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
       ? { amountPaise: order.refund.amountPaise, status: order.refund.status }
       : null,
     reroutedFrom: order.reroutedFromZoneId,
-    canDispute: disputeWindowOpen(order),
     items: order.items.map((i) => ({
       name: i.name,
       isVeg: i.isVeg,

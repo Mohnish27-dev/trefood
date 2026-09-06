@@ -18,7 +18,6 @@ import { COLLECTION, type CollectionName } from "./collections";
  *   orders.idempotencyKey           F12 — a double-tap must return the first order
  *   settlements(restaurantId,date)  F15 — a second nightly run must be a no-op
  *   webhookEvents.eventId           a replayed webhook must not double-process
- *   disputes.orderId                one dispute per order, by construction
  */
 
 const INDEXES: Record<CollectionName, IndexDescription[]> = {
@@ -104,18 +103,12 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { actorId: 1, at: -1 }, name: "actor_at" },
     { key: { entity: 1, entityId: 1, at: -1 }, name: "entity_at" },
     // Deliberately NO ttl. The audit trail is append-only and permanent —
-    // it is the evidence in every dispute and every chargeback.
+    // it is the evidence in every refund and every chargeback.
   ],
 
   [COLLECTION.pushSubscriptions]: [
     { key: { userId: 1 }, name: "userId" },
     { key: { endpoint: 1 }, unique: true, name: "endpoint_unique" },
-  ],
-
-  [COLLECTION.disputes]: [
-    { key: { orderId: 1 }, unique: true, name: "orderId_unique" },
-    { key: { status: 1, createdAt: -1 }, name: "status_recent" },
-    { key: { campusId: 1, status: 1 }, name: "campus_status" },
   ],
 
   [COLLECTION.counters]: [],

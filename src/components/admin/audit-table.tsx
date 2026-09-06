@@ -24,14 +24,14 @@ export interface AuditRow {
   reason: string | null;
 }
 
-const ENTITIES = ["ORDER", "RESTAURANT", "CAMPUS", "USER", "SETTLEMENT", "DISPUTE"] as const;
+const ENTITIES = ["ORDER", "RESTAURANT", "CAMPUS", "USER", "SETTLEMENT"] as const;
 
 /**
  * The audit log viewer.
  *
  * Append-only, and there is deliberately no edit or delete control anywhere on
  * this screen — an editable audit log is not an audit log. This is the
- * evidence in every dispute and every chargeback, so the only two verbs it
+ * evidence in every refund and every chargeback, so the only two verbs it
  * supports are filter and export.
  *
  * Filtering happens client-side over the last few hundred entries, which is

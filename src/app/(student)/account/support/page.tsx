@@ -61,7 +61,7 @@ export default async function ContactSupportPage() {
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">
                 Tell us what happened and which order it was. Anything involving money —
-                a refund, a wrong charge, a cash dispute — is checked against the order
+                a refund, a wrong charge, a disagreement over cash — is checked against the order
                 record before anyone replies, so give it a few hours rather than sending
                 the same message twice.
               </p>
@@ -92,9 +92,9 @@ export default async function ContactSupportPage() {
               </span>
             </Link>
             <p className="px-1 text-xs leading-relaxed text-faint">
-              Wrong, missing or cold food is fastest to fix from the order itself — the
-              dispute form there is already tied to the right order and reaches the same
-              people.
+              Open the order first and call the restaurant from it — wrong, missing or cold
+              food is usually fastest to fix with the kitchen directly. Quote the order
+              number below if you write to us instead.
             </p>
           </section>
         ) : null}
@@ -158,7 +158,7 @@ export default async function ContactSupportPage() {
         <p className="px-1 pb-2 text-xs leading-relaxed text-faint">
           Support cannot change a restaurant&apos;s menu, prices or opening hours — those
           belong to the restaurant. What support can do is chase an order, look at a
-          payment, settle a dispute and put cash-at-the-gate back on an account.
+          payment, look into a complaint and put cash-at-the-gate back on an account.
         </p>
       </div>
     </>
