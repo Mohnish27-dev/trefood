@@ -1,6 +1,8 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
+import { normalize, type CampusSearchIndex, type DishSuggestion } from "@/lib/dish-search";
+import { getRestaurantImages } from "@/lib/restaurant-media";
 import { campusLocalMinutes, isGateOpenAt } from "./curfew";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
@@ -160,4 +162,108 @@ export async function getRestaurantsByIds(
   const rows = await restaurants.find({ _id: { $in: [...ids] } }).toArray();
   const byId = new Map(rows.map((r) => [r._id, r]));
   return ids.map((id) => byId.get(id)).filter((r): r is Restaurant => r !== undefined);
+}
+
+/* ------------------------------------------------------------------ */
+/* Campus dish search index                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Everything the search bar needs to autocomplete, in one payload.
+ *
+ * Built per zone, because a suggestion a student cannot act on is worse than
+ * no suggestion: if no kitchen serving your gate makes Chicken Roll, the word
+ * should not appear while you type. That is the same rule the restaurant list
+ * already follows, applied one level down to dishes.
+ *
+ * Dishes are folded by normalised name across restaurants, so "Chicken
+ * Biryani" is ONE row carrying the ids of every kitchen that cooks it — which
+ * is what lets a tap answer "who has this?" without a second round trip.
+ */
+export async function buildCampusSearchIndex(
+  campus: Campus,
+  zoneId: string | null,
+  now: Date = new Date(),
+): Promise<CampusSearchIndex> {
+  const restaurants = await listRestaurantsForZone(campus, zoneId, now);
+  if (restaurants.length === 0) return { dishes: [], restaurants: [], cuisines: [] };
+
+  const items = await db.menuItems();
+  const rows = await items
+    .find(
+      { restaurantId: { $in: restaurants.map((r) => r._id) } },
+      {
+        projection: {
+          _id: 1,
+          restaurantId: 1,
+          name: 1,
+          isVeg: 1,
+          pricePaise: 1,
+          imageUrl: 1,
+          isPopular: 1,
+        },
+      },
+    )
+    .toArray();
+
+  const imagesByRestaurant = new Map(
+    restaurants.map((r) => [r._id, getRestaurantImages(r)[0] ?? null]),
+  );
+
+  const byName = new Map<string, DishSuggestion>();
+  for (const row of rows) {
+    const key = normalize(row.name);
+    if (key.length === 0) continue;
+
+    const existing = byName.get(key);
+    if (existing) {
+      if (!existing.restaurantIds.includes(row.restaurantId)) {
+        existing.restaurantIds.push(row.restaurantId);
+      }
+      existing.fromPricePaise = Math.min(existing.fromPricePaise, row.pricePaise);
+      existing.isPopular = existing.isPopular || row.isPopular;
+      // A dish is only marked veg when EVERY kitchen's version is veg; the
+      // green dot is a promise, so the pessimistic read is the honest one.
+      existing.isVeg = existing.isVeg && row.isVeg;
+      existing.imageUrl = existing.imageUrl ?? row.imageUrl;
+      continue;
+    }
+
+    byName.set(key, {
+      kind: "dish",
+      name: row.name.trim(),
+      isVeg: row.isVeg,
+      fromPricePaise: row.pricePaise,
+      imageUrl: row.imageUrl ?? imagesByRestaurant.get(row.restaurantId) ?? null,
+      restaurantIds: [row.restaurantId],
+      isPopular: row.isPopular,
+    });
+  }
+
+  const cuisineIds = new Map<string, string[]>();
+  for (const restaurant of restaurants) {
+    for (const cuisine of restaurant.cuisines) {
+      const key = cuisine.trim();
+      if (key.length === 0) continue;
+      const bucket = cuisineIds.get(key);
+      if (bucket) bucket.push(restaurant._id);
+      else cuisineIds.set(key, [restaurant._id]);
+    }
+  }
+
+  return {
+    dishes: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    restaurants: restaurants.map((r) => ({
+      kind: "restaurant" as const,
+      id: r._id,
+      name: r.name,
+      slug: r.slug,
+      cuisines: r.cuisines,
+      imageUrl: imagesByRestaurant.get(r._id) ?? null,
+      isServingNow: r.isServingNow,
+    })),
+    cuisines: [...cuisineIds.entries()]
+      .map(([name, restaurantIds]) => ({ kind: "cuisine" as const, name, restaurantIds }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
 }

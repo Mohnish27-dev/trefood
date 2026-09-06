@@ -22,8 +22,18 @@ export const dynamic = "force-dynamic";
 
 export default async function MenuPage({
   params,
+  searchParams,
 }: PageProps<"/c/[campusSlug]/r/[restaurantSlug]">) {
   const { campusSlug, restaurantSlug } = await params;
+
+  /**
+   * `?dish=` is set by the campus search bar when a suggestion resolves to a
+   * single kitchen. Landing on a 60-item menu with the dish you searched for
+   * somewhere below the fold is the failure this avoids: the menu opens
+   * already filtered to it.
+   */
+  const { dish } = await searchParams;
+  const initialQuery = typeof dish === "string" ? dish : "";
 
   const [campus, restaurant, session] = await Promise.all([
     getCampusBySlug(campusSlug),
@@ -192,6 +202,7 @@ export default async function MenuPage({
         restaurantSlug={restaurant.slug}
         campusSlug={campusSlug}
         restaurantIsOpen={isServing}
+        initialQuery={initialQuery}
       />
 
       <CartBar />

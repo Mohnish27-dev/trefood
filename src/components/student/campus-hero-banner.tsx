@@ -1,7 +1,8 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { CampusSearchBar } from "@/components/student/campus-search-bar";
 import { cn } from "@/lib/utils";
+import type { CampusSearchIndex, Suggestion } from "@/lib/dish-search";
 
 export interface CampusCategoryBox {
   id: string;
@@ -82,6 +83,10 @@ interface CampusHeroBannerProps {
   onSearchChange: (query: string) => void;
   selectedCategory: string | null;
   onSelectCategory: (categoryId: string | null) => void;
+  searchIndex: CampusSearchIndex;
+  onSelectSuggestion: (suggestion: Suggestion) => void;
+  onSearchWake?: () => void;
+  searchIndexLoading?: boolean;
 }
 
 export function CampusHeroBanner({
@@ -89,47 +94,46 @@ export function CampusHeroBanner({
   onSearchChange,
   selectedCategory,
   onSelectCategory,
+  searchIndex,
+  onSelectSuggestion,
+  onSearchWake,
+  searchIndexLoading = false,
 }: CampusHeroBannerProps) {
   return (
-    <div
-      className="relative -mx-4 -mt-4 pt-3 pb-4 rounded-b-[2.5rem] shadow-xl overflow-hidden bg-[#270c5e]"
-      style={{
-        backgroundImage: "url('/homePageBackground.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center top",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      {/* ── Swiggy-Style Clean Search Bar (White Pill inside Purple Container) ─── */}
-      <div className="px-4">
-        <div className="relative flex h-11 sm:h-12 items-center rounded-2xl bg-white text-slate-900 px-4 shadow-md transition-all">
-          <Search className="size-4.5 text-slate-400 shrink-0 mr-2.5" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search for dishes"
-            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none"
-            aria-label="Search for dishes"
-          />
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              className="flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-              aria-label="Clear search"
-            >
-              <X className="size-4" />
-            </button>
-          ) : null}
-        </div>
+    /**
+     * The artwork is clipped by a CHILD layer rather than by this container.
+     * The suggestion panel has to be able to spill past the banner's rounded
+     * bottom edge, and an `overflow-hidden` here would slice it in half.
+     */
+    <div className="relative -mx-4 -mt-4 pt-3 pb-4 rounded-b-[2.5rem] shadow-xl bg-[#270c5e]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 rounded-b-[2.5rem] overflow-hidden"
+        style={{
+          backgroundImage: "url('/homePageBackground.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+
+      {/* ── Swiggy-Style Search Bar + Live Dish Suggestions ─────────── */}
+      <div className="relative z-40 px-4">
+        <CampusSearchBar
+          value={searchQuery}
+          onChange={onSearchChange}
+          index={searchIndex}
+          onWake={onSearchWake}
+          onSelect={onSelectSuggestion}
+          loading={searchIndexLoading}
+        />
       </div>
 
       {/* ── Delivery Guy, Scooter & Food Artwork Space (Reduced height, zero overlap) ─── */}
       <div className="h-[270px] sm:h-[320px] w-full pointer-events-none" aria-hidden="true" />
 
       {/* ── 6 Yellow Boxes Carousel (Indented from left initially, smooth scroll left) ─── */}
-      <div className="px-4 scroll-px-4 flex gap-3 sm:gap-3.5 overflow-x-auto scrollbar-none snap-x snap-mandatory scroll-smooth">
+      <div className="relative px-4 scroll-px-4 flex gap-3 sm:gap-3.5 overflow-x-auto scrollbar-none snap-x snap-mandatory scroll-smooth">
         {CAMPUS_CATEGORY_BOXES.map((box) => {
           const isSelected = selectedCategory === box.id;
           return (
