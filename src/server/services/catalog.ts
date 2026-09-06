@@ -4,6 +4,7 @@ import * as db from "@/server/db/collections";
 import { normalize, type CampusSearchIndex, type DishSuggestion } from "@/lib/dish-search";
 import { getRestaurantImages } from "@/lib/restaurant-media";
 import { campusLocalMinutes, isGateOpenAt } from "./curfew";
+import { compareRestaurantsForDisplay } from "@/lib/restaurant-order";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 
@@ -86,11 +87,7 @@ export async function listRestaurantsForZone(
 
   return rows
     .map((r) => ({ ...r, isServingNow: isRestaurantServing(r, nowMinutes) }))
-    .sort((a, b) => {
-      if (a.isServingNow !== b.isServingNow) return a.isServingNow ? -1 : 1;
-      if (a.prepMinutes !== b.prepMinutes) return a.prepMinutes - b.prepMinutes;
-      return a.name.localeCompare(b.name);
-    });
+    .sort(compareRestaurantsForDisplay);
 }
 
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {

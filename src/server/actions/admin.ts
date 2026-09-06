@@ -15,6 +15,7 @@ import {
   updateCampusSettings,
   updateGeofence,
   updatePayoutDetails,
+  updateRestaurantDisplayOrders,
   upsertZone,
 } from "@/server/services/admin";
 import { getCampusById } from "@/server/services/catalog";
@@ -274,6 +275,31 @@ export async function savePayoutDetails(input: unknown): Promise<AdminActionStat
 
   revalidatePath("/admin/vendors");
   return { status: "ok", message: "Bank details saved" };
+}
+
+const displayOrderSchema = z.object({
+  orderedRestaurantIds: z.array(z.string().min(1)).min(1, "Select at least one restaurant"),
+});
+
+export async function saveRestaurantDisplayOrder(input: unknown): Promise<AdminActionState> {
+  const parsed = displayOrderSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid display order list.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  await updateRestaurantDisplayOrders({
+    orderedRestaurantIds: parsed.data.orderedRestaurantIds,
+    actorId: user._id,
+  });
+
+  revalidatePath("/admin/vendors");
+  revalidatePath("/c/[campusSlug]", "page");
+  revalidatePath("/");
+  return { status: "ok", message: "Restaurant display order updated successfully" };
 }
 
 const createVendorSchema = z.object({

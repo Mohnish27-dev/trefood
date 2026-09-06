@@ -274,6 +274,32 @@ export async function setCommissionOverride(params: {
   return updated;
 }
 
+export async function updateRestaurantDisplayOrders(params: {
+  orderedRestaurantIds: string[];
+  actorId: string;
+}): Promise<void> {
+  const restaurants = await db.restaurants();
+  const now = new Date();
+
+  const updates = params.orderedRestaurantIds.map((id, index) =>
+    restaurants.updateOne(
+      { _id: id },
+      { $set: { displayOrder: index + 1, updatedAt: now } },
+    ),
+  );
+
+  await Promise.all(updates);
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: "all",
+    to: `REORDERED (${params.orderedRestaurantIds.length} restaurants)`,
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: "Admin updated restaurant display order on dashboard",
+  });
+}
+
 export async function updatePayoutDetails(params: {
   restaurantId: string;
   payout: Restaurant["payout"];

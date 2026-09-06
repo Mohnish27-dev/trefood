@@ -18,6 +18,9 @@ export default async function AdminVendorsPage() {
     return {
       restaurantId: vendor._id,
       name: vendor.name,
+      slug: vendor.slug,
+      isApproved: vendor.isApproved,
+      displayOrder: vendor.displayOrder ?? null,
       campusName: campus?.name ?? "Unknown campus",
       ownerName: vendor.kyc.ownerName,
       ownerPhone: vendor.kyc.ownerPhone,
