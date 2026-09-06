@@ -18,6 +18,8 @@ interface RestaurantMenuSearchProps {
   restaurantSlug: string;
   campusSlug: string;
   restaurantIsOpen: boolean;
+  /** Pre-filled from `?dish=` when a campus search suggestion landed here. */
+  initialQuery?: string;
 }
 
 export function RestaurantMenuSearch({
@@ -26,8 +28,9 @@ export function RestaurantMenuSearch({
   restaurantSlug,
   campusSlug,
   restaurantIsOpen,
+  initialQuery = "",
 }: RestaurantMenuSearchProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [dietaryFilter, setDietaryFilter] = useState<DietaryFilter>("all");
 
   const trimmedQuery = query.trim().toLowerCase();
