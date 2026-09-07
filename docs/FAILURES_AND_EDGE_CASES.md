@@ -263,3 +263,47 @@ Practical failures that are not code bugs but will still page you:
    each open a pool. *Fix:* a cached global Mongo client (`globalThis` singleton), and
    `maxPoolSize: 10`. This is a genuine free-tier ceiling — watch it, and treat it as
    the first thing to upgrade when order volume grows.
+
+---
+
+## 6. Known Latent Bugs — found, not yet fixed
+
+Recorded here rather than fixed in passing, because each one touches the money
+path and deserves its own change with its own testing.
+
+### L1 — `Math.round` on the Paytm captured amount
+
+`src/app/api/webhooks/paytm/route.ts`, in the `TXN_SUCCESS` branch:
+
+```js
+const paidPaise = Math.round(parseFloat(params.TXNAMOUNT || "0") * 100);
+```
+
+Caught by our own `no-restricted-syntax` rule (MONEY_AND_SETTLEMENT.md
+section 1: all money is integer paise). It is **not currently misbehaving** —
+Paytm sends `"285.00"`, and `Math.round` converts that correctly — so this is
+a latent risk, not an active loss.
+
+The risk it carries: `Math.round` silently accepts sub-paise input. An amount
+of `285.005` becomes `28501` paise, and `payment.onlinePaidPaise` then differs from
+what was actually charged, which is precisely the divergence settlement
+reconciliation cannot detect later.
+
+`rupeesToPaise()` in `src/lib/money.ts` is the intended helper and **throws**
+on sub-paise precision instead of rounding it away.
+
+**Do not simply swap the call in.** The `webhookEvents` idempotency row is
+inserted *before* this line. If the conversion throws there, the event is
+already marked processed — Paytm retries, hits the duplicate-key branch,
+returns `{ ok: true, "Already processed" }`, and **the payment is never
+captured**. A loud failure becomes silent money loss, which is strictly worse
+than the rounding it replaced.
+
+The fix therefore has two halves, in this order:
+
+1. Parse and validate `TXNAMOUNT` **before** the `webhookEvents` insert, so a
+   malformed amount is rejected while the webhook is still safely retryable.
+2. Then switch to `rupeesToPaise()`.
+
+Ideally parse the decimal string directly rather than through `parseFloat`, so
+no float ever touches a rupee value.
