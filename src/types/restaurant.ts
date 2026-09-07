@@ -118,6 +118,9 @@ export interface Restaurant {
   kyc: RestaurantKyc;
   payout: RestaurantPayout;
 
+  /** Priority ordering on the user dashboard. Lower numbers display first. Null/undefined falls back to default priority. */
+  displayOrder?: number | null | undefined;
+
   /** F4 — three expiries in a day auto-closes the restaurant and alerts admin. */
   expiryCountToday: number;
   autoClosedAt: Date | null;

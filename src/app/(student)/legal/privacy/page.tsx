@@ -61,7 +61,7 @@ export default function PrivacyPolicyPage() {
               items={[
                 "The restaurant you ordered from sees your name, your phone number, your order and your gate — everything needed to cook it and hand it over, and nothing else.",
                 "The payment gateway sees what it needs to take the payment.",
-                "Campus administrators of the service see orders, disputes and account standing in order to run it.",
+                "Campus administrators of the service see orders, complaints and account standing in order to run it.",
                 "Nobody else. Your data is not sold, and it is not shared for advertising.",
               ]}
             />
@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
           <ProseSection heading="How long it is kept">
             <p>
               Order records are kept for as long as they may be needed for accounting,
-              settlement with restaurants, and any dispute or refund arising from them.
+              settlement with restaurants, and any complaint or refund arising from them.
               Profile details are kept while your account exists.
             </p>
           </ProseSection>

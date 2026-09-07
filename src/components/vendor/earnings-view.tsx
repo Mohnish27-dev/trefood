@@ -58,7 +58,7 @@ export interface SettlementRowView {
  *     lie that makes every statement look wrong.
  *   · **Bank transfer** for prepaid orders, once the nightly run closes the day.
  *   · **Adjustments**, which are almost always negative: the gateway fee lost
- *     on a refund they caused, or a dispute ruled against them.
+ *     on a refund they caused.
  */
 export function EarningsView({
   days,

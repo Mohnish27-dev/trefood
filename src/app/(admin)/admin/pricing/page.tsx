@@ -55,7 +55,6 @@ export default async function AdminPricingPage() {
                   gateGraceSeconds: campus.settings.gateGraceSeconds,
                   curfewBufferMinutes: campus.settings.curfewBufferMinutes,
                   stockoutResolutionSeconds: campus.settings.stockoutResolutionSeconds,
-                  disputeWindowMinutes: campus.settings.disputeWindowMinutes,
                   codEnabled: campus.settings.codEnabled,
                 }}
               />

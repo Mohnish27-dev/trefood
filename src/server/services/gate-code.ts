@@ -80,7 +80,7 @@ export function revealGateCode(
   viewer: "STUDENT" | "VENDOR" | "ADMIN",
 ): string | null {
   if (!code) return null;
-  if (viewer === "ADMIN") return code; // dispute rulings need the full timeline
+  if (viewer === "ADMIN") return code; // an admin investigating an order needs the full timeline
   if (viewer === "VENDOR") return isGateCodeVisibleToVendor(status) ? code : null;
   return isGateCodeVisibleToStudent(status) ? code : null;
 }

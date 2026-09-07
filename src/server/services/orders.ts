@@ -5,7 +5,6 @@ import { newId, newOrderNumber } from "@/lib/ids";
 import {
   ACTOR,
   CUSTOMER_VISIBLE_STATUSES,
-  DEFAULTS,
   ORDER_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
@@ -643,12 +642,3 @@ export function gateDeadline(order: Order, campus: Campus): Date | null {
   return new Date(atGateAt.getTime() + campus.settings.gateGraceSeconds * 1_000);
 }
 
-/** Section 3 — the 30-minute dispute window after delivery. */
-export function disputeWindowOpen(order: Order, now: Date = new Date()): boolean {
-  const deliveredAt = order.timestamps.deliveredAt;
-  if (!deliveredAt) return false;
-  if (order.status !== ORDER_STATUS.DELIVERED && order.status !== ORDER_STATUS.DELIVERED_TO_SECURITY) {
-    return false;
-  }
-  return now.getTime() - deliveredAt.getTime() < DEFAULTS.disputeWindowMinutes * 60_000;
-}

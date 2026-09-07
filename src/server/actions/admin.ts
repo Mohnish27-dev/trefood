@@ -15,12 +15,12 @@ import {
   updateCampusSettings,
   updateGeofence,
   updatePayoutDetails,
+  updateRestaurantDisplayOrders,
   upsertZone,
 } from "@/server/services/admin";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
 import { issueRefund } from "@/server/services/refunds";
-import { ruleDispute } from "@/server/services/disputes";
 import { markSettlementPaid, runSettlement } from "@/server/services/settlement";
 import { clearStrikes, setCodBlocked } from "@/server/services/students";
 import { runAllSweeps } from "@/server/services/sweeps";
@@ -56,7 +56,6 @@ const settingsSchema = z.object({
   gateGraceSeconds: z.number().int().min(120).max(3_600),
   curfewBufferMinutes: z.number().int().min(0).max(60),
   stockoutResolutionSeconds: z.number().int().min(60).max(1_800),
-  disputeWindowMinutes: z.number().int().min(5).max(240),
   codEnabled: z.boolean(),
 });
 
@@ -276,6 +275,31 @@ export async function savePayoutDetails(input: unknown): Promise<AdminActionStat
   return { status: "ok", message: "Bank details saved" };
 }
 
+const displayOrderSchema = z.object({
+  orderedRestaurantIds: z.array(z.string().min(1)).min(1, "Select at least one restaurant"),
+});
+
+export async function saveRestaurantDisplayOrder(input: unknown): Promise<AdminActionState> {
+  const parsed = displayOrderSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid display order list.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  await updateRestaurantDisplayOrders({
+    orderedRestaurantIds: parsed.data.orderedRestaurantIds,
+    actorId: user._id,
+  });
+
+  revalidatePath("/admin/vendors");
+  revalidatePath("/c/[campusSlug]", "page");
+  revalidatePath("/");
+  return { status: "ok", message: "Restaurant display order updated successfully" };
+}
+
 const createVendorSchema = z.object({
   ownerName: z.string().trim().min(2, "Owner name must be at least 2 characters"),
   email: z.string().trim().email("Enter a valid email address"),
@@ -347,7 +371,7 @@ export async function deleteVendorAccount(input: unknown): Promise<AdminActionSt
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Orders and disputes
+   Orders
    ══════════════════════════════════════════════════════════════════════ */
 
 /** The override for a power cut, a closure, an emergency. Always a full refund. */
@@ -395,31 +419,6 @@ export async function cancelOrderAsAdmin(input: unknown): Promise<AdminActionSta
 
   revalidatePath("/admin/orders");
   return { status: "ok", message: `${order.orderNumber} cancelled and refunded` };
-}
-
-export async function ruleOnDispute(input: unknown): Promise<AdminActionState> {
-  const parsed = z
-    .object({
-      disputeId: z.string().min(1),
-      uphold: z.boolean(),
-      refundAmountPaise: z.number().int().min(0).max(1_000_000).optional(),
-      vendorDebitPaise: z.number().int().min(0).max(1_000_000).optional(),
-      ruling: z.string().trim().min(5, "Write the ruling. Both sides can see it."),
-    })
-    .safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid ruling." };
-  }
-
-  const { user } = await requireAdmin();
-  const result = await ruleDispute({ ...parsed.data, actorId: user._id });
-  if (!result.ok) return { status: "error", message: result.message };
-
-  revalidatePath("/admin/disputes");
-  return {
-    status: "ok",
-    message: parsed.data.uphold ? "Upheld, refunded and vendor debited" : "Report closed",
-  };
 }
 
 /* ══════════════════════════════════════════════════════════════════════

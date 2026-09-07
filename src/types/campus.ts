@@ -63,7 +63,6 @@ export interface CampusSettings {
   gateGraceSeconds: number;
   curfewBufferMinutes: number;
   stockoutResolutionSeconds: number;
-  disputeWindowMinutes: number;
 
   /** Kill switch for hybrid COD across the whole campus. */
   codEnabled: boolean;

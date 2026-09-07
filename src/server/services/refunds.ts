@@ -36,7 +36,7 @@ export type RefundOutcome =
 
 export async function issueRefund(params: {
   order: Order;
-  /** Defaults to the frozen `refundableAmountPaise`. Pass less for a partial (F6, disputes). */
+  /** Defaults to the frozen `refundableAmountPaise`. Pass less for a partial (F6). */
   amountPaise?: Paise;
   reason: string;
   /** D3 — skip the vendor debit when the fault is not the vendor's. */

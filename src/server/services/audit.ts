@@ -10,7 +10,7 @@ import type { AuditLog } from "@/types/order";
  *
  * PRD Part 4.6 — every state transition writes one of these, recording actor,
  * role, from, to, reason and timestamp. There is deliberately no update and no
- * delete function in this module: the trail is the evidence in every dispute
+ * delete function in this module: the trail is the evidence in every refund
  * and every chargeback, and an editable audit log is not an audit log.
  */
 
@@ -43,7 +43,7 @@ export async function writeAudit(input: AuditInput): Promise<AuditLog> {
   return entry;
 }
 
-/** The order timeline shown to admin during a dispute ruling. */
+/** The order timeline shown to admin when investigating an order. */
 export async function getOrderTimeline(orderId: string): Promise<AuditLog[]> {
   const logs = await db.auditLogs();
   return logs.find({ orderId }).sort({ at: 1 }).toArray();

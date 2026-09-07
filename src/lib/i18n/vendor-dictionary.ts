@@ -277,7 +277,7 @@ export const VENDOR_STRINGS = {
   adjustmentsTotal: { en: "Total", hi: "कुल" },
   noAdjustments: { en: "No adjustments", hi: "कोई कटौती नहीं" },
   noAdjustmentsDesc: {
-    en: "Refund gateway fees and dispute debits would appear here. An empty list is a good list.",
+    en: "Refund gateway fees and other adjustments would appear here. An empty list is a good list.",
     hi: "रिफंड या पेनाल्टी यहां दिखेगी। अभी कोई कटौती नहीं है।",
   },
   when: { en: "When", hi: "तारीख" },
@@ -369,7 +369,7 @@ export const VENDOR_STRINGS = {
 export type VendorStringKey = keyof typeof VENDOR_STRINGS;
 
 /**
- * Localizes an adjustment note (e.g. gateway recovery, disputes, stockouts) into simple Hindi.
+ * Localizes an adjustment note (e.g. gateway recovery, stockouts) into simple Hindi.
  */
 export function localizeLedgerNote(note: string, lang: VendorLanguage): string {
   if (lang !== "hi") return note;
@@ -380,15 +380,6 @@ export function localizeLedgerNote(note: string, lang: VendorLanguage): string {
     return `ऑर्डर ${gwMatch[1]} के रिफंड पर गेटवे शुल्क कटौती`;
   }
 
-  // "Dispute upheld on TRF-NITP-0008: ..."
-  const disputeMatch = note.match(/Dispute upheld on\s+([A-Z0-9-]+)(:\s*(.*))?/i);
-  if (disputeMatch) {
-    const orderNum = disputeMatch[1];
-    const reason = disputeMatch[3];
-    return reason
-      ? `ऑर्डर ${orderNum} पर विवाद कटौती: ${reason}`
-      : `ऑर्डर ${orderNum} पर विवाद कटौती`;
-  }
 
   // "... was unavailable and removed (F6)"
   const stockoutMatch = note.match(/(.*)\s+was unavailable and removed \(F6\)/i);
@@ -413,8 +404,6 @@ export function localizeLedgerType(type: string, lang: VendorLanguage): string {
   switch (type.toUpperCase()) {
     case "REFUND_GATEWAY_RECOVERY":
       return "रिफंड गेटवे शुल्क वसूली";
-    case "DISPUTE_DEBIT":
-      return "विवाद कटौती";
     case "STOCKOUT_SHORTFALL":
       return "आइटम अनुपलब्धता (86)";
     case "PENALTY":

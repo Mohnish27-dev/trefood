@@ -23,7 +23,6 @@ export interface PricingValues {
   gateGraceSeconds: number;
   curfewBufferMinutes: number;
   stockoutResolutionSeconds: number;
-  disputeWindowMinutes: number;
   codEnabled: boolean;
 }
 
@@ -171,13 +170,6 @@ export function PricingForm({
             value={values.stockoutResolutionSeconds}
             onChange={(value) => set("stockoutResolutionSeconds", value)}
             hint="After this we drop the item and refund that line"
-          />
-          <NumberField
-            id="dispute"
-            label="Dispute window (minutes)"
-            value={values.disputeWindowMinutes}
-            onChange={(value) => set("disputeWindowMinutes", value)}
-            hint="Long enough to open the bag, short enough that the food is still evidence"
           />
         </div>
       </Card>

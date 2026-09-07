@@ -9,7 +9,6 @@ import type {
   Coupon,
   Counter,
   DeliveryPartner,
-  Dispute,
   LedgerEntry,
   MenuCategory,
   MenuItem,
@@ -45,7 +44,6 @@ export const COLLECTION = {
   webhookEvents: "webhookEvents",
   auditLogs: "auditLogs",
   pushSubscriptions: "pushSubscriptions",
-  disputes: "disputes",
   counters: "counters",
   deliveryPartners: "deliveryPartners",
 } as const;
@@ -87,9 +85,6 @@ export const auditLogs = async (): Promise<Collection<AuditLog>> =>
 
 export const pushSubscriptions = async (): Promise<Collection<PushSubscription>> =>
   (await getDb()).collection<PushSubscription>(COLLECTION.pushSubscriptions);
-
-export const disputes = async (): Promise<Collection<Dispute>> =>
-  (await getDb()).collection<Dispute>(COLLECTION.disputes);
 
 export const counters = async (): Promise<Collection<Counter>> =>
   (await getDb()).collection<Counter>(COLLECTION.counters);

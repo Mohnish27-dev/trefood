@@ -99,9 +99,10 @@ export default function HelpCentrePage() {
 
             <FaqItem question="My food was wrong, missing or cold">
               <p>
-                Open the order and raise a dispute within 30 minutes of delivery — long
-                enough to open the bag, short enough that the food is still evidence.
-                Describe what happened and add a photo if you can.
+                Call the restaurant first — it is usually the fastest fix. If that does
+                not settle it, <Link href="/account/support" className="underline">contact
+                support</Link> with your order number and what went wrong, while the food
+                is still there to photograph.
               </p>
             </FaqItem>
 
@@ -141,7 +142,7 @@ export default function HelpCentrePage() {
             <FaqItem question="When does a refund reach me?">
               <p>
                 It is sent back to whatever you paid from as soon as the order is cancelled
-                or a dispute goes your way. Banks take 3–5 working days to show it, which
+                or a refund is approved. Banks take 3–5 working days to show it, which
                 is their clock rather than ours. The gateway&apos;s convenience fee is not
                 refundable — it was never TREFOOD&apos;s money.
               </p>

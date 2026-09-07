@@ -29,10 +29,15 @@ import {
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
 import { AddVendorDialog, type CampusOption } from "@/components/admin/add-vendor-dialog";
+import { ReorderRestaurantsDialog } from "@/components/admin/reorder-restaurants-dialog";
+import { getRestaurantDisplayPriority } from "@/lib/restaurant-order";
 
 export interface AdminVendorRow {
   restaurantId: string;
   name: string;
+  slug: string;
+  isApproved: boolean;
+  displayOrder: number | null | undefined;
   campusName: string;
   ownerName: string;
   ownerPhone: string;
@@ -72,6 +77,17 @@ export function AdminVendorTable({
   const pending = vendors.filter((vendor) => vendor.kycStatus === "PENDING");
   const rest = vendors.filter((vendor) => vendor.kycStatus !== "PENDING");
 
+  const reorderableRestaurants = vendors
+    .filter((v) => v.isApproved)
+    .map((v) => ({
+      id: v.restaurantId,
+      name: v.name,
+      campusName: v.campusName,
+      slug: v.slug,
+      displayOrder: v.displayOrder,
+      isOpen: v.isOpen,
+    }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -81,7 +97,12 @@ export function AdminVendorTable({
             Onboard new campus canteens and manage verification and commission overrides.
           </p>
         </div>
-        {campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {reorderableRestaurants.length > 0 ? (
+            <ReorderRestaurantsDialog restaurants={reorderableRestaurants} />
+          ) : null}
+          {campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
+        </div>
       </div>
 
       {vendors.length === 0 ? (
@@ -136,7 +157,14 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
             {vendor.campusName} · {vendor.zoneCount} gate{vendor.zoneCount === 1 ? "" : "s"} served
           </p>
         </div>
-        <KycBadge status={vendor.kycStatus} />
+        <div className="flex items-center gap-2 shrink-0">
+          {vendor.isApproved ? (
+            <span className="inline-flex items-center rounded-md border border-line bg-surface-raised px-2 py-0.5 text-[11px] font-mono font-semibold text-bone">
+              Rank #{getRestaurantDisplayPriority(vendor)}
+            </span>
+          ) : null}
+          <KycBadge status={vendor.kycStatus} />
+        </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
