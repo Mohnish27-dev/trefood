@@ -77,5 +77,18 @@ jobs:
         continue-on-error: true
         run: npm run lint
 
+      - name: Seed the test database
+        # tests/integration/* need the campus (slug "nit-patna") that seed.ts
+        # upserts — gates, curfews and pricing defaults all hang off it. The
+        # restaurant they order from is built and torn down by
+        # canteen-fixture.ts, but the campus is not, so an unseeded database
+        # fails them with "Seed missing" and four unhelpful `false !== true`.
+        #
+        # seed.ts also deletes legacy demo data, which is why it matters that
+        # this can only ever hit the throwaway service container above:
+        # MONGODB_URI comes from the job env, and there is no .env.local on a
+        # runner for vitest.config.mts to load Atlas credentials from.
+        run: npm run seed
+
       - name: Test
         run: npm test
