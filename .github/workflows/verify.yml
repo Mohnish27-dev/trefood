@@ -1,0 +1,66 @@
+# ══════════════════════════════════════════════════════════════════════
+#  Reusable gate: typecheck, lint, test.
+#
+#  Defined once and called by both ci.yml (pull requests) and deploy.yml
+#  (pushes to main), so "green" means exactly the same thing in both. A
+#  deploy that skipped a check the PR ran is how a broken main happens.
+# ══════════════════════════════════════════════════════════════════════
+name: Verify
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # tests/integration/* talk to a real database — vitest.config.mts loads
+    # .env.local so they hit the same Mongo the dev server does. There is no
+    # .env.local on a runner, so CI supplies a throwaway Mongo instead of
+    # letting those tests fail for want of a MONGODB_URI.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 20s
+
+    env:
+      # No credentials: the CI Mongo runs without auth and is destroyed with
+      # the job. A separate database name keeps it obvious in any stray log
+      # that this is not production data.
+      MONGODB_URI: mongodb://127.0.0.1:27017/trefood_ci
+      MONGODB_DB: trefood_ci
+      AUTH_PROVIDER: stub
+      PAYMENT_PROVIDER: stub
+      CRON_SECRET: ci-only-not-a-real-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test

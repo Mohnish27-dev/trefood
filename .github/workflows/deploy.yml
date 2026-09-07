@@ -1,0 +1,230 @@
+# ══════════════════════════════════════════════════════════════════════
+#  Deploy to Lightsail
+#
+#  The point of this file: the 2 vCPU / 2 GiB instance stops building.
+#  A GitHub runner builds the image, pushes it to GHCR, and the server
+#  only pulls and restarts — seconds of downtime instead of ~20 minutes
+#  of a box too small to compile Next while also serving traffic.
+#
+#  Rollback is a workflow_dispatch away: run this workflow with an
+#  image_tag that already exists (sha-a1b2c3d) and it redeploys that
+#  image without rebuilding. Every build is tagged by commit sha for
+#  exactly this reason.
+#
+#  Setup — secrets, variables, and the one-time server bootstrap — is in
+#  docs/DEPLOYMENT.md. Nothing here works until that has been done once.
+# ══════════════════════════════════════════════════════════════════════
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Roll back: an image tag already in GHCR, e.g. sha-a1b2c3d. Blank = build this branch."
+        required: false
+        default: ""
+
+# Never let two deploys touch the server at once. Unlike CI, an in-flight
+# deploy is NOT cancelled — killing it half-way is how you end up with a
+# box running an image nobody can name.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+# Least privilege by default; the build job widens it to push packages.
+permissions:
+  contents: read
+
+jobs:
+  # ---- gate: the same checks the pull request ran ----------------------
+  verify:
+    if: ${{ !inputs.image_tag }}
+    uses: ./.github/workflows/verify.yml
+
+  # ---- build the image on a runner, not on the server ------------------
+  build:
+    name: Build and push image
+    if: ${{ !inputs.image_tag }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_ref: ${{ steps.ref.outputs.image_ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # NEXT_PUBLIC_APP_URL is not decoration: the Paytm callback URL and
+      # every web-push payload build their links from it, and it is inlined
+      # at build time. An image built with it unset points at localhost in
+      # production, silently. Fail here instead, where it is cheap.
+      - name: Require NEXT_PUBLIC_APP_URL
+        env:
+          APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Repository variable NEXT_PUBLIC_APP_URL is not set."
+            echo "Set it under Settings > Secrets and variables > Actions > Variables," >&2
+            echo "to the canonical origin with no trailing slash, e.g. https://www.trefood.in" >&2
+            exit 1
+          fi
+
+      - name: Compute image reference
+        id: ref
+        run: |
+          # GHCR rejects uppercase; this repository owner is mixed-case.
+          IMAGE_NAME="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+          {
+            echo "image_ref=${IMAGE_NAME}:${SHA_TAG}"
+            echo "tags=${IMAGE_NAME}:${SHA_TAG},${IMAGE_NAME}:latest"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.ref.outputs.tags }}
+          # The Lightsail instance is x86_64. Building only what the server
+          # runs keeps this a native build with no qemu emulation.
+          platforms: linux/amd64
+          # Layer cache across runs: node_modules and the Next build survive
+          # between commits that did not touch the lockfile.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Every NEXT_PUBLIC_* the app reads. These are Variables, not
+          # Secrets — they are compiled into the browser bundle and are
+          # public by construction; calling them secret would be theatre.
+          # The `||` fallbacks restore the Dockerfile defaults, because
+          # passing an empty --build-arg overrides an ARG default rather
+          # than falling back to it.
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ vars.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com' }}
+            NEXT_PUBLIC_SUPPORT_EMAIL=${{ vars.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@trefood.in' }}
+            NEXT_PUBLIC_SUPPORT_WHATSAPP=${{ vars.NEXT_PUBLIC_SUPPORT_WHATSAPP }}
+            NEXT_PUBLIC_SUPPORT_PHONE=${{ vars.NEXT_PUBLIC_SUPPORT_PHONE }}
+            NEXT_PUBLIC_POLL_VENDOR_MS=${{ vars.NEXT_PUBLIC_POLL_VENDOR_MS || '5000' }}
+            NEXT_PUBLIC_POLL_STUDENT_MS=${{ vars.NEXT_PUBLIC_POLL_STUDENT_MS || '8000' }}
+            NEXT_PUBLIC_POLL_ADMIN_MS=${{ vars.NEXT_PUBLIC_POLL_ADMIN_MS || '10000' }}
+
+  # ---- ship it ---------------------------------------------------------
+  deploy:
+    name: Deploy to Lightsail
+    needs: [verify, build]
+    # always() so a rollback run — where verify and build are skipped —
+    # still reaches this job. "skipped" is neither failure nor cancelled.
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A GitHub Environment named "production". Add a required reviewer to it
+    # later if you ever want a human in the loop before a deploy lands.
+    environment:
+      name: production
+      url: ${{ vars.NEXT_PUBLIC_APP_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image to deploy
+        id: resolve
+        env:
+          # Passed via env, never interpolated straight into the script: a
+          # workflow_dispatch input is attacker-controllable text.
+          INPUT_TAG: ${{ inputs.image_tag }}
+          BUILT_REF: ${{ needs.build.outputs.image_ref }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            IMAGE_REF="${REGISTRY}/${GITHUB_REPOSITORY,,}:${INPUT_TAG}"
+            echo "Rollback requested."
+          else
+            IMAGE_REF="$BUILT_REF"
+          fi
+          if [ -z "$IMAGE_REF" ]; then
+            echo "::error::Could not resolve an image to deploy."
+            exit 1
+          fi
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
+          echo "Deploying $IMAGE_REF"
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pinned host key. Without it, StrictHostKeyChecking=no would hand
+          # the deploy — and everything it carries — to whoever happens to
+          # answer on that IP.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Copy deployment files to server
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          SSH_USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          # The compose file and Caddyfile are version-controlled here and
+          # overwritten on every deploy, so the server cannot drift into a
+          # configuration that no commit describes.
+          scp -i ~/.ssh/deploy_key \
+            deploy/docker-compose.prod.yml \
+            "${SSH_USER}@${HOST}:/opt/trefood/docker-compose.yml"
+          scp -i ~/.ssh/deploy_key \
+            deploy/Caddyfile \
+            "${SSH_USER}@${HOST}:/opt/trefood/Caddyfile"
+
+      - name: Pull, restart, and health-check
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          SSH_USER: ${{ secrets.LIGHTSAIL_USER }}
+          IMAGE_REF: ${{ steps.resolve.outputs.image_ref }}
+        run: |
+          # The script lives in the repo and is piped over stdin, so the
+          # deploy logic is reviewed like code instead of buried in a YAML
+          # string. It rolls back by itself if the new image is unhealthy.
+          ssh -i ~/.ssh/deploy_key "${SSH_USER}@${HOST}" \
+            "IMAGE_REF='${IMAGE_REF}' bash -s" < deploy/remote-deploy.sh
+
+      - name: Summarise
+        if: always()
+        env:
+          IMAGE_REF: ${{ steps.resolve.outputs.image_ref }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "### Deploy"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Image | \`${IMAGE_REF}\` |"
+            echo "| Commit | \`${GITHUB_SHA:0:7}\` |"
+            echo "| Result | ${JOB_STATUS} |"
+            echo ""
+            echo "To roll back, run this workflow with \`image_tag\` set to an earlier \`sha-\` tag."
+          } >> "$GITHUB_STEP_SUMMARY"

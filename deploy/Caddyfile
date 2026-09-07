@@ -1,0 +1,30 @@
+# ══════════════════════════════════════════════════════════════════════
+#  Caddy — TLS terminator in front of the app container.
+#
+#  Only used when the caddy profile is enabled; see deploy/docker-compose.prod.yml.
+#  {$APP_DOMAIN} comes from the environment, set in /opt/trefood/.env.
+#
+#  Caddy obtains and renews a Let's Encrypt certificate on its own. There
+#  is no certbot, no cron entry, and no renewal to forget.
+# ══════════════════════════════════════════════════════════════════════
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# `app` is the compose service name, resolved on the compose network.
+	# Port 3000 is the container port, not the published loopback one.
+	#
+	# Caddy sets X-Forwarded-For / -Proto / -Host on its own, which is all
+	# Next needs to build correct absolute URLs. Nothing in src/ reads the
+	# client IP today, so there is no X-Real-IP rewrite here — behind
+	# Cloudflare it would carry Cloudflare's edge IP rather than the
+	# visitor's, which is worse than not setting it at all. If you ever do
+	# need the real IP behind the orange cloud, it is in CF-Connecting-IP.
+	reverse_proxy app:3000
+
+	# The health endpoint is for the container's own HEALTHCHECK and for
+	# you at a terminal. Nothing outside needs to poll it, and an open
+	# health endpoint tells a scanner when the database is down.
+	@health path /api/health
+	respond @health 404
+}

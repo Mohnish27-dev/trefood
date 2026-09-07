@@ -1,14 +1,21 @@
 node_modules
 .next
 .git
+.github
 .env.local
 .env*.local
 npm-debug.log*
 Dockerfile
 docker-compose*.yml
 .dockerignore
+deploy
 coverage
 *.md
 !docs/**
 .vscode
 .idea
+# Local database state — never part of an image, and megabytes of build
+# context uploaded to the builder on every CI run if left in.
+.mongo-data
+.mongo-local
+tsconfig.tsbuildinfo
