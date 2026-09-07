@@ -100,7 +100,7 @@ export function CampusHeroBanner({
   searchIndexLoading = false,
 }: CampusHeroBannerProps) {
   return (
-    /**
+       /**
      * The artwork is clipped by a CHILD layer rather than by this container.
      * The suggestion panel has to be able to spill past the banner's rounded
      * bottom edge, and an `overflow-hidden` here would slice it in half.
@@ -110,9 +110,9 @@ export function CampusHeroBanner({
         aria-hidden="true"
         className="absolute inset-0 rounded-b-[2.5rem] overflow-hidden"
         style={{
-          backgroundImage: "url('/homePageBackground.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
+          backgroundImage: "url('/homepage.png')",
+          backgroundSize: "94% auto",
+          backgroundPosition: "center 30px",
           backgroundRepeat: "no-repeat",
         }}
       />
@@ -128,9 +128,10 @@ export function CampusHeroBanner({
           loading={searchIndexLoading}
         />
       </div>
+      </div>
 
       {/* ── Delivery Guy, Scooter & Food Artwork Space (Reduced height, zero overlap) ─── */}
-      <div className="h-[270px] sm:h-[320px] w-full pointer-events-none" aria-hidden="true" />
+      <div className="h-[calc(min(100vw,32rem)-3.5rem)] w-full pointer-events-none" aria-hidden="true" />
 
       {/* ── 6 Yellow Boxes Carousel (Indented from left initially, smooth scroll left) ─── */}
       <div className="relative px-4 scroll-px-4 flex gap-3 sm:gap-3.5 overflow-x-auto scrollbar-none snap-x snap-mandatory scroll-smooth">
