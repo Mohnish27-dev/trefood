@@ -128,7 +128,6 @@ export function CampusHeroBanner({
           loading={searchIndexLoading}
         />
       </div>
-      </div>
 
       {/* ── Delivery Guy, Scooter & Food Artwork Space (Reduced height, zero overlap) ─── */}
       <div className="h-[calc(min(100vw,32rem)-3.5rem)] w-full pointer-events-none" aria-hidden="true" />

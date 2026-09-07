@@ -1,0 +1,104 @@
+# ══════════════════════════════════════════════════════════════════════
+#  TREFOOD — production stack on Lightsail
+#
+#  Copied to /opt/trefood/docker-compose.yml by .github/workflows/deploy.yml
+#  on every deploy. Do not hand-edit it on the server: the next deploy
+#  overwrites it, and a change that lives only on the box is a change no
+#  commit can explain.
+#
+#  This file never builds. The image is built on a GitHub runner and pulled
+#  by tag — that is the whole reason a 2 GiB instance can deploy in seconds.
+#
+#  Two files supply configuration, and the split is deliberate:
+#
+#    /opt/trefood/app.env  runtime secrets read INSIDE the container
+#                          (Atlas URI, Paytm key, CRON_SECRET). Never in git.
+#    /opt/trefood/.env     compose substitution only — APP_DOMAIN, and
+#                          COMPOSE_PROFILES to switch the proxy on.
+#
+#  Mongo is not here. Production uses Atlas, so the only stateful thing on
+#  this box is Caddy's certificate store.
+# ══════════════════════════════════════════════════════════════════════
+
+name: trefood
+
+services:
+  app:
+    # Set by the deploy workflow, pinned to a commit sha. There is no
+    # `latest` here on purpose: a restart must bring back the exact image
+    # that was running, not whatever happens to be newest in the registry.
+    image: ${IMAGE_REF:?IMAGE_REF must be set — run deploy/remote-deploy.sh, not `docker compose up` by hand}
+    container_name: trefood-app
+    restart: unless-stopped
+
+    env_file:
+      - app.env
+    environment:
+      NODE_ENV: production
+
+    # Loopback by default: whatever terminates TLS — the Caddy profile
+    # below, or an nginx on the host — reaches the app here, and nothing
+    # else can.
+    #
+    # The one reason to override it is a box with no domain pointed at it
+    # yet, where there is nothing to get a certificate for. Then, in
+    # /opt/trefood/.env:
+    #
+    #     APP_BIND=0.0.0.0:80
+    #
+    # That serves orders over plain HTTP. It is a stopgap for a staging
+    # box, not a configuration to take payments on.
+    ports:
+      - "${APP_BIND:-127.0.0.1:3000}:3000"
+
+    # The box has 2 GiB and no swap by default. An unbounded Node process
+    # that runs away takes the whole instance down, SSH included; with a
+    # limit, only the container dies and `restart: unless-stopped` brings
+    # it back. Raise this if the app legitimately needs more — but add
+    # swap first (docs/DEPLOYMENT.md).
+    mem_limit: 1400m
+
+    # Without this, json-file logs grow until the disk is full, and a full
+    # disk on a single-instance deploy is an outage.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---- optional TLS terminator ----------------------------------------
+  # Off unless the server's /opt/trefood/.env contains:
+  #     COMPOSE_PROFILES=caddy
+  #     APP_DOMAIN=www.trefood.in
+  # Leave it off if nginx already owns :80 and :443 on the host — two
+  # things cannot bind the same port, and the deploy will fail loudly if
+  # you try.
+  caddy:
+    image: caddy:2-alpine
+    container_name: trefood-caddy
+    profiles: ["caddy"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      # Read by Caddyfile as {$APP_DOMAIN}. Caddy provisions a Let's Encrypt
+      # certificate for it automatically on first request.
+      APP_DOMAIN: ${APP_DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account keys. Losing this volume means
+      # re-issuing certs, and Let's Encrypt rate-limits that.
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy-data:
+  caddy-config:

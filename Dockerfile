@@ -23,18 +23,45 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next inlines NEXT_PUBLIC_* at build time, so they must be present here.
-# Non-public secrets are deliberately absent - they are read at runtime.
+# Next inlines NEXT_PUBLIC_* at build time, so EVERY one the app reads must
+# be present here — an unset one is baked in as undefined and the feature it
+# powers is dead in the image, with no runtime error to tell you.
+# The authoritative list is `clientSchema` in src/lib/env.ts; keep the two
+# in step. Non-public secrets are deliberately absent - read at runtime.
+#
+# None of these are secret: by definition they ship to the browser. That is
+# why CI passes them as repository *Variables*, not Secrets.
+#
+# Defaults mirror the zod defaults in src/lib/env.ts. Optional vars default
+# to empty, which `optionalString` reads as "not configured" - the clean
+# switch-off, not a half-wired placeholder.
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_SUPABASE_URL=
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ARG NEXT_PUBLIC_POSTHOG_KEY=
+ARG NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+ARG NEXT_PUBLIC_SUPPORT_EMAIL=support@trefood.in
+ARG NEXT_PUBLIC_SUPPORT_WHATSAPP=
+ARG NEXT_PUBLIC_SUPPORT_PHONE=
 ARG NEXT_PUBLIC_POLL_VENDOR_MS=5000
 ARG NEXT_PUBLIC_POLL_STUDENT_MS=8000
 ARG NEXT_PUBLIC_POLL_ADMIN_MS=10000
-ARG NEXT_PUBLIC_DEMO_MODE=false
+
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY \
+    NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST \
+    NEXT_PUBLIC_SUPPORT_EMAIL=$NEXT_PUBLIC_SUPPORT_EMAIL \
+    NEXT_PUBLIC_SUPPORT_WHATSAPP=$NEXT_PUBLIC_SUPPORT_WHATSAPP \
+    NEXT_PUBLIC_SUPPORT_PHONE=$NEXT_PUBLIC_SUPPORT_PHONE \
     NEXT_PUBLIC_POLL_VENDOR_MS=$NEXT_PUBLIC_POLL_VENDOR_MS \
     NEXT_PUBLIC_POLL_STUDENT_MS=$NEXT_PUBLIC_POLL_STUDENT_MS \
     NEXT_PUBLIC_POLL_ADMIN_MS=$NEXT_PUBLIC_POLL_ADMIN_MS \
-    NEXT_PUBLIC_DEMO_MODE=$NEXT_PUBLIC_DEMO_MODE \
     NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
