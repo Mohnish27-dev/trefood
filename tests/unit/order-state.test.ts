@@ -150,13 +150,11 @@ describe("guards", () => {
     if (!result.ok) expect(result.code).toBe("GATE_CODE_MISSING");
   });
 
-  it("rejections, cancellations and dispute rulings demand a written reason", () => {
+  it("rejections and cancellations demand a written reason", () => {
     const needsReason: ReadonlyArray<[OrderStatus, OrderStatus, typeof A.VENDOR | typeof A.ADMIN]> =
       [
         [S.PLACED, S.REJECTED_BY_VENDOR, A.VENDOR],
         [S.PREPARING, S.CANCELLED_BY_ADMIN, A.ADMIN],
-        [S.DISPUTED, S.DISPUTE_UPHELD, A.ADMIN],
-        [S.DISPUTED, S.DISPUTE_REJECTED, A.ADMIN],
       ];
 
     for (const [from, to, actor] of needsReason) {
@@ -202,7 +200,6 @@ describe("machine shape", () => {
       S.EXPIRED_NO_ACK,
       S.CANCELLED_BY_ADMIN,
       S.NO_SHOW,
-      S.DISPUTE_UPHELD,
       S.SETTLED,
     ] as const) {
       expect(isTerminal(status)).toBe(true);

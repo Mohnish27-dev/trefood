@@ -117,8 +117,8 @@ export async function generateTreFoodQrSvg({
   if (!resolvedLogo) {
     const targetLogoPath = logoPath || path.join(process.cwd(), "public", "logo.png");
     try {
-      if (fs.existsSync(targetLogoPath)) {
-        const buf = fs.readFileSync(targetLogoPath);
+      if (fs.existsSync(/* turbopackIgnore: true */ targetLogoPath)) {
+        const buf = fs.readFileSync(/* turbopackIgnore: true */ targetLogoPath);
         resolvedLogo = `data:image/png;base64,${buf.toString("base64")}`;
       }
     } catch {

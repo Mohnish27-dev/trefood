@@ -57,9 +57,6 @@ async function removeLegacyDemoData(): Promise<number> {
     removed.total += count(
       await (await db.auditLogs()).deleteMany({ orderId: { $in: doomedOrderIds } }),
     );
-    removed.total += count(
-      await (await db.disputes()).deleteMany({ orderId: { $in: doomedOrderIds } }),
-    );
   }
 
   // The fictional restaurants and everything hanging off them.

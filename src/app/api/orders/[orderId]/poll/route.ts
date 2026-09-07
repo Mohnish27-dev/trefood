@@ -4,7 +4,6 @@ import * as db from "@/server/db/collections";
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import {
-  disputeWindowOpen,
   estimatedArrival,
   gateDeadline,
   getOrderForCustomer,
@@ -72,9 +71,6 @@ export interface OrderPollResponse {
 
   /** F11 — the gate changed while the order was in flight. */
   reroutedFrom: string | null;
-
-  /** Section 3 — the 30-minute reporting window is still open. */
-  canDispute: boolean;
 
   items: { name: string; isVeg: boolean; quantity: number; lineTotalPaise: number; addOns: string[] }[];
 }
@@ -165,7 +161,6 @@ export async function GET(
       : null,
 
     reroutedFrom: order.reroutedFromZoneId,
-    canDispute: disputeWindowOpen(order),
 
     items: order.items.map((i) => ({
       name: i.name,

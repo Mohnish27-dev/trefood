@@ -231,7 +231,7 @@ export function DeliveryVerificationCard({ data }: Props) {
         {/* Security Guard Actions */}
         <div className="space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-1">
-            Guard Actions / Dispute Resolution
+            Guard Actions
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">

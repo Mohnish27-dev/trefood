@@ -16,7 +16,6 @@ export interface LedgerEntry {
   orderNumber: string | null;
   type:
     | "REFUND_GATEWAY_RECOVERY"
-    | "DISPUTE_DEBIT"
     /** F6 — a line the kitchen could not deliver, refunded to the student. */
     | "STOCKOUT_SHORTFALL"
     | "PENALTY"

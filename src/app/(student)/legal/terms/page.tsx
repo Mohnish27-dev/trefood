@@ -43,7 +43,7 @@ export default function TermsPage() {
             <p>
               TREFOOD is a marketplace. Restaurants list their own menus, set their own
               prices, cook the food and deliver it with their own staff. TREFOOD runs the
-              ordering, the payments and the dispute process between you and them.
+              ordering, the payments and the complaints process between you and them.
             </p>
             <p>
               This matters in one practical way: food quality, portion size and cooking
@@ -93,12 +93,12 @@ export default function TermsPage() {
             />
           </ProseSection>
 
-          <ProseSection heading="6. Disputes">
+          <ProseSection heading="6. Complaints">
             <p>
-              If your food is wrong, missing or unfit to eat, raise a dispute from the order
-              within 30 minutes of delivery. Describe what happened and add a photo where
-              you can. Disputes are read by a person, decided against the order record, and
-              a refund follows a decision in your favour.
+              If your food is wrong, missing or unfit to eat, contact support as soon as
+              you can with your order number. Describe what happened and add a photo where
+              you can. Complaints are read by a person, decided against the order record,
+              and a refund follows a decision in your favour.
             </p>
           </ProseSection>
 

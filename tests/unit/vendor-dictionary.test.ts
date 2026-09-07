@@ -74,7 +74,6 @@ describe("Vendor Bilingual Dictionary", () => {
 
     // Ledger type tag localization
     expect(localizeLedgerType("REFUND_GATEWAY_RECOVERY", "hi")).toBe("रिफंड गेटवे शुल्क वसूली");
-    expect(localizeLedgerType("DISPUTE_DEBIT", "hi")).toBe("विवाद कटौती");
     expect(localizeLedgerType("REFUND_GATEWAY_RECOVERY", "en")).toBe("refund gateway recovery");
 
     // Localized campus date

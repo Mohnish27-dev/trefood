@@ -8,14 +8,12 @@ import { ACTOR } from "@/lib/constants";
 import { requireSession } from "@/server/auth/session";
 import { getOrderForCustomer } from "@/server/services/orders";
 import { resolveStockout } from "@/server/services/stockout";
-import { openDispute } from "@/server/services/disputes";
-import type { Dispute } from "@/types/ops";
 
 /**
- * The two student actions that are not part of the happy path.
+ * The student actions that are not part of the happy path.
  *
  * Kept out of `student.ts` deliberately: that file is the ordering flow, and
- * these are the two moments where something has already gone wrong. Both
+ * these are the moments where something has already gone wrong. They
  * re-check ownership against the session rather than trusting an id from the
  * client, exactly as `placeOrder` and `confirmReceived` do.
  */
@@ -105,48 +103,4 @@ export async function listSubstitutes(
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
   }));
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   Disputes — 30 minutes, photo mandatory
-   ══════════════════════════════════════════════════════════════════════ */
-
-const disputeSchema = z.object({
-  orderId: z.string().min(1),
-  reason: z.enum(["WRONG_ITEM", "MISSING_ITEM", "SPILLED", "COLD", "NOT_DELIVERED", "OTHER"]),
-  note: z.string().trim().max(500),
-  /** Already uploaded through /api/uploads, which is where the bytes are validated. */
-  photoUrls: z.array(z.string().min(1)).min(1, "Add at least one photo").max(3),
-});
-
-export async function reportProblem(input: unknown): Promise<StudentActionState> {
-  const parsed = disputeSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: parsed.error.issues[0]?.message ?? "Add a photo and pick what went wrong.",
-    };
-  }
-
-  const { user } = await requireSession();
-
-  const order = await getOrderForCustomer(parsed.data.orderId, user._id);
-  if (!order) return { status: "error", message: "That order is not yours." };
-
-  const result = await openDispute({
-    order,
-    customerId: user._id,
-    reason: parsed.data.reason as Dispute["reason"],
-    note: parsed.data.note,
-    photoUrls: parsed.data.photoUrls,
-  });
-
-  if (!result.ok) return { status: "error", message: result.message };
-
-  revalidatePath(`/orders/${order._id}`);
-  revalidatePath("/orders");
-  return {
-    status: "ok",
-    message: "Reported. We will look at the photos and get back to you.",
-  };
 }

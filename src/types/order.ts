@@ -181,7 +181,7 @@ export interface Order {
 export interface AuditLog {
   _id: string;
   orderId: string | null;
-  entity: "ORDER" | "RESTAURANT" | "CAMPUS" | "USER" | "SETTLEMENT" | "DISPUTE";
+  entity: "ORDER" | "RESTAURANT" | "CAMPUS" | "USER" | "SETTLEMENT";
   entityId: string;
   from: string | null;
   to: string;

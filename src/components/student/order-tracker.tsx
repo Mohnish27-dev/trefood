@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertTriangle, Check, Loader2, Phone, Truck, Wallet } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -341,22 +340,6 @@ function StatusScreen({
           Call {order.restaurantName}
         </a>
       </Button>
-
-      {/* ── Delivered / Dispute Window ────────────────────────── */}
-      {order.canDispute ? (
-        <Button asChild block variant="ghost" size="lg" className="mt-2">
-          <Link href={`/orders/${order.orderId}/dispute`}>
-            <AlertTriangle />
-            Something was wrong with this order
-          </Link>
-        </Button>
-      ) : null}
-
-      {order.status === ORDER_STATUS.DISPUTED ? (
-        <p className="rounded-xl border border-line bg-surface px-3.5 py-3 text-center text-xs leading-relaxed text-muted">
-          A person is reviewing your report and the photos you sent. You will see the outcome here.
-        </p>
-      ) : null}
 
       {isDelivered ? (
         <p className="text-center text-xs text-mint font-medium">

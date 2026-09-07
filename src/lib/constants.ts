@@ -24,9 +24,6 @@ export const ORDER_STATUS = {
   REJECTED_BY_VENDOR: "REJECTED_BY_VENDOR",
   EXPIRED_NO_ACK: "EXPIRED_NO_ACK",
   CANCELLED_BY_ADMIN: "CANCELLED_BY_ADMIN",
-  DISPUTED: "DISPUTED",
-  DISPUTE_UPHELD: "DISPUTE_UPHELD",
-  DISPUTE_REJECTED: "DISPUTE_REJECTED",
   SETTLED: "SETTLED",
 } as const;
 
@@ -39,8 +36,6 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
   ORDER_STATUS.EXPIRED_NO_ACK,
   ORDER_STATUS.CANCELLED_BY_ADMIN,
   ORDER_STATUS.NO_SHOW,
-  ORDER_STATUS.DISPUTE_UPHELD,
-  ORDER_STATUS.DISPUTE_REJECTED,
   ORDER_STATUS.SETTLED,
 ];
 
@@ -74,9 +69,6 @@ export const CUSTOMER_VISIBLE_STATUSES: readonly OrderStatus[] = [
   ORDER_STATUS.REJECTED_BY_VENDOR,
   ORDER_STATUS.EXPIRED_NO_ACK,
   ORDER_STATUS.CANCELLED_BY_ADMIN,
-  ORDER_STATUS.DISPUTED,
-  ORDER_STATUS.DISPUTE_UPHELD,
-  ORDER_STATUS.DISPUTE_REJECTED,
   ORDER_STATUS.SETTLED,
 ];
 
@@ -106,7 +98,6 @@ export const STUDENT_STEPPER: readonly {
       ORDER_STATUS.DELIVERED,
       ORDER_STATUS.DELIVERED_TO_SECURITY,
       ORDER_STATUS.SETTLED,
-      ORDER_STATUS.DISPUTED,
     ],
   },
 ];
@@ -189,8 +180,6 @@ export const DEFAULTS = {
   curfewBufferMinutes: 10,
   /** F6 — student has 5 minutes to resolve a stockout before "drop it" is assumed. */
   stockoutResolutionSeconds: 300,
-  /** Section 3 — dispute window. Long enough to open the bag, short enough that the food is still evidence. */
-  disputeWindowMinutes: 30,
   /** F1 — an unpaid order is abandoned after this long. */
   paymentAbandonMinutes: 15,
   /** F1 — reconciliation ignores orders younger than this, to let the webhook win the race. */

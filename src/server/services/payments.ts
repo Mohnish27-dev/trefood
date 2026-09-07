@@ -170,7 +170,8 @@ const paytmProvider: PaymentProvider = {
       const resultCode = resultInfo?.resultCode ?? "unknown";
       if (resultCode === "501") {
         throw new Error(
-          `Paytm ${env.PAYTM_ENVIRONMENT} gateway returned System Error (code 501). ` +
+          `Paytm ${env.PAYTM_ENVIRONMENT} gateway returned System Error (code 501): ` +
+            `${resultInfo?.resultMsg ?? "no message"}. ` +
             "The transaction token was not created. Verify that this MID, merchant key, and website name belong to the same Paytm environment; if they do, retry later or contact Paytm because this response originates from their gateway.",
         );
       }

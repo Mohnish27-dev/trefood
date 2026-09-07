@@ -192,36 +192,6 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     requiresReason: true,
   })),
 
-  /* ── Disputes ─────────────────────────────────────────────────── */
-  {
-    from: S.DELIVERED,
-    to: S.DISPUTED,
-    actors: [A.STUDENT],
-    why: "Student reported an issue within 30 minutes. Photo evidence mandatory.",
-    requiresReason: true,
-  },
-  {
-    from: S.DELIVERED_TO_SECURITY,
-    to: S.DISPUTED,
-    actors: [A.STUDENT],
-    why: "Same window applies to a guard handoff.",
-    requiresReason: true,
-  },
-  {
-    from: S.DISPUTED,
-    to: S.DISPUTE_UPHELD,
-    actors: [A.ADMIN],
-    why: "Admin ruled for the student. Refund, and debit the vendor ledger.",
-    requiresReason: true,
-  },
-  {
-    from: S.DISPUTED,
-    to: S.DISPUTE_REJECTED,
-    actors: [A.ADMIN],
-    why: "Admin ruled for the vendor.",
-    requiresReason: true,
-  },
-
   /* ── Settlement ───────────────────────────────────────────────── */
   {
     from: S.DELIVERED,
@@ -234,12 +204,6 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     to: S.SETTLED,
     actors: [A.SYSTEM],
     why: "Nightly settlement run.",
-  },
-  {
-    from: S.DISPUTE_REJECTED,
-    to: S.SETTLED,
-    actors: [A.SYSTEM],
-    why: "Dispute closed in the vendor's favour; the order settles normally.",
   },
 ];
 
@@ -287,7 +251,7 @@ export interface TransitionSubject {
 export interface TransitionRequest {
   to: OrderStatus;
   actor: Actor;
-  /** Mandatory for rejections, cancellations and dispute rulings. */
+  /** Mandatory for rejections and cancellations. */
   reason?: string | undefined;
   /** Required when moving PLACED -> ACCEPTED. */
   prepMinutes?: number | undefined;
