@@ -230,12 +230,32 @@ delegated to Cloudflare). That changes the TLS setup in a way that is worth
 getting right the first time, because the failure mode is an infinite
 redirect loop rather than an error message.
 
-Check what the record is doing:
+**Confirmed state as of the cutover** — both records are *proxied*:
+
+```
+www.trefood.in -> 172.67.171.15    (Cloudflare)
+trefood.in     -> 104.21.63.163    (Cloudflare)
+```
+
+and `https://www.trefood.in` returns 200 while the origin listens on **port
+80 only, with no TLS**. Those two facts together have exactly one
+explanation: Cloudflare's encryption mode is **Flexible**.
+
+```
+student ──HTTPS──> Cloudflare ──plain HTTP, public internet──> Lightsail :80
+         encrypted                    NOT encrypted
+```
+
+The padlock users see is real for the first leg and nothing else. Session
+cookies and order payloads cross from Cloudflare's edge to the instance in
+the clear. Moving to Caddy fixes this, which is a better reason to do it
+than the deploy pipeline is.
+
+Re-check any time with:
 
 ```bash
-# What the world resolves. If this returns a 104.x / 172.6x address, the
-# record is proxied (orange cloud) and you are seeing Cloudflare, not the
-# instance. A match with the Lightsail public IP means DNS-only.
+# A 104.x / 172.6x answer means proxied (orange cloud) — you are seeing
+# Cloudflare. A match with the Lightsail public IP means DNS-only.
 dig +short www.trefood.in
 ```
 
@@ -244,6 +264,17 @@ In the Cloudflare dashboard, `DNS → Records`, click the orange cloud on the
 `www` (and apex) record so it goes grey. Let's Encrypt then talks straight to
 Caddy, the certificate is issued in seconds, and there is exactly one thing
 that can be wrong instead of three.
+
+> **This site is live, so budget for a short HTTPS gap.** Between going grey
+> and Caddy finishing issuance, `https://` fails — the origin genuinely has
+> no certificate yet. `http://` keeps working throughout. Realistically two
+> to three minutes; do it at a quiet hour, not over a lunch rush.
+>
+> The alternative is staying orange the whole way, which trades the clean
+> gap for a messier one: Caddy can still answer the ACME challenge through
+> Cloudflare on port 80, but every real request loops with
+> `ERR_TOO_MANY_REDIRECTS` until you switch the mode to Full (strict)
+> afterwards. A predictable two-minute outage beats an unpredictable one.
 
 Verify it worked before changing anything else:
 
