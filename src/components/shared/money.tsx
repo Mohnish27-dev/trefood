@@ -24,14 +24,15 @@ export function Money({
   /** For a struck-through original price beside a discounted one. */
   strike?: boolean;
 }) {
+  const safePaise = typeof paise === "number" && Number.isSafeInteger(paise) ? paise : 0;
   return (
     <span
       className={cn("tabular", strike && "line-through text-faint", className)}
       // The machine-readable value, for copy-paste and for screen readers that
       // announce the currency correctly.
-      data-paise={paise}
+      data-paise={safePaise}
     >
-      {formatINR(paise, { exact })}
+      {formatINR(safePaise, { exact })}
     </span>
   );
 }
@@ -50,6 +51,7 @@ export function MoneyRow({
   emphasis?: boolean;
   negative?: boolean;
 }) {
+  const safePaise = typeof paise === "number" && Number.isSafeInteger(paise) ? paise : 0;
   return (
     <div className={cn("flex items-baseline justify-between gap-3 py-1.5", emphasis && "pt-3")}>
       <div className="min-w-0">
@@ -66,7 +68,7 @@ export function MoneyRow({
         )}
       >
         {negative ? "-" : ""}
-        <Money paise={paise} />
+        <Money paise={safePaise} />
       </span>
     </div>
   );
