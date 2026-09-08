@@ -110,6 +110,8 @@ export interface Restaurant {
   closesMinutes: number;
   /** The one-tap release valve. Vendor toggles this during a surge. */
   isOpen: boolean;
+  /** When true, admin has forcibly closed the restaurant. Vendor cannot reopen it until admin re-enables it. */
+  adminClosed?: boolean;
   isApproved: boolean;
 
   rating: number | null;

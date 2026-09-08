@@ -31,6 +31,7 @@ export function VendorShell(props: {
   staffName: string;
   isOpen: boolean;
   autoClosed: boolean;
+  adminClosed?: boolean;
 }) {
   return (
     <VendorLanguageProvider>
@@ -45,6 +46,7 @@ function VendorShellContent({
   staffName,
   isOpen,
   autoClosed,
+  adminClosed = false,
 }: {
   children: ReactNode;
   restaurantName: string;
@@ -52,6 +54,7 @@ function VendorShellContent({
   isOpen: boolean;
   /** True when F4's three-expiry rule shut this restaurant automatically. */
   autoClosed: boolean;
+  adminClosed?: boolean;
 }) {
   const pathname = usePathname();
   const { t } = useVendorLanguage();
@@ -71,6 +74,12 @@ function VendorShellContent({
   if (isPrintView) return <>{children}</>;
 
   const toggle = async (next: boolean): Promise<void> => {
+    if (adminClosed && next) {
+      toast.error(
+        "This restaurant was closed by platform administration and can only be reopened by an admin.",
+      );
+      return;
+    }
     setSaving(true);
     // Optimistic: the switch must feel instant on a tablet mid-surge. The
     // server result reconciles it a moment later either way.
@@ -125,20 +134,28 @@ function VendorShellContent({
                 <p
                   className={cn(
                     "text-sm font-semibold leading-none",
-                    open ? "text-mint" : "text-chili",
+                    adminClosed ? "text-chili" : open ? "text-mint" : "text-chili",
                   )}
                 >
-                  {open ? t("takingOrders") : t("closed")}
+                  {adminClosed ? "Closed by Admin" : open ? t("takingOrders") : t("closed")}
                 </p>
-                {!open && autoClosed ? (
+                {adminClosed ? (
+                  <p className="mt-1 text-[11px] leading-none text-amber">Contact admin to reopen</p>
+                ) : !open && autoClosed ? (
                   <p className="mt-1 text-[11px] leading-none text-amber">{t("autoClosed")}</p>
                 ) : null}
               </div>
               <Switch
                 checked={open}
-                disabled={saving}
+                disabled={saving || adminClosed}
                 onCheckedChange={(next) => void toggle(next)}
-                aria-label={open ? t("stopTakingOrders") : t("startTakingOrders")}
+                aria-label={
+                  adminClosed
+                    ? "Closed by platform administration"
+                    : open
+                      ? t("stopTakingOrders")
+                      : t("startTakingOrders")
+                }
               />
             </div>
 

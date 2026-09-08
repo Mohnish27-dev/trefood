@@ -777,8 +777,19 @@ export async function setRestaurantOpen(input: unknown): Promise<VendorActionSta
   if (!parsed.success) return { status: "error", message: "Invalid request." };
 
   const { restaurantId, user } = await requireVendor();
+  const restaurants = await db.restaurants();
+  const restaurant = await restaurants.findOne({ _id: restaurantId });
+  if (!restaurant) return { status: "error", message: "Restaurant not found." };
 
-  await (await db.restaurants()).updateOne(
+  if (restaurant.adminClosed && parsed.data.isOpen) {
+    return {
+      status: "error",
+      message:
+        "This restaurant was closed by platform administration and can only be reopened by an admin.",
+    };
+  }
+
+  await restaurants.updateOne(
     { _id: restaurantId },
     {
       $set: {
@@ -803,6 +814,8 @@ export async function setRestaurantOpen(input: unknown): Promise<VendorActionSta
 
   revalidatePath("/vendor/orders");
   revalidatePath("/vendor/settings");
+  revalidatePath("/c/[campusSlug]", "page");
+  revalidatePath("/");
   return { status: "ok", message: parsed.data.isOpen ? "Taking orders" : "Closed for now" };
 }
 

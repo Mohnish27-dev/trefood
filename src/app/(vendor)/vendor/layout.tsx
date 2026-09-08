@@ -44,6 +44,7 @@ export default async function VendorLayout({ children }: { children: ReactNode }
       staffName={session.user.name}
       isOpen={restaurant.isOpen}
       autoClosed={restaurant.autoClosedAt !== null}
+      adminClosed={Boolean(restaurant.adminClosed)}
     >
       {children}
     </VendorShell>

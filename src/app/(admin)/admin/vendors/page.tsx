@@ -29,6 +29,7 @@ export default async function AdminVendorsPage() {
       kycStatus: vendor.kyc.status,
       rejectionReason: vendor.kyc.rejectionReason,
       isOpen: vendor.isOpen,
+      adminClosed: Boolean(vendor.adminClosed),
       zoneCount: vendor.servedZoneIds.length,
       minOrderPaise: vendor.minOrderPaise,
       packagingFeePaise: vendor.packagingFeePaise,

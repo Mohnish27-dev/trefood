@@ -11,6 +11,7 @@ import {
   deleteVendor,
   reviewKyc,
   setCommissionOverride,
+  setRestaurantOpenAsAdmin,
   setZoneActive,
   updateCampusSettings,
   updateGeofence,
@@ -290,6 +291,43 @@ export async function saveRestaurantDisplayOrder(input: unknown): Promise<AdminA
   revalidatePath("/c/[campusSlug]", "page");
   revalidatePath("/");
   return { status: "ok", message: "Restaurant display order updated successfully" };
+}
+
+const toggleRestaurantOpenSchema = z.object({
+  restaurantId: z.string().min(1),
+  isOpen: z.boolean(),
+});
+
+export async function toggleRestaurantOpenAction(input: unknown): Promise<AdminActionState> {
+  const parsed = toggleRestaurantOpenSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid request.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const updated = await setRestaurantOpenAsAdmin({
+    restaurantId: parsed.data.restaurantId,
+    isOpen: parsed.data.isOpen,
+    actorId: user._id,
+  });
+
+  if (!updated) {
+    return { status: "error", message: "That restaurant does not exist." };
+  }
+
+  revalidatePath("/admin/vendors");
+  revalidatePath("/c/[campusSlug]", "page");
+  revalidatePath("/vendor/orders");
+  revalidatePath("/vendor/settings");
+  revalidatePath("/");
+
+  return {
+    status: "ok",
+    message: `${updated.name} is now ${parsed.data.isOpen ? "Open" : "Closed"}`,
+  };
 }
 
 const createVendorSchema = z.object({

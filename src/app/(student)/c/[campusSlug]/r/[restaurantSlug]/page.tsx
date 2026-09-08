@@ -114,7 +114,7 @@ export default async function MenuPage({
               </Badge>
             ) : (
               <Badge tone="warning" className="px-2.5 py-0.5 text-[11px] font-medium shadow-2xs">
-                Closed · opens {formatTime12h(restaurant.opensMinutes)}
+                {!restaurant.isOpen ? "Closed for now" : `Closed · opens ${formatTime12h(restaurant.opensMinutes)}`}
               </Badge>
             )}
           </div>
