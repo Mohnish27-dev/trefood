@@ -125,7 +125,7 @@ export function KotTicket({ order }: { order: KotOrder }) {
 
           <div className="border-2 border-black p-2 text-center">
             <p className="text-[11px] font-bold uppercase">Collect cash</p>
-            <p className="text-2xl font-bold">{formatINR(order.cashDuePaise)}</p>
+            <p className="text-2xl font-bold">{formatINR(order.cashDuePaise ?? 0)}</p>
             <p className="text-[11px]">Exact amount. No change expected.</p>
           </div>
 

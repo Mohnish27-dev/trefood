@@ -169,9 +169,9 @@ function toBoardOrder(params: {
       isAvailable: params.availability.get(item.itemId) ?? true,
     })),
 
-    cashDuePaise: order.payment.cashDuePaise,
-    vendorReceivablePaise: order.pricing.vendorReceivablePaise,
-    platformCommissionPaise: order.pricing.platformCommissionPaise,
+    cashDuePaise: order.payment?.cashDuePaise ?? order.pricing?.grandTotalPaise ?? 0,
+    vendorReceivablePaise: order.pricing?.vendorReceivablePaise ?? 0,
+    platformCommissionPaise: order.pricing?.platformCommissionPaise ?? 0,
 
     gateCode: revealGateCode(order.gateCode, order.status, "VENDOR"),
     prepMinutes: order.prepMinutes,
@@ -294,12 +294,14 @@ export async function getVendorEarnings(params: {
     const bucket = buckets.get(date);
     if (!bucket) continue;
 
+    const platformCommissionPaise = order.pricing?.platformCommissionPaise ?? 0;
+    const cashCollectedPaise = order.payment?.cashCollectedPaise ?? 0;
     bucket.orderCount += 1;
-    bucket.grossPaise += order.pricing.commissionBasePaise;
-    bucket.commissionPaise += order.pricing.platformCommissionPaise;
-    bucket.discountPaise += order.pricing.discountPaise;
-    bucket.cashCollectedPaise += order.payment.cashCollectedPaise;
-    bucket.keptPaise += order.payment.cashCollectedPaise - order.pricing.platformCommissionPaise;
+    bucket.grossPaise += order.pricing?.commissionBasePaise ?? 0;
+    bucket.commissionPaise += platformCommissionPaise;
+    bucket.discountPaise += order.pricing?.discountPaise ?? 0;
+    bucket.cashCollectedPaise += cashCollectedPaise;
+    bucket.keptPaise += cashCollectedPaise - platformCommissionPaise;
   }
 
   const days = [...buckets.values()].sort((a, b) => b.date.localeCompare(a.date));
@@ -376,6 +378,9 @@ async function todaySummary(params: {
 
   return {
     todayOrderCount: rows.length,
-    todayGrossPaise: rows.reduce((total, row) => total + row.pricing.vendorReceivablePaise, 0),
+    todayGrossPaise: rows.reduce(
+      (total, row) => total + (row.pricing?.vendorReceivablePaise ?? 0),
+      0,
+    ),
   };
 }
