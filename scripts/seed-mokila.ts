@@ -24,7 +24,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_mokila_nitp";
 const VENDOR_USER_ID = "usr_mokila_vendor";
-const VENDOR_EMAIL = "mokila.nitp@trefood.in";
+const VENDOR_EMAIL = "mukeshkumarfood714@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -324,7 +324,7 @@ export async function seedMokila(): Promise<void> {
     name: "Mokila Manager",
     email: VENDOR_EMAIL,
     phone: "9876543214",
-    passwordHash: hashPassword("Mokila@2026"),
+    passwordHash: hashPassword("Mukesh@74798"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -376,7 +376,7 @@ export async function seedMokila(): Promise<void> {
   console.log("\n=== Mokila Restaurant Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Mokila@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Mukesh@74798`);
 }
 
 async function main() {

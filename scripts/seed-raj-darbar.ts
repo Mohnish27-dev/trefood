@@ -22,7 +22,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_raj_darbar_nitp";
 const VENDOR_USER_ID = "usr_raj_darbar_vendor";
-const VENDOR_EMAIL = "rajdarbar.nitp@trefood.in";
+const VENDOR_EMAIL = "rajdarbarfood789@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -954,7 +954,7 @@ export async function seedRajDarbar(): Promise<void> {
     name: "Raj Darbar Manager",
     email: VENDOR_EMAIL,
     phone: "7209046762",
-    passwordHash: hashPassword("RajDarbar@2026"),
+    passwordHash: hashPassword("Rajdarbar@720902026"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -1006,7 +1006,7 @@ export async function seedRajDarbar(): Promise<void> {
   console.log("\n=== Raj Darbar Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / RajDarbar@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Rajdarbar@720902026`);
 }
 
 async function main() {

@@ -35,7 +35,7 @@ import { CAMPUS_ID } from "./seed-data";
 
 const RESTAURANT_ID = "rest_vrindavan_bhog_nitp";
 const VENDOR_USER_ID = "usr_vrindavan_bhog_vendor";
-const VENDOR_EMAIL = "vrindavanbhog.nitp@trefood.in";
+const VENDOR_EMAIL = "vrindavanamzone@gmail.com";
 
 const R = rupeesToPaise;
 
@@ -1307,7 +1307,7 @@ export async function seedVrindavanBhog(): Promise<void> {
     name: "Vrindavan Bhog Manager",
     email: VENDOR_EMAIL,
     phone: "9113723910",
-    passwordHash: hashPassword("VrindavanBhog@2026"),
+    passwordHash: hashPassword("vrindanamtrefood@123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     codBlocked: false,
@@ -1359,7 +1359,7 @@ export async function seedVrindavanBhog(): Promise<void> {
   console.log("\n=== Vrindavan Bhog Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / VrindavanBhog@2026`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / vrindanamtrefood@123`);
 }
 
 async function main() {
