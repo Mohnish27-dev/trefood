@@ -50,8 +50,7 @@ export default async function KotPage({
         zoneName: order.deliveryZoneSnapshot.name,
         zoneInstructions: order.deliveryZoneSnapshot.instructions,
         prepMinutes: order.prepMinutes,
-        method: order.payment.method,
-        cashDueOnDeliveryPaise: order.payment.cashDueOnDeliveryPaise,
+        cashDuePaise: order.payment.cashDuePaise,
         // Redacted until READY, exactly as on the board. A ticket printed
         // while the food is still on the stove must not carry the code.
         gateCode: revealGateCode(order.gateCode, order.status, "VENDOR"),

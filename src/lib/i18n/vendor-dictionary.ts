@@ -250,35 +250,29 @@ export const VENDOR_STRINGS = {
     en: "Charged on food, packaging and delivery",
     hi: "खाने, पैकिंग और डिलीवरी पर कमीशन",
   },
-  cashWithYou: { en: "Cash already with you", hi: "कैश (जो आपके पास जमा है)" },
-  cashOrdersSettled: { en: "cash orders, settled at the gate", hi: "कैश ऑर्डर, गेट पर सेटल" },
-  cashOrderSettled: { en: "cash order, settled at the gate", hi: "कैश ऑर्डर, गेट पर सेटल" },
-  cashSettledAtGate: {
-    en: "Cash collected at gate, self-settled",
-    hi: "गेट पर मिला कैश, आपका ही है",
+  cashWithYou: { en: "Cash collected today", hi: "आज मिला कैश" },
+  cashCollectedHint: {
+    en: "Your staff collected it at the gate",
+    hi: "आपके स्टाफ ने गेट पर वसूला",
   },
-  awaitingBankTransfer: { en: "Awaiting bank transfer", hi: "बैंक ट्रांसफर बाकी" },
-  payoutStatementsWritten: {
-    en: "Prepaid orders pending nightly transfer",
-    hi: "रात में बैंक खाते में भेजी जाने वाली राशि",
-  },
-  statementsWrittenPending: {
-    en: "Statements written but not yet paid",
-    hi: "स्टेटमेंट बन चुकी है, भुगतान जल्द होगा",
+  commissionOwed: { en: "You owe TREFOOD", hi: "TREFOOD को देना है" },
+  commissionOwedHint: {
+    en: "Statements raised and not yet paid",
+    hi: "स्टेटमेंट बन चुकी है, भुगतान बाकी है",
   },
   lastSevenDays: { en: "Last seven days", hi: "पिछले 7 दिन" },
   day: { en: "Day", hi: "दिन" },
   ordersCount: { en: "Orders", hi: "ऑर्डर" },
   gross: { en: "Gross", hi: "कुल बिक्री" },
   commission: { en: "Commission", hi: "कमीशन" },
-  netShare: { en: "Your share", hi: "आपकी कमाई" },
-  ofWhichCash: { en: "Of which cash", hi: "जिसमें से कैश" },
+  youKeep: { en: "You keep", hi: "आपके पास बचा" },
+  cashCollected: { en: "Cash collected", hi: "मिला कैश" },
   adjustments: { en: "Adjustments", hi: "कटौती / समायोजन" },
   adjustmentsTotal: { en: "Total", hi: "कुल" },
   noAdjustments: { en: "No adjustments", hi: "कोई कटौती नहीं" },
   noAdjustmentsDesc: {
-    en: "Refund gateway fees and other adjustments would appear here. An empty list is a good list.",
-    hi: "रिफंड या पेनाल्टी यहां दिखेगी। अभी कोई कटौती नहीं है।",
+    en: "Credits and penalties on what you owe would appear here. An empty list is a good list.",
+    hi: "आपके बकाया पर छूट या पेनाल्टी यहां दिखेगी। अभी कुछ नहीं है।",
   },
   when: { en: "When", hi: "तारीख" },
   reason: { en: "Reason", hi: "कारण" },
@@ -287,13 +281,13 @@ export const VENDOR_STRINGS = {
   downloadCsv: { en: "Download CSV", hi: "CSV डाउनलोड करें" },
   noStatementsYet: { en: "No statements yet", hi: "अभी कोई स्टेटमेंट नहीं है" },
   noStatementsDesc: {
-    en: "One is written for you every night at 23:59. Cash orders are already settled and never appear on it.",
-    hi: "रोज़ रात 11:59 पर स्टेटमेंट तैयार होती है। कैश ऑर्डर पहले ही सेटल हो चुके होते हैं।",
+    en: "One is written for you every night at 23:59, showing the commission due on that day's deliveries.",
+    hi: "रोज़ रात 11:59 पर स्टेटमेंट तैयार होती है, जिसमें उस दिन का कमीशन दिखता है।",
   },
-  prepaidOrders: { en: "Prepaid orders", hi: "ऑनलाइन ऑर्डर" },
-  netPayable: { en: "Net payable", hi: "कुल भुगतान राशि" },
+  commissionDue: { en: "Commission", hi: "कमीशन" },
+  netDue: { en: "You owe", hi: "देना है" },
   carriedForward: { en: "Carried forward", hi: "आगे जोड़ी गई राशि" },
-  settlementHistory: { en: "Settlement History & Payouts", hi: "बैंक ट्रांसफर और भुगतान का इतिहास" },
+  settlementHistory: { en: "Commission statements", hi: "कमीशन स्टेटमेंट" },
   status: { en: "Status", hi: "स्थिति" },
   paid: { en: "Paid", hi: "भुगतान हो गया" },
   pending: { en: "Pending", hi: "प्रक्रिया में" },
@@ -351,8 +345,8 @@ export const VENDOR_STRINGS = {
   },
   earningsPageTitle: { en: "Earnings", hi: "कमाई" },
   earningsPageSubtitle: {
-    en: "Cash orders are settled the moment the rider is paid — only prepaid orders wait for a bank transfer.",
-    hi: "कैश ऑर्डर डिलीवरी के समय ही सेटल हो जाते हैं — केवल ऑनलाइन प्रीपेड ऑर्डर बैंक ट्रांसफर का इंतज़ार करते हैं।",
+    en: "Your staff collect the full bill in cash at every gate. Each night we raise a statement for the commission on what you delivered, and you settle it with us.",
+    hi: "आपका स्टाफ हर गेट पर पूरा बिल कैश में वसूलता है। हर रात उस दिन की डिलीवरी पर कमीशन की स्टेटमेंट बनती है, जो आपको हमें चुकानी होती है।",
   },
   settingsPageTitle: { en: "Settings", hi: "सेटिंग्स" },
   settingsPageSubtitle: {
@@ -406,6 +400,8 @@ export function localizeLedgerType(type: string, lang: VendorLanguage): string {
       return "रिफंड गेटवे शुल्क वसूली";
     case "STOCKOUT_SHORTFALL":
       return "आइटम अनुपलब्धता (86)";
+    case "STOCKOUT_CREDIT":
+      return "आइटम अनुपलब्धता (86) — छूट";
     case "PENALTY":
       return "पेनाल्टी / जुर्माना";
     case "MANUAL_ADJUSTMENT":

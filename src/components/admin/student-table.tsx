@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/states";
-import { clearStudentStrikes, toggleStudentCod } from "@/server/actions/admin";
+import { clearStudentStrikes, toggleStudentOrdering } from "@/server/actions/admin";
 
 export interface StudentRowView {
   userId: string;
@@ -28,8 +28,8 @@ export interface StudentRowView {
   email: string;
   phone: string | null;
   strikes: number;
-  codBlocked: boolean;
-  codBlockedReason: string | null;
+  ordersBlocked: boolean;
+  ordersBlockedReason: string | null;
   orderCount: number;
   noShowCount: number;
   lastOrderAt: string | null;
@@ -38,11 +38,12 @@ export interface StudentRowView {
 /**
  * Student management.
  *
- * The only lever here is cash on delivery, and it is deliberately reversible
- * in both directions. A student who missed two gates is not a fraudster — they
- * had an exam, or fell asleep — and a blocked-COD student who must prepay is a
- * better customer than a lost one. There is no ban button on this screen
- * because there is no ban.
+ * Cash on delivery is the only way to order, so pausing an account is a ban —
+ * which is exactly why nothing automatic does it. Strikes accumulate on their
+ * own and bring an account to the top of this list; a person reads the history
+ * and decides. A student who missed two gates is usually not a fraudster: they
+ * had an exam, or fell asleep. Clearing their strikes costs nothing, and it is
+ * the first thing to reach for.
  */
 export function StudentTable({ students }: { students: StudentRowView[] }) {
   const [query, setQuery] = useState("");
@@ -91,7 +92,7 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
               <TH className="text-right">Orders</TH>
               <TH className="text-right">No-shows</TH>
               <TH className="text-right">Strikes</TH>
-              <TH>Cash on delivery</TH>
+              <TH>Ordering</TH>
               <TH />
             </tr>
           </THead>
@@ -121,12 +122,12 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
                   )}
                 </TD>
                 <TD>
-                  {student.codBlocked ? (
+                  {student.ordersBlocked ? (
                     <span className="inline-flex flex-col gap-1">
-                      <Badge tone="danger">Blocked</Badge>
-                      {student.codBlockedReason ? (
+                      <Badge tone="danger">Paused</Badge>
+                      {student.ordersBlockedReason ? (
                         <span className="max-w-56 text-[11px] leading-tight text-muted">
-                          {student.codBlockedReason}
+                          {student.ordersBlockedReason}
                         </span>
                       ) : null}
                     </span>
@@ -136,7 +137,7 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
                 </TD>
                 <TD className="text-right">
                   <div className="flex justify-end gap-2">
-                    <CodDialog student={student} />
+                    <OrderingDialog student={student} />
                     {student.strikes > 0 ? <ClearStrikesButton student={student} /> : null}
                   </div>
                 </TD>
@@ -151,15 +152,15 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
 
 /* ------------------------------------------------------------------ */
 
-function CodDialog({ student }: { student: StudentRowView }) {
+function OrderingDialog({ student }: { student: StudentRowView }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const blocking = !student.codBlocked;
+  const blocking = !student.ordersBlocked;
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);
-    const result = await toggleStudentCod({
+    const result = await toggleStudentOrdering({
       userId: student.userId,
       blocked: blocking,
       reason,
@@ -180,19 +181,19 @@ function CodDialog({ student }: { student: StudentRowView }) {
       <DialogTrigger asChild>
         <Button size="sm" variant="secondary">
           {blocking ? <ShieldOff /> : null}
-          {blocking ? "Block COD" : "Restore COD"}
+          {blocking ? "Pause ordering" : "Restore ordering"}
         </Button>
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {blocking ? "Disable" : "Restore"} cash on delivery for {student.name}?
+            {blocking ? "Pause" : "Restore"} ordering for {student.name}?
           </DialogTitle>
           <DialogDescription>
             {blocking
-              ? "They can still order — the cash option simply disappears at checkout, and they see the reason you write here on their account page."
-              : "The cash option reappears at checkout immediately."}
+              ? "This stops them ordering at all — cash on delivery is the only way to order, so there is no lesser option. They see the reason you write here on their account page. Consider clearing their strikes instead."
+              : "They can order again immediately."}
           </DialogDescription>
         </DialogHeader>
 
@@ -202,8 +203,8 @@ function CodDialog({ student }: { student: StudentRowView }) {
             onChange={(event) => setReason(event.target.value)}
             placeholder={
               blocking
-                ? "Refused to pay at the gate on 12 Sep"
-                : "Spoke to the student; two no-shows were an exam clash"
+                ? "Refused to pay at the gate on 12 Sep, third time this month"
+                : "Spoke to the student; the no-shows were an exam clash"
             }
             maxLength={200}
           />
@@ -219,7 +220,7 @@ function CodDialog({ student }: { student: StudentRowView }) {
             onClick={() => void submit()}
           >
             {submitting ? <Loader2 className="animate-spin" /> : null}
-            {blocking ? "Disable cash" : "Restore cash"}
+            {blocking ? "Pause ordering" : "Restore ordering"}
           </Button>
         </DialogFooter>
       </DialogContent>

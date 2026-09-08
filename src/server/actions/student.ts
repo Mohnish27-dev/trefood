@@ -4,13 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
-import { serverEnv } from "@/lib/env";
+import { ACTOR, ORDER_STATUS } from "@/lib/constants";
 import { requireSession } from "@/server/auth/session";
 import { getCampusById, getRestaurantById } from "@/server/services/catalog";
 import { checkCurfew } from "@/server/services/curfew";
 import { createOrder, getOrderForCustomer, transitionOrder } from "@/server/services/orders";
-import { paymentProvider } from "@/server/services/payments";
 import { verifyGateCode } from "@/server/services/gate-code";
 import { writeAudit } from "@/server/services/audit";
 
@@ -32,7 +30,6 @@ const placeOrderSchema = z.object({
   restaurantId: z.string().min(1),
   zoneId: z.string().min(1),
   lines: z.array(lineSchema).min(1).max(50),
-  method: z.enum([PAYMENT_METHOD.ONLINE_100, PAYMENT_METHOD.HYBRID_COD]),
   // F12 — client-generated per checkout attempt. A double-tap returns the first order.
   idempotencyKey: z.string().min(8).max(64),
   phone: z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number"),
@@ -42,17 +39,7 @@ const placeOrderSchema = z.object({
 export type PlaceOrderState =
   | { status: "idle" }
   | { status: "error"; message: string; issues?: { itemId: string; message: string }[] }
-  | {
-      status: "success";
-      orderId: string;
-      paytm?: {
-        orderId: string;
-        txnToken: string;
-        amountRupees: string;
-        mid: string;
-        isStaging: boolean;
-      };
-    };
+  | { status: "success"; orderId: string };
 
 /**
  * Place an order.
@@ -61,9 +48,11 @@ export type PlaceOrderState =
  *   1. authenticate
  *   2. capture the phone (D7 — collected at first checkout, reused forever)
  *   3. re-run the CURFEW GUARD against this restaurant's real prep time
- *   4. create the order as PAYMENT_PENDING, before the gateway opens
- *   5. open the payment intent
- *   6. promote to PLACED only on capture, through the FSM
+ *   4. create the order, already PLACED
+ *
+ * There is no step five. Every order is cash on delivery, so nothing is
+ * charged here and there is no gateway to wait on — the vendor's tablet lights
+ * up the moment this returns.
  */
 export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
   const parsed = placeOrderSchema.safeParse(input);
@@ -112,7 +101,6 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
     restaurantId: data.restaurantId,
     zoneId: data.zoneId,
     lines: data.lines,
-    method: data.method,
     idempotencyKey: data.idempotencyKey,
     couponCode: data.couponCode,
   });
@@ -127,80 +115,8 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
     };
   }
 
-  const order = created.order;
-
-  // F12 — a replayed submit returns the original order rather than a twin.
-  if (created.reused) return { status: "success", orderId: order._id };
-
-  const expectedOnlinePaise =
-    data.method === PAYMENT_METHOD.ONLINE_100
-      ? order.pricing.grandTotalPaise
-      : order.pricing.platformCommissionPaise + order.pricing.convenienceFeePaise;
-
-  let intent;
-  try {
-    intent = await paymentProvider().createIntent({
-      orderId: order._id,
-      orderNumber: order.orderNumber,
-      amountPaise: expectedOnlinePaise,
-      customerName: user.name,
-      customerPhone: data.phone,
-    });
-  } catch (err) {
-    const message =
-      err instanceof Error
-        ? err.message
-        : "Failed to initiate payment. Please try again or choose another payment method.";
-    return { status: "error", message };
-  }
-
-  await (await db.orders()).updateOne(
-    { _id: order._id },
-    { $set: { "payment.providerOrderId": intent.providerOrderId } },
-  );
-
-  // The stub captures inline. PhonePe will not: there, the webhook (or the
-  // reconciliation sweep) fires this same transition, guarded by the same FSM.
-  if (intent.autoCapturedPaymentId !== null) {
-    await (await db.orders()).updateOne(
-      { _id: order._id },
-      {
-        $set: {
-          "payment.status": PAYMENT_STATUS.CAPTURED,
-          "payment.providerPaymentId": intent.autoCapturedPaymentId,
-          "payment.onlinePaidPaise": expectedOnlinePaise,
-        },
-      },
-    );
-
-    const promoted = await transitionOrder({
-      orderId: order._id,
-      to: ORDER_STATUS.PLACED,
-      actor: ACTOR.WEBHOOK,
-      actorId: null,
-      reason: `Payment captured (${paymentProvider().name})`,
-    });
-
-    if (!promoted.ok) return { status: "error", message: promoted.message };
-  }
-
   revalidatePath("/orders");
-  const isPaytm = paymentProvider().name === "paytm";
-  return {
-    status: "success",
-    orderId: order._id,
-    ...(isPaytm && intent.txnToken && intent.mid
-      ? {
-          paytm: {
-            orderId: order.orderNumber,
-            txnToken: intent.txnToken,
-            amountRupees: `${Math.floor(expectedOnlinePaise / 100)}.${Math.abs(expectedOnlinePaise % 100).toString().padStart(2, "0")}`,
-            mid: intent.mid,
-            isStaging: serverEnv().PAYTM_ENVIRONMENT !== "production",
-          },
-        }
-      : {}),
-  };
+  return { status: "success", orderId: created.order._id };
 }
 
 /* ------------------------------------------------------------------ */
@@ -226,6 +142,11 @@ export type ConfirmState =
  * screen, which is what makes this safe without a rider device: a student
  * cannot confirm an order that never arrived, because they would have no code
  * to match.
+ *
+ * Confirming is also what records the cash as collected. Under cash on
+ * delivery the packet and the money change hands in the same motion, so the
+ * tap that says "I have my food" is the same tap that says "and I paid for
+ * it" — see the DELIVERED branch of `transitionOrder`.
  */
 export async function confirmReceived(input: unknown): Promise<ConfirmState> {
   const parsed = confirmSchema.safeParse(input);

@@ -100,16 +100,8 @@ describe("illegal transitions", () => {
     );
   });
 
-  it("rejects a client promoting its own order to PLACED", () => {
-    // Only the gateway webhook or the reconciliation cron may do this.
-    // A student who could fire it would get free food.
-    const result = canTransition(subject(S.PAYMENT_PENDING), { to: S.PLACED, actor: A.STUDENT });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe("WRONG_ACTOR");
-  });
-
   it("rejects anything out of a terminal state", () => {
-    for (const from of [S.DELIVERED_TO_SECURITY, S.NO_SHOW, S.SETTLED] as const) {
+    for (const from of [S.NO_SHOW, S.SETTLED] as const) {
       if (!isTerminal(from)) continue;
       expect(() => assertTransition(subject(from), { to: S.DELIVERED, actor: A.ADMIN })).toThrow(
         /terminal/,
@@ -172,17 +164,19 @@ describe("guards", () => {
    ══════════════════════════════════════════════════════════════════════ */
 
 describe("machine shape", () => {
-  it("AT_GATE has exactly the four documented outcomes", () => {
+  it("AT_GATE has exactly the three documented outcomes", () => {
+    // There is no "leave it with security" any more: nobody can hand unpaid
+    // food to a guard, so an uncollected order can only go back.
     expect(new Set(nextStatuses(S.AT_GATE))).toEqual(
-      new Set([S.DELIVERED, S.DELIVERED_TO_SECURITY, S.NO_SHOW, S.CANCELLED_BY_ADMIN]),
+      new Set([S.DELIVERED, S.NO_SHOW, S.CANCELLED_BY_ADMIN]),
     );
   });
 
   it("a vendor sees only its own affordances at AT_GATE", () => {
-    // The vendor can close a COD order or report a no-show, but the normal
-    // close belongs to the student.
+    // The vendor can close the order once the rider returns with the cash, or
+    // report a no-show, but the normal close belongs to the student.
     expect(new Set(allowedStatusesFor(S.AT_GATE, A.VENDOR))).toEqual(
-      new Set([S.DELIVERED, S.DELIVERED_TO_SECURITY, S.NO_SHOW]),
+      new Set([S.DELIVERED, S.NO_SHOW]),
     );
     expect(allowedStatusesFor(S.AT_GATE, A.STUDENT)).toEqual([S.DELIVERED]);
   });
@@ -190,12 +184,11 @@ describe("machine shape", () => {
   it("no rule names a rider — there is no rider actor, by design (D4)", () => {
     const actors = new Set(TRANSITIONS.flatMap((r) => r.actors));
     expect(actors.has("RIDER" as never)).toBe(false);
-    expect([...actors].sort()).toEqual(["ADMIN", "STUDENT", "SYSTEM", "VENDOR", "WEBHOOK"]);
+    expect([...actors].sort()).toEqual(["ADMIN", "STUDENT", "SYSTEM", "VENDOR"]);
   });
 
   it("every terminal status is genuinely a dead end", () => {
     for (const status of [
-      S.PAYMENT_FAILED,
       S.REJECTED_BY_VENDOR,
       S.EXPIRED_NO_ACK,
       S.CANCELLED_BY_ADMIN,
@@ -209,7 +202,7 @@ describe("machine shape", () => {
   it("every status except the entry point is reachable", () => {
     const reachable = new Set(TRANSITIONS.map((r) => r.to));
     for (const status of Object.values(S)) {
-      if (status === S.PAYMENT_PENDING) continue; // the entry point
+      if (status === S.PLACED) continue; // the entry point
       expect(reachable.has(status)).toBe(true);
     }
   });

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { previewCart } from "@/server/services/orders";
-import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
 import { getSession } from "@/server/auth/session";
 import {
   listEligibleCouponsForCart,
@@ -14,7 +13,10 @@ import {
  *
  * The client posts item IDS AND QUANTITIES ONLY. Every rupee comes back from
  * `computePricing` — the same function order creation calls — so the number
- * shown here and the number charged at checkout cannot drift (PRD Part 4.3).
+ * shown here and the number collected at the gate cannot drift (PRD Part 4.3).
+ *
+ * There is one quote, not one per payment method: every order is cash on
+ * delivery, and `cashDuePaise` is the single number the student needs.
  */
 
 export const dynamic = "force-dynamic";
@@ -35,16 +37,13 @@ const bodySchema = z.object({
 });
 
 export interface CartQuote {
-  method: PaymentMethod;
   subtotalPaise: number;
   packagingFeePaise: number;
   deliveryFeePaise: number;
   discountPaise: number;
   commissionBasePaise: number;
-  convenienceFeePaise: number;
+  /** What the student hands the delivery partner, in cash, on handover. */
   grandTotalPaise: number;
-  onlinePaidPaise: number;
-  cashDueOnDeliveryPaise: number;
 }
 
 export interface AvailableCouponDto {
@@ -70,7 +69,6 @@ export interface CartPricingResponse {
   minOrderPaise: number;
   belowMinimum: boolean;
   isLateNightMinOrder?: boolean;
-  codEnabled: boolean;
   items: {
     itemId: string;
     name: string;
@@ -79,7 +77,7 @@ export interface CartPricingResponse {
     lineTotalPaise: number;
     addOns: { name: string; pricePaise: number }[];
   }[];
-  quotes: Record<PaymentMethod, CartQuote>;
+  quote: CartQuote;
   issues: { itemId: string; itemName: string; code: string; message: string }[];
   appliedCoupon?: {
     code: string;
@@ -103,7 +101,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   const rawPreview = await previewCart({
     restaurantId: parsed.data.restaurantId,
     lines: parsed.data.lines,
-    method: PAYMENT_METHOD.ONLINE_100,
   });
 
   if (!rawPreview) {
@@ -135,17 +132,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
   }
 
-  const [prepaid, cod, availableCoupons] = await Promise.all([
+  const [preview, availableCoupons] = await Promise.all([
     previewCart({
       restaurantId: parsed.data.restaurantId,
       lines: parsed.data.lines,
-      method: PAYMENT_METHOD.ONLINE_100,
-      discountPaise,
-    }),
-    previewCart({
-      restaurantId: parsed.data.restaurantId,
-      lines: parsed.data.lines,
-      method: PAYMENT_METHOD.HYBRID_COD,
       discountPaise,
     }),
     listEligibleCouponsForCart({
@@ -156,22 +146,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     }),
   ]);
 
-  if (!prepaid || !cod) {
+  if (!preview) {
     return NextResponse.json({ error: "This cart can no longer be priced" }, { status: 404 });
   }
 
   const body: CartPricingResponse = {
-    restaurantName: prepaid.restaurant.name,
-    restaurantId: prepaid.restaurant._id,
-    restaurantSlug: prepaid.restaurant.slug,
-    campusSlug: prepaid.campus.slug,
-    prepMinutes: prepaid.restaurant.prepMinutes,
-    transitMinutes: prepaid.campus.settings.transitMinutes,
-    minOrderPaise: prepaid.minOrderPaise,
-    belowMinimum: prepaid.belowMinimum,
-    isLateNightMinOrder: prepaid.isLateNightMinOrder ?? false,
-    codEnabled: prepaid.campus.settings.codEnabled,
-    items: prepaid.items.map((i) => ({
+    restaurantName: preview.restaurant.name,
+    restaurantId: preview.restaurant._id,
+    restaurantSlug: preview.restaurant.slug,
+    campusSlug: preview.campus.slug,
+    prepMinutes: preview.restaurant.prepMinutes,
+    transitMinutes: preview.campus.settings.transitMinutes,
+    minOrderPaise: preview.minOrderPaise,
+    belowMinimum: preview.belowMinimum,
+    isLateNightMinOrder: preview.isLateNightMinOrder ?? false,
+    items: preview.items.map((i) => ({
       itemId: i.itemId,
       name: i.name,
       isVeg: i.isVeg,
@@ -179,11 +168,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       lineTotalPaise: i.lineTotalPaise,
       addOns: i.addOns,
     })),
-    quotes: {
-      [PAYMENT_METHOD.ONLINE_100]: toQuote(PAYMENT_METHOD.ONLINE_100, prepaid),
-      [PAYMENT_METHOD.HYBRID_COD]: toQuote(PAYMENT_METHOD.HYBRID_COD, cod),
-    },
-    issues: prepaid.issues,
+    quote: toQuote(preview),
+    issues: preview.issues,
     appliedCoupon,
     availableCoupons: availableCoupons.map((c) => ({
       code: c.coupon.code,
@@ -203,20 +189,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   return NextResponse.json(body);
 }
 
-function toQuote(
-  method: PaymentMethod,
-  preview: NonNullable<Awaited<ReturnType<typeof previewCart>>>,
-): CartQuote {
+function toQuote(preview: NonNullable<Awaited<ReturnType<typeof previewCart>>>): CartQuote {
   return {
-    method,
     subtotalPaise: preview.pricing.subtotalPaise,
     packagingFeePaise: preview.pricing.packagingFeePaise,
     deliveryFeePaise: preview.pricing.deliveryFeePaise,
     discountPaise: preview.pricing.discountPaise,
     commissionBasePaise: preview.pricing.commissionBasePaise,
-    convenienceFeePaise: preview.pricing.convenienceFeePaise,
     grandTotalPaise: preview.pricing.grandTotalPaise,
-    onlinePaidPaise: preview.onlinePaidPaise,
-    cashDueOnDeliveryPaise: preview.cashDueOnDeliveryPaise,
   };
 }

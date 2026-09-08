@@ -24,16 +24,6 @@ interface StatusPresentation {
 }
 
 const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
-  [ORDER_STATUS.PAYMENT_PENDING]: {
-    label: "Awaiting payment",
-    tone: "warning",
-    studentBlurb: "Finishing your payment. This usually takes a few seconds.",
-  },
-  [ORDER_STATUS.PAYMENT_FAILED]: {
-    label: "Payment failed",
-    tone: "danger",
-    studentBlurb: "The payment did not go through. Nothing was charged.",
-  },
   [ORDER_STATUS.PLACED]: {
     label: "Sent to restaurant",
     tone: "info",
@@ -68,11 +58,6 @@ const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
     label: "Delivered",
     tone: "success",
     studentBlurb: "Delivered. Enjoy.",
-  },
-  [ORDER_STATUS.DELIVERED_TO_SECURITY]: {
-    label: "Left with security",
-    tone: "warning",
-    studentBlurb: "Nobody came to the gate, so the packet was left with the guard. Collect it there.",
   },
   [ORDER_STATUS.NO_SHOW]: {
     label: "Not collected",

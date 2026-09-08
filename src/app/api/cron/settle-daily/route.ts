@@ -9,9 +9,13 @@ import { campusDateString } from "@/lib/campus-time";
 /**
  * The nightly run, at 23:59 campus-local time.
  *
+ * It writes one commission statement per vendor — what they owe TREFOOD for
+ * the day's deliveries — and closes the orders on it. Nothing is paid out:
+ * the vendors are holding the cash and we are invoicing them for our share.
+ *
  * Idempotent by construction (F15): the unique index on
- * `(restaurantId, settlementDate)` makes a second run a no-op rather than a
- * second payout, so retrying this route is always safe.
+ * `(restaurantId, statementDate)` makes a second run a no-op rather than a
+ * second invoice, so retrying this route is always safe.
  *
  * `?date=YYYY-MM-DD` re-runs a specific campus-local day, which is what you
  * reach for when a night was missed.
@@ -26,8 +30,8 @@ export async function GET(request: Request): Promise<Response> {
 
   const runs = [];
   for (const campus of campuses) {
-    const settlementDate = date ?? campusDateString(new Date(), campus.timezone);
-    const result = await runSettlement({ campus, settlementDate });
+    const statementDate = date ?? campusDateString(new Date(), campus.timezone);
+    const result = await runSettlement({ campus, statementDate });
 
     // The F4 counter is a per-day vendor-health signal, so it resets with the
     // day it counts. Only on a live run: re-settling last Tuesday must not
@@ -37,7 +41,7 @@ export async function GET(request: Request): Promise<Response> {
 
     runs.push({
       campus: campus.slug,
-      settlementDate: result.settlementDate,
+      statementDate: result.statementDate,
       written: result.written.length,
       skipped: result.skipped.length,
       ordersSettled: result.ordersSettled,

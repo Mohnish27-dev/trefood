@@ -11,7 +11,6 @@ import {
   VENDOR_ACTIVE_STATUSES,
   type Actor,
   type OrderStatus,
-  type PaymentMethod,
 } from "@/lib/constants";
 import type { Paise } from "@/lib/money";
 import { assertTransition } from "./order-state";
@@ -64,8 +63,8 @@ export interface CartPreview {
   campus: Campus;
   items: OrderItem[];
   pricing: ReturnType<typeof computePricing>["pricing"];
-  onlinePaidPaise: Paise;
-  cashDueOnDeliveryPaise: Paise;
+  /** What the student hands the delivery partner at the gate, in cash. */
+  cashDuePaise: Paise;
   /** Non-empty means checkout must stop and the cart must re-render with the change highlighted. */
   issues: CartIssue[];
   /** Below the restaurant's minimum order. */
@@ -84,7 +83,6 @@ export interface CartPreview {
 export async function previewCart(params: {
   restaurantId: string;
   lines: readonly CartLineInput[];
-  method: PaymentMethod;
   discountPaise?: Paise;
   now?: Date;
 }): Promise<CartPreview | null> {
@@ -163,9 +161,6 @@ export async function previewCart(params: {
     deliveryFeePaise: 0,
     discountPaise: params.discountPaise ?? 0,
     commissionBps,
-    gatewayFeeBps: campus.settings.gatewayFeeBps,
-    codHandlingFeePaise: campus.settings.codHandlingFeePaise,
-    method: params.method,
   });
 
   orderItems.forEach((item, i) => {
@@ -181,8 +176,7 @@ export async function previewCart(params: {
     campus,
     items: orderItems,
     pricing: result.pricing,
-    onlinePaidPaise: result.onlinePaidPaise,
-    cashDueOnDeliveryPaise: result.cashDueOnDeliveryPaise,
+    cashDuePaise: result.cashDuePaise,
     issues,
     belowMinimum: result.pricing.subtotalPaise < minOrderInfo.minOrderPaise,
     minOrderPaise: minOrderInfo.minOrderPaise,
@@ -214,14 +208,18 @@ function resolveAddOns(
 
 export type CreateOrderResult =
   | { ok: true; order: Order; reused: boolean }
-  | { ok: false; code: "CART_INVALID" | "COD_BLOCKED" | "COD_DISABLED" | "BELOW_MINIMUM"; message: string; issues?: CartIssue[] };
+  | {
+      ok: false;
+      code: "CART_INVALID" | "ORDERING_BLOCKED" | "BELOW_MINIMUM";
+      message: string;
+      issues?: CartIssue[];
+    };
 
 export async function createOrder(params: {
   customer: User;
   restaurantId: string;
   zoneId: string;
   lines: readonly CartLineInput[];
-  method: PaymentMethod;
   /** F12 — one per checkout attempt. A double-tap returns the SAME order. */
   idempotencyKey: string;
   discountPaise?: Paise | undefined;
@@ -241,7 +239,6 @@ export async function createOrder(params: {
     const rawPreview = await previewCart({
       restaurantId: params.restaurantId,
       lines: params.lines,
-      method: params.method,
     });
     if (rawPreview && rawPreview.issues.length === 0) {
       const couponValidation = await validateCouponForOrder({
@@ -261,7 +258,6 @@ export async function createOrder(params: {
   const preview = await previewCart({
     restaurantId: params.restaurantId,
     lines: params.lines,
-    method: params.method,
     discountPaise,
   });
 
@@ -275,7 +271,7 @@ export async function createOrder(params: {
     return {
       ok: false,
       code: "CART_INVALID",
-      message: "Your cart changed. Please review it before paying.",
+      message: "Your cart changed. Please review it before ordering.",
       issues: preview.issues,
     };
   }
@@ -290,23 +286,19 @@ export async function createOrder(params: {
     };
   }
 
-  if (params.method === PAYMENT_METHOD.HYBRID_COD) {
-    // F9 — a student who refused cash cannot choose COD again. The UI hides it
-    // entirely, but the server must refuse it too: the UI is not authorisation.
-    if (params.customer.codBlocked) {
-      return {
-        ok: false,
-        code: "COD_BLOCKED",
-        message: "Cash on delivery is disabled on your account. You can still pay online.",
-      };
-    }
-    if (!preview.campus.settings.codEnabled) {
-      return {
-        ok: false,
-        code: "COD_DISABLED",
-        message: "Cash on delivery is not available on this campus right now.",
-      };
-    }
+  // F9 — an admin has stopped this account from ordering. The UI hides
+  // checkout, but the server must refuse it too: the UI is not authorisation.
+  // Note this is only ever set by a human. Strikes accrue on their own, but
+  // they do not block, because cash is the only way to order and an automatic
+  // block would be an automatic ban.
+  if (params.customer.ordersBlocked) {
+    return {
+      ok: false,
+      code: "ORDERING_BLOCKED",
+      message:
+        params.customer.ordersBlockedReason ??
+        "Ordering is paused on your account. Please contact support.",
+    };
   }
 
   const zone = preview.campus.zones.find((z) => z.id === params.zoneId);
@@ -339,18 +331,16 @@ export async function createOrder(params: {
     pricing: preview.pricing,
 
     payment: {
-      method: params.method,
-      status: PAYMENT_STATUS.PENDING,
-      providerOrderId: null,
-      providerPaymentId: null,
-      onlinePaidPaise: 0, // set on capture, never optimistically
-      cashDueOnDeliveryPaise: preview.cashDueOnDeliveryPaise,
-      cashCollected: null,
+      method: PAYMENT_METHOD.COD,
+      status: PAYMENT_STATUS.DUE,
+      cashDuePaise: preview.cashDuePaise,
+      cashCollectedPaise: 0,
+      collectedAt: null,
     },
 
-    // Created as PAYMENT_PENDING *before* the gateway opens, so an abandoned
-    // payment still leaves a traceable record for the reconciliation cron (F1/F2).
-    status: ORDER_STATUS.PAYMENT_PENDING,
+    // PLACED immediately. Nothing stands between submitting an order and the
+    // vendor's tablet lighting up, because the student owes nothing yet.
+    status: ORDER_STATUS.PLACED,
 
     // Generated at creation but never exposed until READY (vendor) / AT_GATE
     // (student). See gate-code.ts.
@@ -360,7 +350,7 @@ export async function createOrder(params: {
 
     timestamps: {
       createdAt: now,
-      placedAt: null,
+      placedAt: now,
       acceptedAt: null,
       readyAt: null,
       dispatchedAt: null,
@@ -369,7 +359,6 @@ export async function createOrder(params: {
       settledAt: null,
     },
     cancellation: null,
-    refund: null,
     stockout: null,
     reroutedFromZoneId: null,
 
@@ -402,10 +391,10 @@ export async function createOrder(params: {
     entityId: order._id,
     orderId: order._id,
     from: null,
-    to: ORDER_STATUS.PAYMENT_PENDING,
+    to: ORDER_STATUS.PLACED,
     actorId: params.customer._id,
     actorRole: ACTOR.STUDENT,
-    reason: `Order created, ${params.method}`,
+    reason: "Order placed, cash on delivery",
   });
 
   return { ok: true, order, reused: false };
@@ -519,6 +508,24 @@ export async function transitionOrder(options: TransitionOptions): Promise<Trans
     };
   }
 
+  // The cash moves at exactly one moment, and this is it. DELIVERED means the
+  // packet changed hands, which under cash on delivery means the money did
+  // too — the student cannot hold the food without having paid the rider for
+  // it. `cashDuePaise` is read off the document rather than recomputed,
+  // because a stockout (F6) may already have reduced it.
+  if (options.to === ORDER_STATUS.DELIVERED) {
+    set["payment.status"] = PAYMENT_STATUS.COLLECTED;
+    set["payment.cashCollectedPaise"] = order.payment.cashDuePaise;
+    set["payment.collectedAt"] = now;
+  }
+
+  // Every other ending means no food was handed over, so no money was either.
+  // These orders carry no commission and never reach a statement.
+  if (UNCOLLECTED_STATUSES.has(options.to)) {
+    set["payment.status"] = PAYMENT_STATUS.UNCOLLECTED;
+    set["payment.cashCollectedPaise"] = 0;
+  }
+
   // The status guard in the filter makes this a compare-and-swap: two vendors
   // tapping Accept on the same tablet cannot both win.
   const updated = await orders.findOneAndUpdate(
@@ -556,7 +563,6 @@ const TIMESTAMP_FOR: Partial<Record<OrderStatus, keyof Order["timestamps"]>> = {
   [ORDER_STATUS.OUT_FOR_DELIVERY]: "dispatchedAt",
   [ORDER_STATUS.AT_GATE]: "atGateAt",
   [ORDER_STATUS.DELIVERED]: "deliveredAt",
-  [ORDER_STATUS.DELIVERED_TO_SECURITY]: "deliveredAt",
   [ORDER_STATUS.SETTLED]: "settledAt",
 };
 
@@ -566,6 +572,9 @@ const CANCELLED_STATUSES = new Set<OrderStatus>([
   ORDER_STATUS.CANCELLED_BY_ADMIN,
   ORDER_STATUS.NO_SHOW,
 ]);
+
+/** Endings where the food never reached the student, so no cash ever moved. */
+const UNCOLLECTED_STATUSES = CANCELLED_STATUSES;
 
 /* ══════════════════════════════════════════════════════════════════════
    Reads

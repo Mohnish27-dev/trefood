@@ -6,7 +6,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/money";
-import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export interface KotOrder {
@@ -18,8 +17,8 @@ export interface KotOrder {
   zoneName: string;
   zoneInstructions: string;
   prepMinutes: number | null;
-  method: PaymentMethod;
-  cashDueOnDeliveryPaise: number;
+  /** What the delivery partner must come back with. Every order is cash. */
+  cashDuePaise: number;
   gateCode: string | null;
   items: { name: string; isVeg: boolean; quantity: number; addOns: string[] }[];
 }
@@ -38,7 +37,6 @@ export interface KotOrder {
  */
 export function KotTicket({ order }: { order: KotOrder }) {
   const [width, setWidth] = useState<"58" | "80">("80");
-  const isCod = order.method === PAYMENT_METHOD.HYBRID_COD;
 
   return (
     <div className="min-h-dvh bg-ink">
@@ -125,17 +123,11 @@ export function KotTicket({ order }: { order: KotOrder }) {
 
           <Rule />
 
-          {isCod ? (
-            <div className="border-2 border-black p-2 text-center">
-              <p className="text-[11px] font-bold uppercase">Collect cash</p>
-              <p className="text-2xl font-bold">{formatINR(order.cashDueOnDeliveryPaise)}</p>
-              <p className="text-[11px]">Exact amount. No change expected.</p>
-            </div>
-          ) : (
-            <p className="text-center text-[12px] font-bold uppercase">
-              Prepaid — collect nothing
-            </p>
-          )}
+          <div className="border-2 border-black p-2 text-center">
+            <p className="text-[11px] font-bold uppercase">Collect cash</p>
+            <p className="text-2xl font-bold">{formatINR(order.cashDuePaise)}</p>
+            <p className="text-[11px]">Exact amount. No change expected.</p>
+          </div>
 
           <Rule />
 

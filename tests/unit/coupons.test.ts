@@ -9,7 +9,6 @@ describe("Coupon Discount Calculations", () => {
     description: "₹50 flat off",
     restaurantId: "rest_1",
     campusId: "campus_1",
-    fundedBy: "PLATFORM",
     type: "FLAT",
     valuePaise: 5000, // ₹50
     valueBps: 0,
@@ -29,7 +28,6 @@ describe("Coupon Discount Calculations", () => {
     description: "20% off up to ₹60",
     restaurantId: "rest_1",
     campusId: "campus_1",
-    fundedBy: "PLATFORM",
     type: "PERCENT",
     valuePaise: 0,
     valueBps: 2000, // 20%

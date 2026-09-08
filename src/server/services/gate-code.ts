@@ -51,8 +51,7 @@ export function isGateCodeVisibleToStudent(status: OrderStatus): boolean {
     status === ORDER_STATUS.READY ||
     status === ORDER_STATUS.OUT_FOR_DELIVERY ||
     status === ORDER_STATUS.AT_GATE ||
-    status === ORDER_STATUS.DELIVERED ||
-    status === ORDER_STATUS.DELIVERED_TO_SECURITY
+    status === ORDER_STATUS.DELIVERED
   );
 }
 
@@ -68,8 +67,7 @@ export function isGateCodeVisibleToVendor(status: OrderStatus): boolean {
     status === ORDER_STATUS.READY ||
     status === ORDER_STATUS.OUT_FOR_DELIVERY ||
     status === ORDER_STATUS.AT_GATE ||
-    status === ORDER_STATUS.DELIVERED ||
-    status === ORDER_STATUS.DELIVERED_TO_SECURITY
+    status === ORDER_STATUS.DELIVERED
   );
 }
 

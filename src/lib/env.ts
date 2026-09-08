@@ -54,21 +54,14 @@ const serverSchema = z
     MONGODB_MAX_POOL_SIZE: intFromString(10),
 
     AUTH_PROVIDER: z.enum(["stub", "supabase"]).default("stub"),
-    PAYMENT_PROVIDER: z.enum(["stub", "phonepe", "paytm"]).default("stub"),
 
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
 
-    // D8 — PhonePe merchant (dynamic QR + UPI, direct-to-bank settlement).
-    PHONEPE_MERCHANT_ID: optionalString,
-    PHONEPE_MERCHANT_SECRET: optionalString,
-    PHONEPE_WEBHOOK_SECRET: optionalString,
+    // No payment-gateway configuration: TREFOOD is cash on delivery end to
+    // end, and nothing in the order flow talks to a gateway. If online payment
+    // is ever switched back on, the provider seam and its secrets come back
+    // here together.
 
-    // Paytm merchant
-    PAYTM_MID: optionalString,
-    PAYTM_MERCHANT_KEY: optionalString,
-    PAYTM_WEBSITE: z.string().default("WEBSTAGING"),
-    PAYTM_ENVIRONMENT: z.enum(["staging", "production"]).default("staging"),
-    PAYTM_CALLBACK_URL: optionalUrl,
     // Also parsed server-side so Docker runtime configuration is not replaced
     // by the NEXT_PUBLIC_APP_URL value that was inlined during `next build`.
     NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000").transform((v) => v.trim().replace(/^=+/, "").trim()),
@@ -88,20 +81,6 @@ const serverSchema = z
         path: ["SUPABASE_SERVICE_ROLE_KEY"],
         message: "required when AUTH_PROVIDER=supabase",
       });
-    }
-    if (env.PAYMENT_PROVIDER === "phonepe") {
-      for (const key of ["PHONEPE_MERCHANT_ID", "PHONEPE_MERCHANT_SECRET", "PHONEPE_WEBHOOK_SECRET"] as const) {
-        if (!env[key]) {
-          ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=phonepe" });
-        }
-      }
-    }
-    if (env.PAYMENT_PROVIDER === "paytm") {
-      for (const key of ["PAYTM_MID", "PAYTM_MERCHANT_KEY"] as const) {
-        if (!env[key]) {
-          ctx.addIssue({ code: "custom", path: [key], message: "required when PAYMENT_PROVIDER=paytm" });
-        }
-      }
     }
     if (env.NODE_ENV === "production" && env.CRON_SECRET === "dev-only-change-me") {
       ctx.addIssue({

@@ -1,6 +1,5 @@
 import {
   Banknote,
-  CreditCard,
   ReceiptIndianRupee,
   ShieldAlert,
   ShieldCheck,
@@ -17,8 +16,7 @@ import { EmptyState } from "@/components/shared/states";
 import { SubPageHeader } from "@/components/student/account/sub-page-header";
 import { getSession } from "@/server/auth/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
-import { getCampusById } from "@/server/services/catalog";
-import { DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { ORDER_STATUS, PAYMENT_STATUS } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Payments" };
 export const dynamic = "force-dynamic";
@@ -26,14 +24,13 @@ export const dynamic = "force-dynamic";
 /**
  * Payments.
  *
- * There are no saved cards here and there never will be — TREFOOD does not
- * hold card data, the gateway does, and a screen that pretends otherwise is a
- * screen that has to be honest about a breach one day.
+ * There are no saved cards here and there never will be — TREFOOD takes cash
+ * on delivery and nothing else, so there is no card to save, no gateway to
+ * store anything, and no refund queue to explain.
  *
- * What this screen is really for is the cash-at-the-gate rules. F8 and F9 both
- * end with cash switched off, and the account hub only has room for the
- * headline. The full explanation lives here: how it works, what took it away,
- * and what brings it back.
+ * What this screen is really for is the two things a student can still get
+ * wrong: not being there when the food arrives, and not having the cash ready.
+ * Both cost the restaurant real money, and both are recorded here.
  */
 export default async function PaymentsPage() {
   const session = await getSession();
@@ -45,7 +42,7 @@ export default async function PaymentsPage() {
         <EmptyState
           icon={UserRound}
           title="Sign in to see payments"
-          description="Your payment history and your cash-at-the-gate standing both live on your account."
+          description="Your payment history and your standing both live on your account."
           action={
             <Button asChild>
               <Link href="/signin?next=/account/payments">Sign in</Link>
@@ -57,22 +54,11 @@ export default async function PaymentsPage() {
   }
 
   const { user } = session;
-  const [orders, campus] = await Promise.all([
-    listOrdersForCustomer(user._id, 100),
-    user.campusId ? getCampusById(user.campusId) : Promise.resolve(null),
-  ]);
+  const orders = await listOrdersForCustomer(user._id, 100);
 
-  const campusCodOff = campus?.settings.codEnabled === false;
-  const codAvailable = !user.codBlocked && !campusCodOff;
-  const strikesLeft = Math.max(0, DEFAULTS.codStrikeThreshold - user.strikes);
-
-  // Only orders that actually moved money. A payment-pending order that was
-  // abandoned never charged anyone and does not belong in a history.
-  const paid = orders.filter(
-    (order) =>
-      order.payment.onlinePaidPaise > 0 || order.payment.cashDueOnDeliveryPaise > 0,
-  );
-
+  // Only orders that actually reached a gate moved money. Everything else was
+  // closed before anyone paid anything.
+  const paid = orders.filter((order) => order.payment.status === PAYMENT_STATUS.COLLECTED);
   const recent = paid.slice(0, 12);
 
   return (
@@ -80,92 +66,69 @@ export default async function PaymentsPage() {
       <SubPageHeader title="Payments" />
 
       <div className="space-y-5 p-4">
-        {/* ── How you can pay ──────────────────────────────────── */}
+        {/* ── How you pay ──────────────────────────────────────── */}
         <section>
           <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
-            How you can pay
+            How you pay
           </h2>
 
           <Card className="divide-y divide-line">
             <div className="flex items-start gap-3 p-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-sky/25 bg-sky-wash">
-                <CreditCard className="size-5 text-sky" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-mint/25 bg-mint-wash">
+                <Banknote className="size-5 text-mint" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display text-sm font-semibold text-bone">Pay online</p>
-                  <Badge tone="success">Always available</Badge>
+                  <p className="font-display text-sm font-semibold text-bone">
+                    Cash on delivery
+                  </p>
+                  <Badge tone="success">Every order</Badge>
                 </div>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                  UPI, cards and net banking, handled by the payment gateway at checkout.
-                  Nothing about your card is stored by TREFOOD, which is why there is no
-                  saved-cards list on this screen.
+                  You pay nothing when you place an order. The whole bill is handed to the
+                  delivery person in cash when your food reaches the gate — so keep the exact
+                  amount ready, and check the four-digit code on the packet before you pay.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4">
-              <span
-                className={
-                  codAvailable
-                    ? "flex size-10 shrink-0 items-center justify-center rounded-xl border border-mint/25 bg-mint-wash"
-                    : "flex size-10 shrink-0 items-center justify-center rounded-xl border border-chili/25 bg-chili-wash"
-                }
-              >
-                {codAvailable ? (
-                  <Banknote className="size-5 text-mint" />
-                ) : (
+            {user.ordersBlocked ? (
+              <div className="flex items-start gap-3 p-4">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-chili/25 bg-chili-wash">
                   <ShieldAlert className="size-5 text-chili" />
-                )}
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display text-sm font-semibold text-bone">
-                    Cash at the gate
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-display text-sm font-semibold text-bone">
+                      Ordering is paused
+                    </p>
+                    <Badge tone="danger">Paused</Badge>
+                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                    {user.ordersBlockedReason ?? "Ordering is paused on your account."}
                   </p>
-                  {codAvailable ? (
-                    <Badge tone="success">Available</Badge>
-                  ) : (
-                    <Badge tone="danger">Not available</Badge>
-                  )}
+                  <p className="mt-2 text-sm leading-relaxed text-bone">
+                    This is not permanent. Talk to support and they can switch it back on.
+                  </p>
+                  <Link
+                    href="/account/support"
+                    className="mt-2 inline-block text-sm font-medium text-saffron underline-offset-4 hover:underline"
+                  >
+                    Contact support
+                  </Link>
                 </div>
-
-                {user.codBlocked ? (
-                  <>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                      {user.codBlockedReason ??
-                        "Cash on delivery is switched off on your account."}
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-bone">
-                      You can still order anything you like — just pay online at checkout.
-                      Nothing else about your account has changed, and this is not
-                      permanent. Support can switch it back on once the record is clean.
-                    </p>
-                  </>
-                ) : campusCodOff ? (
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                    Cash orders are paused across this campus at the moment. Paying online
-                    works as usual.
-                  </p>
-                ) : (
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                    Pay a small share online now and the rest in cash when you collect. If
-                    an order is not collected{" "}
-                    {strikesLeft === 1 ? "once more" : `${strikesLeft} more times`}, cash is
-                    switched off and you would need to pay online.
-                  </p>
-                )}
               </div>
-            </div>
+            ) : null}
           </Card>
 
           {user.strikes > 0 ? (
             <p className="mt-2 flex items-start gap-2 px-1 text-xs leading-relaxed text-amber">
               <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
               <span>
-                {user.strikes} strike{user.strikes === 1 ? "" : "s"} on this account. They
-                come from cash orders left uncollected at the gate — nothing else adds one.
+                {user.strikes} strike{user.strikes === 1 ? "" : "s"} on this account. They come
+                from orders left uncollected at the gate — nothing else adds one. The restaurant
+                cooked and carried that food for nothing, so please cancel early rather than not
+                turning up.
               </span>
             </p>
           ) : null}
@@ -182,65 +145,44 @@ export default async function PaymentsPage() {
               <ReceiptIndianRupee className="mx-auto size-6 text-faint" />
               <p className="mt-3 text-sm font-medium text-bone">No payments yet</p>
               <p className="mt-1 text-xs leading-relaxed text-muted">
-                Once you place an order, what you paid online and what you paid in cash
-                both show up here.
+                Once you collect an order and pay for it at the gate, it shows up here.
               </p>
             </Card>
           ) : (
             <Card className="divide-y divide-line">
-              {recent.map((order) => {
-                const cash = order.payment.cashDueOnDeliveryPaise;
-                const online = order.payment.onlinePaidPaise;
-                const refunded = order.refund?.status === "PROCESSED";
-
-                return (
-                  <Link
-                    key={order._id}
-                    href={`/orders/${order._id}`}
-                    className="flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-raised"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-bone">
-                        {order.restaurantSnapshot.name}
-                      </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-                        <span className="font-mono tracking-wider text-faint">
-                          {order.orderNumber}
-                        </span>
-                        <span className="text-line">•</span>
-                        <span>
-                          {order.payment.method === PAYMENT_METHOD.HYBRID_COD
-                            ? "Cash at gate"
-                            : "Paid online"}
-                        </span>
-                        {refunded ? (
-                          <>
-                            <span className="text-line">•</span>
-                            <span className="text-mint">Refunded</span>
-                          </>
-                        ) : order.status === ORDER_STATUS.NO_SHOW ? (
-                          <>
-                            <span className="text-line">•</span>
-                            <span className="text-chili">Not collected</span>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      <Money
-                        paise={online + cash}
-                        className="text-sm font-semibold text-bone"
-                      />
-                      {cash > 0 && online > 0 ? (
-                        <p className="mt-0.5 text-[10px] text-faint">
-                          <Money paise={online} /> online
-                        </p>
+              {recent.map((order) => (
+                <Link
+                  key={order._id}
+                  href={`/orders/${order._id}`}
+                  className="flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-raised"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-bone">
+                      {order.restaurantSnapshot.name}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+                      <span className="font-mono tracking-wider text-faint">
+                        {order.orderNumber}
+                      </span>
+                      <span className="text-line">•</span>
+                      <span>Cash at gate</span>
+                      {order.status === ORDER_STATUS.NO_SHOW ? (
+                        <>
+                          <span className="text-line">•</span>
+                          <span className="text-chili">Not collected</span>
+                        </>
                       ) : null}
-                    </div>
-                  </Link>
-                );
-              })}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <Money
+                      paise={order.payment.cashCollectedPaise}
+                      className="text-sm font-semibold text-bone"
+                    />
+                  </div>
+                </Link>
+              ))}
             </Card>
           )}
 
@@ -255,9 +197,9 @@ export default async function PaymentsPage() {
         </section>
 
         <p className="px-1 pb-2 text-[11px] leading-relaxed text-faint">
-          Refunds go back to the account you paid from and can take 3–5 working days to
-          appear, which is the bank&apos;s clock, not ours. The convenience fee is charged
-          by the gateway and is not refundable.
+          Nothing is ever charged before your food arrives, so there is nothing to refund if an
+          order is rejected or cancelled. If an item runs out while your order is being cooked,
+          the amount the delivery person collects drops to match.
         </p>
       </div>
     </>

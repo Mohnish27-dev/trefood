@@ -42,16 +42,10 @@ export interface DeliveryZone {
 
 /** All the levers from DECISIONS.md section 4, per campus. */
 export interface CampusSettings {
-  /** D5 — flat fee per campus. Student pays it; it flows to the vendor. */
+  /** D5 — flat fee per campus. Student pays it in cash; it stays with the vendor. */
   deliveryFeePaise: Paise;
-  /** D6 — charged on food + packaging + delivery. */
+  /** D6 — charged on food + packaging + delivery. What the vendor owes us. */
   commissionBps: Bps;
-  /** A3 — convenience fee passed to the student. Non-refundable. */
-  gatewayFeeBps: Bps;
-  /** A7 — off by default. */
-  codHandlingFeePaise: Paise;
-  /** A1 — platform-funded coupons mean the vendor is paid on the pre-discount base. */
-  couponFundedBy: "PLATFORM" | "VENDOR";
   /** A4. */
   roundingMode: "CEIL";
 
@@ -63,9 +57,6 @@ export interface CampusSettings {
   gateGraceSeconds: number;
   curfewBufferMinutes: number;
   stockoutResolutionSeconds: number;
-
-  /** Kill switch for hybrid COD across the whole campus. */
-  codEnabled: boolean;
 }
 
 export interface GeoPolygon {

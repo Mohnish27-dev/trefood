@@ -79,7 +79,7 @@ async function removeLegacyDemoData(): Promise<number> {
     }),
   );
   removed.total += count(
-    await (await db.settlements()).deleteMany({
+    await (await db.commissionStatements()).deleteMany({
       restaurantId: { $in: LEGACY_DEMO_RESTAURANT_IDS },
     }),
   );
@@ -116,19 +116,22 @@ async function removeLegacyDemoData(): Promise<number> {
     }),
   );
 
-  // Orphaned settlement audit entries: the demo settlement cron logged one per
-  // fictional restaurant, and deleting those settlements (above) left the log
-  // rows pointing at documents that no longer exist. Drop any SETTLEMENT audit
-  // whose settlement is gone — on a live database that set is empty, so real
+  // Orphaned statement audit entries: the demo nightly run logged one per
+  // fictional restaurant, and deleting those statements (above) left the log
+  // rows pointing at documents that no longer exist. Drop any STATEMENT audit
+  // whose statement is gone — on a live database that set is empty, so real
   // history is untouched.
   const auditLogs = await db.auditLogs();
-  const survivingSettlementIds = (await (await db.settlements()).find({}).project<{ _id: string }>({ _id: 1 }).toArray()).map(
-    (s) => s._id,
-  );
+  const survivingStatementIds = (
+    await (await db.commissionStatements())
+      .find({})
+      .project<{ _id: string }>({ _id: 1 })
+      .toArray()
+  ).map((s) => s._id);
   removed.total += count(
     await auditLogs.deleteMany({
-      entity: "SETTLEMENT",
-      entityId: { $nin: survivingSettlementIds },
+      entity: "STATEMENT",
+      entityId: { $nin: survivingStatementIds },
     }),
   );
 

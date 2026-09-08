@@ -4,50 +4,61 @@ import * as db from "@/server/db/collections";
 import { newId } from "@/lib/ids";
 import { campusDateString, campusDayRange } from "@/lib/campus-time";
 import { formatINRPlain, type Paise } from "@/lib/money";
-import { ACTOR, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { ACTOR, ORDER_STATUS } from "@/lib/constants";
 import { ledgerEntriesForDay, sumLedger } from "./ledger";
 import { transitionOrder } from "./orders";
 import { writeAudit } from "./audit";
 import type { Campus } from "@/types/campus";
-import type { RestaurantPayout } from "@/types/restaurant";
-import type { Settlement } from "@/types/finance";
+import type { Restaurant } from "@/types/restaurant";
+import type { CommissionStatement } from "@/types/finance";
 
 /**
- * The nightly settlement run. MONEY_AND_SETTLEMENT.md section 6.
+ * The nightly commission run. MONEY_AND_SETTLEMENT.md section 6.
  *
- *   grossPrepaid = SUM(vendorReceivable) for DELIVERED prepaid orders
- *   adjustments  = SUM(ledger entries for the day)   -- negative debits
- *   netPayable   = grossPrepaid + adjustments + openingBalance
+ *   cashCollected  = SUM(cash actually taken at the gate) -- context, not owed
+ *   commissionDue  = SUM(platformCommission) for the day's DELIVERED orders
+ *   adjustments    = SUM(ledger entries for the day)      -- signed, see finance.ts
+ *   netDue         = commissionDue + adjustments + openingBalance
+ *
+ * ★ THIS RUN COLLECTS. IT DOES NOT PAY OUT. ★
+ *
+ * Every order is cash on delivery, so the vendor's own delivery staff came
+ * back from every gate holding the full bill. TREFOOD never touches that
+ * money. What this file produces is an invoice: the commission the vendor owes
+ * us for the day, which they hand over the next morning.
  *
  * Four properties this file exists to guarantee:
  *
- *   1. COD orders contribute EXACTLY ZERO. The token already paid the
- *      commission and the cash already paid the vendor, so there is no debt in
- *      either direction. If a COD order ever lands in `grossPrepaid`, the
- *      vendor is being paid twice.
+ *   1. Only DELIVERED orders count. A rejection, an expiry, a cancellation or
+ *      a no-show means no food changed hands and no cash was collected, so
+ *      there is no commission to charge on it. Charging one would be billing a
+ *      vendor for a sale they never made.
  *   2. The run is idempotent (F15). The unique index on
- *      `(restaurantId, settlementDate)` makes a second run a no-op rather than
- *      a second payout.
- *   3. A negative net carries forward as an opening debit. Money already sent
- *      is never clawed back.
- *   4. The settlement document is immutable once written. The payout is
- *      generated FROM it, never recomputed — so a menu edit next week cannot
- *      quietly change what a vendor was paid last night.
+ *      `(restaurantId, statementDate)` makes a second run a no-op rather than
+ *      a second invoice.
+ *   3. A negative net carries forward as an opening credit. We never claw back
+ *      money a vendor has already handed over; it comes off tomorrow instead.
+ *   4. The statement is immutable once written. The invoice is generated FROM
+ *      it, never recomputed — so a menu edit next week cannot quietly change
+ *      what a vendor was billed last night.
  */
 
-/** Rule 3 — a payout below this rolls forward, so per-transfer fees do not eat it. */
-export const PAYOUT_FLOOR_PAISE: Paise = 10_000;
+/**
+ * Rule 3 — a due below this rolls forward rather than being chased.
+ *
+ * Sending someone to collect forty rupees costs more than forty rupees. It is
+ * added to tomorrow's invoice instead, and the vendor sees it as an opening
+ * balance rather than as a debt that vanished.
+ */
+export const COLLECTION_FLOOR_PAISE: Paise = 10_000;
 
-/** Only these close a day. Anything still in flight rolls to the next run. */
-const SETTLEABLE_STATUSES = [
-  ORDER_STATUS.DELIVERED,
-  ORDER_STATUS.DELIVERED_TO_SECURITY,
-] as const;
+/** Only a delivered order carries commission. Nothing else was ever paid for. */
+const BILLABLE_STATUSES = [ORDER_STATUS.DELIVERED] as const;
 
-export interface SettlementRunResult {
-  settlementDate: string;
-  written: Settlement[];
-  /** Restaurants whose day was already settled. Proof the run is idempotent. */
+export interface StatementRunResult {
+  statementDate: string;
+  written: CommissionStatement[];
+  /** Restaurants whose day was already invoiced. Proof the run is idempotent. */
   skipped: string[];
   ordersSettled: number;
 }
@@ -55,134 +66,143 @@ export interface SettlementRunResult {
 export async function runSettlement(params: {
   campus: Campus;
   /** Campus-local "YYYY-MM-DD". Defaults to today in the campus timezone. */
-  settlementDate?: string;
+  statementDate?: string;
   actorId?: string | null;
-}): Promise<SettlementRunResult> {
-  const settlementDate =
-    params.settlementDate ?? campusDateString(new Date(), params.campus.timezone);
-  const { start, end } = campusDayRange(settlementDate, params.campus.timezone);
+}): Promise<StatementRunResult> {
+  const statementDate =
+    params.statementDate ?? campusDateString(new Date(), params.campus.timezone);
+  const { start, end } = campusDayRange(statementDate, params.campus.timezone);
 
-  const [orders, settlements, restaurants] = await Promise.all([
+  const [orders, statements, restaurants] = await Promise.all([
     db.orders(),
-    db.settlements(),
+    db.commissionStatements(),
     db.restaurants(),
   ]);
 
   const vendors = await restaurants.find({ campusId: params.campus._id }).toArray();
+  const existingStatements = await statements
+    .find({ campusId: params.campus._id, statementDate })
+    .toArray();
+  const existingRestaurantIds = new Set(existingStatements.map((s) => s.restaurantId));
 
-  const written: Settlement[] = [];
+  const written: CommissionStatement[] = [];
   const skipped: string[] = [];
   let ordersSettled = 0;
 
-  for (const restaurant of vendors) {
-    const existing = await settlements.findOne({ restaurantId: restaurant._id, settlementDate });
-    if (existing) {
-      skipped.push(restaurant._id);
-      continue;
-    }
-
-    const dayOrders = await orders
-      .find({
-        restaurantId: restaurant._id,
-        status: { $in: [...SETTLEABLE_STATUSES] },
-        "timestamps.deliveredAt": { $gte: start, $lt: end },
-      })
-      .toArray();
-
-    const prepaid = dayOrders.filter((o) => o.payment.method === PAYMENT_METHOD.ONLINE_100);
-    const cod = dayOrders.filter((o) => o.payment.method === PAYMENT_METHOD.HYBRID_COD);
-
-    const grossPrepaidPaise = prepaid.reduce(
-      (total, o) => total + o.pricing.vendorReceivablePaise,
-      0,
-    );
-
-    const entries = await ledgerEntriesForDay({
-      restaurantId: restaurant._id,
-      settlementDate,
-      timezone: params.campus.timezone,
-    });
-    const adjustmentsPaise = sumLedger(entries);
-    const openingBalancePaise = await previousCarryForward({
-      restaurantId: restaurant._id,
-      settlementDate,
-    });
-
-    const net = grossPrepaidPaise + adjustmentsPaise + openingBalancePaise;
-    // Rules 2 and 3 in one place: anything negative or under the floor rolls
-    // forward rather than being paid out or clawed back.
-    const netPayablePaise = net >= PAYOUT_FLOOR_PAISE ? net : 0;
-    const carriedForwardPaise = net >= PAYOUT_FLOOR_PAISE ? 0 : net;
-
-    const settlement: Settlement = {
-      _id: newId(),
-      restaurantId: restaurant._id,
-      campusId: params.campus._id,
-      settlementDate,
-      grossPrepaidPaise,
-      adjustmentsPaise,
-      openingBalancePaise,
-      netPayablePaise,
-      carriedForwardPaise,
-      orderCount: dayOrders.length,
-      codOrderCount: cod.length,
-      // Always zero, by construction. It appears on the statement so a vendor
-      // can see their COD orders were counted, and settled at the gate.
-      codContributionPaise: 0,
-      status: "PENDING",
-      paidAt: null,
-      utrReference: null,
-      createdAt: new Date(),
-    };
-
-    try {
-      await settlements.insertOne(settlement);
-    } catch (error: unknown) {
-      // F15 — another instance of the cron won the race. That is the unique
-      // index doing its job, not a failure.
-      if (isDuplicateKey(error)) {
-        skipped.push(restaurant._id);
-        continue;
+  const results = await Promise.all(
+    vendors.map(async (restaurant) => {
+      if (existingRestaurantIds.has(restaurant._id)) {
+        return { skipped: restaurant._id, written: null, ordersSettled: 0 };
       }
-      throw error;
-    }
 
-    written.push(settlement);
+      const dayOrders = await orders
+        .find({
+          restaurantId: restaurant._id,
+          status: { $in: [...BILLABLE_STATUSES] },
+          "timestamps.deliveredAt": { $gte: start, $lt: end },
+        })
+        .toArray();
 
-    await writeAudit({
-      entity: "SETTLEMENT",
-      entityId: settlement._id,
-      from: null,
-      to: "PENDING",
-      actorId: params.actorId ?? null,
-      actorRole: ACTOR.SYSTEM,
-      reason: `Settlement ${settlementDate} for ${restaurant.name}: ${dayOrders.length} order(s)`,
-    });
+      const cashCollectedPaise = dayOrders.reduce(
+        (total, o) => total + o.payment.cashCollectedPaise,
+        0,
+      );
+      const commissionDuePaise = dayOrders.reduce(
+        (total, o) => total + o.pricing.platformCommissionPaise,
+        0,
+      );
 
-    // Orders close only after the immutable row exists, so a crash between the
-    // two leaves them re-runnable rather than settled against nothing.
-    for (const order of dayOrders) {
-      const result = await transitionOrder({
-        orderId: order._id,
-        to: ORDER_STATUS.SETTLED,
-        actor: ACTOR.SYSTEM,
-        actorId: params.actorId ?? null,
-        reason: `Settled in run ${settlementDate}`,
+      const entries = await ledgerEntriesForDay({
+        restaurantId: restaurant._id,
+        statementDate,
+        timezone: params.campus.timezone,
       });
-      if (result.ok) ordersSettled += 1;
-    }
+      const adjustmentsPaise = sumLedger(entries);
+      const openingBalancePaise = await previousCarryForward({
+        restaurantId: restaurant._id,
+        statementDate,
+      });
+
+      const net = commissionDuePaise + adjustmentsPaise + openingBalancePaise;
+      // Rules 2 and 3 in one place: anything negative or under the floor rolls
+      // forward rather than being invoiced or refunded.
+      const netDuePaise = net >= COLLECTION_FLOOR_PAISE ? net : 0;
+      const carriedForwardPaise = net >= COLLECTION_FLOOR_PAISE ? 0 : net;
+
+      const statement: CommissionStatement = {
+        _id: newId(),
+        restaurantId: restaurant._id,
+        campusId: params.campus._id,
+        statementDate,
+        cashCollectedPaise,
+        commissionDuePaise,
+        adjustmentsPaise,
+        openingBalancePaise,
+        netDuePaise,
+        carriedForwardPaise,
+        orderCount: dayOrders.length,
+        status: "PENDING",
+        paidAt: null,
+        collectionMethod: null,
+        paymentReference: null,
+        createdAt: new Date(),
+      };
+
+      try {
+        await statements.insertOne(statement);
+      } catch (error: unknown) {
+        // F15 — another instance of the cron won the race. That is the unique
+        // index doing its job, not a failure.
+        if (isDuplicateKey(error)) {
+          return { skipped: restaurant._id, written: null, ordersSettled: 0 };
+        }
+        throw error;
+      }
+
+      await writeAudit({
+        entity: "STATEMENT",
+        entityId: statement._id,
+        from: null,
+        to: "PENDING",
+        actorId: params.actorId ?? null,
+        actorRole: ACTOR.SYSTEM,
+        reason: `Commission statement ${statementDate} for ${restaurant.name}: ${dayOrders.length} order(s)`,
+      });
+
+      let settledCount = 0;
+      // Orders close only after the immutable row exists, so a crash between the
+      // two leaves them re-runnable rather than billed against nothing.
+      for (const order of dayOrders) {
+        const result = await transitionOrder({
+          orderId: order._id,
+          to: ORDER_STATUS.SETTLED,
+          actor: ACTOR.SYSTEM,
+          actorId: params.actorId ?? null,
+          reason: `Invoiced in run ${statementDate}`,
+        });
+        if (result.ok) settledCount += 1;
+      }
+
+      return { skipped: null, written: statement, ordersSettled: settledCount };
+    }),
+  );
+
+  for (const res of results) {
+    if (res.skipped) skipped.push(res.skipped);
+    if (res.written) written.push(res.written);
+    ordersSettled += res.ordersSettled;
   }
 
-  return { settlementDate, written, skipped, ordersSettled };
+  return { statementDate, written, skipped, ordersSettled };
 }
 
 async function previousCarryForward(params: {
   restaurantId: string;
-  settlementDate: string;
+  statementDate: string;
 }): Promise<number> {
-  const previous = await (await db.settlements()).findOne(
-    { restaurantId: params.restaurantId, settlementDate: { $lt: params.settlementDate } },
-    { sort: { settlementDate: -1 } },
+  const previous = await (await db.commissionStatements()).findOne(
+    { restaurantId: params.restaurantId, statementDate: { $lt: params.statementDate } },
+    { sort: { statementDate: -1 } },
   );
   return previous?.carriedForwardPaise ?? 0;
 }
@@ -194,115 +214,127 @@ function isDuplicateKey(error: unknown): boolean {
 }
 
 /* ------------------------------------------------------------------ */
-/* Reads and payout marking                                            */
+/* Reads and collection marking                                        */
 /* ------------------------------------------------------------------ */
 
-export async function listSettlements(params: {
-  settlementDate?: string;
+export async function listStatements(params: {
+  statementDate?: string;
   restaurantId?: string;
-  status?: Settlement["status"];
+  status?: CommissionStatement["status"];
   limit?: number;
-}): Promise<Settlement[]> {
+}): Promise<CommissionStatement[]> {
   const filter: Record<string, unknown> = {};
-  if (params.settlementDate) filter.settlementDate = params.settlementDate;
+  if (params.statementDate) filter.statementDate = params.statementDate;
   if (params.restaurantId) filter.restaurantId = params.restaurantId;
   if (params.status) filter.status = params.status;
 
-  return (await db.settlements())
+  return (await db.commissionStatements())
     .find(filter)
-    .sort({ settlementDate: -1, netPayablePaise: -1 })
+    .sort({ statementDate: -1, netDuePaise: -1 })
     .limit(params.limit ?? 200)
     .toArray();
 }
 
-export async function markSettlementPaid(params: {
-  settlementId: string;
-  utrReference: string;
+export type CollectionMethod = NonNullable<CommissionStatement["collectionMethod"]>;
+
+export async function markStatementCollected(params: {
+  statementId: string;
+  collectionMethod: CollectionMethod;
+  /** UPI ref, bank UTR, or the cash receipt number. Free text on purpose. */
+  paymentReference: string;
   actorId: string;
-}): Promise<{ ok: true; settlement: Settlement } | { ok: false; message: string }> {
-  const settlements = await db.settlements();
+}): Promise<
+  { ok: true; statement: CommissionStatement } | { ok: false; message: string }
+> {
+  const statements = await db.commissionStatements();
 
   // The status guard makes this a compare-and-swap: two admins marking the
-  // same batch paid cannot both write a UTR.
-  const updated = await settlements.findOneAndUpdate(
-    { _id: params.settlementId, status: "PENDING" },
-    { $set: { status: "PAID", paidAt: new Date(), utrReference: params.utrReference } },
+  // same statement collected cannot both write a reference.
+  const updated = await statements.findOneAndUpdate(
+    { _id: params.statementId, status: "PENDING" },
+    {
+      $set: {
+        status: "PAID",
+        paidAt: new Date(),
+        collectionMethod: params.collectionMethod,
+        paymentReference: params.paymentReference,
+      },
+    },
     { returnDocument: "after" },
   );
 
   if (!updated) {
-    return { ok: false, message: "That settlement is missing, or was already marked paid." };
+    return { ok: false, message: "That statement is missing, or was already marked collected." };
   }
 
   await writeAudit({
-    entity: "SETTLEMENT",
+    entity: "STATEMENT",
     entityId: updated._id,
     from: "PENDING",
     to: "PAID",
     actorId: params.actorId,
     actorRole: ACTOR.ADMIN,
-    reason: `Paid by bank transfer, UTR ${params.utrReference}`,
+    reason: `Commission collected by ${params.collectionMethod}, ref ${params.paymentReference}`,
   });
 
-  return { ok: true, settlement: updated };
+  return { ok: true, statement: updated };
 }
 
 /* ------------------------------------------------------------------ */
 /* CSV export                                                          */
 /* ------------------------------------------------------------------ */
 
-export interface SettlementCsvRow extends Settlement {
+export interface StatementCsvRow extends CommissionStatement {
   restaurantName: string;
-  payout: RestaurantPayout;
+  restaurantPhone: string;
+  ownerPhone: string | null;
 }
 
 /**
- * The payout CSV.
+ * The collections CSV.
  *
- * v1 settlement is a bank transfer an admin makes by hand, so this file IS the
- * integration — deliberately, per MONEY section 6. At 10-20 vendors a
- * five-minute nightly CSV genuinely beats a payout-API activation. Automate at
- * 50+, not before.
+ * This is the sheet somebody works down in the morning, phone in hand, ticking
+ * off vendors as they hand the commission over. It carries phone numbers
+ * rather than bank details, because the money is coming to us now — there is
+ * nothing to pay out and no banking portal to paste into.
  *
- * Amounts are plain rupee decimals with no symbol and no grouping, because
- * this is pasted into a banking portal rather than read by a person.
+ * Amounts are plain rupee decimals with no symbol and no grouping, so the file
+ * opens cleanly in a spreadsheet.
  */
-export function settlementsToCsv(rows: readonly SettlementCsvRow[]): string {
+export function statementsToCsv(rows: readonly StatementCsvRow[]): string {
   const header = [
-    "settlementDate",
+    "statementDate",
     "restaurant",
-    "accountName",
-    "accountNumber",
-    "ifsc",
-    "upi",
-    "grossPrepaid",
+    "phone",
+    "ownerPhone",
+    "orders",
+    "cashCollected",
+    "commissionDue",
     "adjustments",
     "openingBalance",
-    "netPayable",
+    "netDue",
     "carriedForward",
-    "orders",
-    "codOrders",
     "status",
-    "utr",
+    "collectedVia",
+    "reference",
   ].join(",");
 
   const lines = rows.map((row) =>
     [
-      row.settlementDate,
+      row.statementDate,
       csvCell(row.restaurantName),
-      csvCell(row.payout.accountName),
-      csvCell(row.payout.accountNumber),
-      csvCell(row.payout.ifsc),
-      csvCell(row.payout.upiId ?? ""),
-      formatINRPlain(row.grossPrepaidPaise),
+      csvCell(row.restaurantPhone),
+      csvCell(row.ownerPhone ?? ""),
+      String(row.orderCount),
+      formatINRPlain(row.cashCollectedPaise),
+      formatINRPlain(row.commissionDuePaise),
       signedRupees(row.adjustmentsPaise),
       signedRupees(row.openingBalancePaise),
-      formatINRPlain(row.netPayablePaise),
+      formatINRPlain(row.netDuePaise),
       signedRupees(row.carriedForwardPaise),
-      String(row.orderCount),
-      String(row.codOrderCount),
       row.status,
-      csvCell(row.utrReference ?? ""),
+      csvCell(row.collectionMethod ?? ""),
+      csvCell(row.paymentReference ?? ""),
     ].join(","),
   );
 
@@ -316,4 +348,17 @@ function signedRupees(paise: number): string {
 
 function csvCell(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** Convenience for callers building CSV rows from a restaurant document. */
+export function csvRow(
+  statement: CommissionStatement,
+  restaurant: Restaurant | undefined,
+): StatementCsvRow {
+  return {
+    ...statement,
+    restaurantName: restaurant?.name ?? "Unknown restaurant",
+    restaurantPhone: restaurant?.phone ?? "",
+    ownerPhone: restaurant?.kyc?.ownerPhone ?? null,
+  };
 }

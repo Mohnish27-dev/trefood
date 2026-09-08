@@ -1,9 +1,8 @@
 "use client";
 
-import { ChefHat, GraduationCap, Loader2, ShieldAlert, Wrench } from "lucide-react";
+import { ChefHat, GraduationCap, Loader2, Wrench } from "lucide-react";
 import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { signInAsDemoUser } from "@/server/actions/session";
 import { ROLE, type Role } from "@/lib/constants";
@@ -15,7 +14,6 @@ export interface SignInAccount {
   email: string;
   role: Role;
   restaurantName: string | null;
-  codBlocked: boolean;
   strikes: number;
   /** Where this account lands after signing in. */
   lands: string;
@@ -114,11 +112,6 @@ export function SignInPicker({
 
                     {pending === account.userId ? (
                       <Loader2 className="size-4 shrink-0 animate-spin text-saffron" />
-                    ) : account.codBlocked ? (
-                      <Badge tone="danger" className="shrink-0">
-                        <ShieldAlert className="size-3" />
-                        COD blocked
-                      </Badge>
                     ) : null}
                   </Card>
                 </button>

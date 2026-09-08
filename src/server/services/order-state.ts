@@ -33,21 +33,12 @@ export interface TransitionRule {
 const S = ORDER_STATUS;
 const A = ACTOR;
 
+/**
+ * PLACED is the FIRST state. There is no payment step in front of it: the
+ * student owes nothing until the food is in their hands, so an order is real
+ * from the moment it is submitted.
+ */
 export const TRANSITIONS: readonly TransitionRule[] = [
-  /* ── Payment ──────────────────────────────────────────────────── */
-  {
-    from: S.PAYMENT_PENDING,
-    to: S.PLACED,
-    actors: [A.WEBHOOK, A.SYSTEM],
-    why: "The gateway captured the payment. Webhook or reconciliation cron only — never a client.",
-  },
-  {
-    from: S.PAYMENT_PENDING,
-    to: S.PAYMENT_FAILED,
-    actors: [A.WEBHOOK, A.SYSTEM],
-    why: "Gateway declined, or the attempt was abandoned for 15 minutes (F1).",
-  },
-
   /* ── Vendor acknowledgement ───────────────────────────────────── */
   {
     from: S.PLACED,
@@ -59,14 +50,14 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     from: S.PLACED,
     to: S.REJECTED_BY_VENDOR,
     actors: [A.VENDOR],
-    why: "Vendor rejected. Full refund of refundableAmount (F5).",
+    why: "Vendor rejected. Nothing was paid, so there is nothing to return (F5).",
     requiresReason: true,
   },
   {
     from: S.PLACED,
     to: S.EXPIRED_NO_ACK,
     actors: [A.SYSTEM],
-    why: "Four minutes of silence. Auto-refund (F4). Cron only.",
+    why: "Four minutes of silence. Nothing was paid (F4). Cron only.",
   },
 
   /* ── Kitchen & Gate handoff ───────────────────────────────────── */
@@ -136,41 +127,39 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     actors: [A.STUDENT, A.VENDOR, A.SYSTEM],
     why: "Student matched the packet code and tapped Confirm Received.",
   },
-  {
-    from: S.ACCEPTED,
-    to: S.DELIVERED_TO_SECURITY,
-    actors: [A.SYSTEM, A.VENDOR],
-    why: "Prepaid, packet left with security.",
-  },
-  {
-    from: S.PREPARING,
-    to: S.DELIVERED_TO_SECURITY,
-    actors: [A.SYSTEM, A.VENDOR],
-    why: "Prepaid, packet left with security.",
-  },
-  {
-    from: S.AT_GATE,
-    to: S.DELIVERED_TO_SECURITY,
-    actors: [A.SYSTEM, A.VENDOR],
-    why: "F7 — prepaid, 15-minute grace elapsed. Packet left with the hostel guard.",
-  },
+  // There is no "leave it with the guard" ending any more. That existed only
+  // for prepaid orders, where the platform already held the money and the
+  // packet was the only thing at risk. Nobody can hand unpaid food to a
+  // security desk, so every uncollected order ends the same way: NO_SHOW.
   {
     from: S.ACCEPTED,
     to: S.NO_SHOW,
     actors: [A.SYSTEM, A.VENDOR],
-    why: "COD student absent or refused the cash.",
+    why: "Student absent, or refused to pay the cash.",
   },
   {
     from: S.PREPARING,
     to: S.NO_SHOW,
     actors: [A.SYSTEM, A.VENDOR],
-    why: "COD student absent or refused the cash.",
+    why: "Student absent, or refused to pay the cash.",
+  },
+  {
+    from: S.READY,
+    to: S.NO_SHOW,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "Student absent, or refused to pay the cash.",
+  },
+  {
+    from: S.OUT_FOR_DELIVERY,
+    to: S.NO_SHOW,
+    actors: [A.SYSTEM, A.VENDOR],
+    why: "Student absent, or refused to pay the cash.",
   },
   {
     from: S.AT_GATE,
     to: S.NO_SHOW,
     actors: [A.SYSTEM, A.VENDOR],
-    why: "F8/F9 — COD student absent or refused the cash. Token forfeited to the vendor. No refund.",
+    why: "F7/F8/F9 — grace elapsed, or the student refused the cash. The food goes back with the rider and the vendor carries the loss.",
   },
 
   /* ── Admin override ───────────────────────────────────────────── */
@@ -181,14 +170,14 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     to: S.CANCELLED_BY_ADMIN,
     // F6 — a student who answers "cancel the whole order" when an item runs
     // out mid-cook is exercising a PLATFORM cancellation, not a student one:
-    // the fault is the kitchen's, the refund is full, and D1 is untouched
-    // because this is vendor fault rather than change of mind. It is fired by
+    // the fault is the kitchen's, and nothing is owed either way because the
+    // food never reached a gate. It is fired by
     // SYSTEM on the student's instruction, and only from the two states where
     // a stockout can actually be discovered. The vendor still cannot cancel
     // from anywhere, which is the rule that matters.
     actors:
       from === S.ACCEPTED || from === S.PREPARING ? [A.ADMIN, A.SYSTEM] : [A.ADMIN],
-    why: "Admin override: power cut, closure, emergency. Full refund.",
+    why: "Admin override: power cut, closure, emergency. Nothing was paid.",
     requiresReason: true,
   })),
 
@@ -197,13 +186,7 @@ export const TRANSITIONS: readonly TransitionRule[] = [
     from: S.DELIVERED,
     to: S.SETTLED,
     actors: [A.SYSTEM],
-    why: "Nightly settlement run.",
-  },
-  {
-    from: S.DELIVERED_TO_SECURITY,
-    to: S.SETTLED,
-    actors: [A.SYSTEM],
-    why: "Nightly settlement run.",
+    why: "Nightly run: this order is on a vendor's commission statement.",
   },
 ];
 

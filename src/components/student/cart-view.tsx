@@ -64,7 +64,7 @@ export function CartView() {
     );
   }
 
-  const quote = data.quotes.ONLINE_100;
+  const quote = data.quote;
   const hasIssues = data.issues.length > 0;
   const payableNow = quote.commissionBasePaise - quote.discountPaise;
 

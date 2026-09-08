@@ -44,7 +44,7 @@ import {
   rerouteToFallbackGate,
 } from "@/server/actions/vendor";
 import { useVendorLanguage } from "@/context/vendor-language-context";
-import { DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { DEFAULTS, ORDER_STATUS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { VendorBoardOrder } from "@/server/services/vendor";
 
@@ -69,7 +69,6 @@ export function VendorOrderCard({
   const [busy, setBusy] = useState(false);
 
   const isNew = order.status === ORDER_STATUS.PLACED;
-  const isCod = order.method === PAYMENT_METHOD.HYBRID_COD;
 
   const run = async (fn: () => Promise<{ status: string; message?: string }>): Promise<void> => {
     setBusy(true);
@@ -109,7 +108,7 @@ export function VendorOrderCard({
             label={t("acceptWithin")}
           />
         ) : (
-          <Badge tone={isCod ? "warning" : "neutral"}>{isCod ? t("cash") : t("prepaid")}</Badge>
+          <Badge tone="warning">{t("cash")}</Badge>
         )}
       </div>
 
@@ -184,13 +183,8 @@ export function VendorOrderCard({
 
       {/* ── Money ────────────────────────────────────────────────── */}
       <div className="mt-auto flex items-baseline justify-between gap-3 border-t border-line px-3.5 py-2.5 text-xs">
-        <span className="text-muted">
-          {isCod ? t("collectOnDelivery") : t("yourShare")}
-        </span>
-        <Money
-          paise={isCod ? order.cashDueOnDeliveryPaise : order.vendorReceivablePaise}
-          className="text-sm font-semibold text-bone"
-        />
+        <span className="text-muted">{t("collectOnDelivery")}</span>
+        <Money paise={order.cashDuePaise} className="text-sm font-semibold text-bone" />
       </div>
 
       {/* ── Actions ──────────────────────────────────────────────── */}
@@ -282,9 +276,8 @@ export function VendorOrderCard({
               </button>
             </div>
 
-            {/* COD or security actions if needed */}
-            {isCod ? (
-              <div className="space-y-2 pt-1 border-t border-line/60">
+            {/* The gate handoff: cash in, packet out. */}
+            <div className="space-y-2 pt-1 border-t border-line/60">
                 <Button
                   block
                   variant="success"
@@ -293,7 +286,7 @@ export function VendorOrderCard({
                   onClick={() => void run(() => confirmCashCollected({ orderId: order.orderId }))}
                 >
                   <Banknote />
-                  {t("confirmCashReceived")} — <Money paise={order.cashDueOnDeliveryPaise} />
+                  {t("confirmCashReceived")} — <Money paise={order.cashDuePaise} />
                 </Button>
                 <div className="flex gap-2">
                   <Button
@@ -321,8 +314,7 @@ export function VendorOrderCard({
                     {t("cashRefusedAction")}
                   </Button>
                 </div>
-              </div>
-            ) : null}
+            </div>
           </div>
         )}
       </div>
