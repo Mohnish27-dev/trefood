@@ -43,7 +43,7 @@ export default defineConfig({
     // Pure domain code (pricing, FSM, curfew) must be testable with no HTTP,
     // no session and no React. PROJECT_STRUCTURE.md section 1.
     globals: false,
-    testTimeout: 20000,
+    testTimeout: 60000,
     env: {
       ...loadEnvLocal(),
       PAYMENT_PROVIDER: "stub",

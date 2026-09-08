@@ -6,15 +6,16 @@ import { campusDayRange } from "@/lib/campus-time";
 import type { LedgerEntry } from "@/types/finance";
 
 /**
- * Append-only payout adjustments. MONEY_AND_SETTLEMENT.md section 5.
+ * Append-only adjustments to what a vendor owes. MONEY_AND_SETTLEMENT.md section 5.
  *
  * There is no update and no delete here, for the same reason there is none in
- * `audit.ts`: this is the evidence behind every payout a vendor questions. A
+ * `audit.ts`: this is the evidence behind every invoice a vendor questions. A
  * correction is a NEW entry with the opposite sign, never an edit to an old
  * one, so the statement always reads as a history rather than a claim.
  *
- * `amountPaise` is the only signed money field in the system. Negative debits
- * the vendor.
+ * `amountPaise` is the only signed money field in the system, and it is signed
+ * AGAINST THE VENDOR'S DUE: positive means they owe us more, negative means
+ * they owe us less. See the note on `LedgerEntry` in types/finance.ts.
  */
 
 export interface LedgerInput {
@@ -23,7 +24,7 @@ export interface LedgerInput {
   orderId?: string | null;
   orderNumber?: string | null;
   type: LedgerEntry["type"];
-  /** Negative for a debit against the vendor. */
+  /** Positive adds to what the vendor owes; negative credits them. */
   amountPaise: number;
   note: string;
   createdBy?: string | null;
@@ -63,19 +64,19 @@ export async function listLedgerEntries(params: {
 }
 
 /**
- * Adjustments belonging to one campus-local settlement day.
+ * Adjustments belonging to one campus-local statement day.
  *
  * Membership is decided by `createdAt` falling inside the campus day rather
- * than by a settlementId written back onto the entry. That keeps the ledger
+ * than by a statementId written back onto the entry. That keeps the ledger
  * genuinely append-only and makes a re-run of the same day produce the same
  * set — which is what F15's idempotency actually requires.
  */
 export async function ledgerEntriesForDay(params: {
   restaurantId: string;
-  settlementDate: string;
+  statementDate: string;
   timezone: string;
 }): Promise<LedgerEntry[]> {
-  const { start, end } = campusDayRange(params.settlementDate, params.timezone);
+  const { start, end } = campusDayRange(params.statementDate, params.timezone);
   return (await db.ledgerEntries())
     .find({ restaurantId: params.restaurantId, createdAt: { $gte: start, $lt: end } })
     .sort({ createdAt: 1 })

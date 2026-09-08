@@ -1342,9 +1342,9 @@ export async function seedChaiSuttaBar(): Promise<void> {
     passwordHash: hashPassword("csbtraefood@123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };

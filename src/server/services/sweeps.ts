@@ -1,9 +1,7 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
-import { paymentProvider } from "./payments";
-import { issueRefund } from "./refunds";
+import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
 import { transitionOrder } from "./orders";
 import { recordStrike } from "./students";
 import { autoResolveExpiredStockouts } from "./stockout";
@@ -39,12 +37,16 @@ export interface SweepReport {
    ══════════════════════════════════════════════════════════════════════ */
 
 /**
- * Four minutes of silence closes the order and returns the money.
+ * Four minutes of silence closes the order.
+ *
+ * There is no money to return — nothing was paid — so the whole cost of a
+ * vendor ignoring their tablet is a student who went hungry waiting. That is
+ * the more expensive one.
  *
  * Three expiries in one campus-local day also flips the restaurant closed and
  * flags it for admin. A canteen that cannot answer its tablet should not keep
- * taking orders — every further order it swallows is another refund and
- * another student who stops trusting the app.
+ * taking orders — every further order it swallows is another student who
+ * stops trusting the app.
  */
 export async function expireUnackedOrders(now: Date = new Date()): Promise<SweepReport> {
   const report: SweepReport = { job: "expire-unacked", scanned: 0, acted: 0, errors: [] };
@@ -78,17 +80,11 @@ export async function expireUnackedOrders(now: Date = new Date()): Promise<Sweep
       continue;
     }
 
-    const refund = await issueRefund({
-      order: transition.order,
-      reason: `Vendor did not acknowledge ${order.orderNumber} (F4)`,
-    });
-    if (!refund.ok) report.errors.push(`${order.orderNumber} refund: ${refund.message}`);
-
     await countExpiryAgainstRestaurant(order, now);
     await notifyOrderEvent({
       order: transition.order,
       title: "Your order could not be started",
-      body: `${order.restaurantSnapshot.name} did not respond. Your refund is on its way.`,
+      body: `${order.restaurantSnapshot.name} did not respond. You have not been charged anything.`,
     });
 
     report.acted += 1;
@@ -129,17 +125,22 @@ async function countExpiryAgainstRestaurant(order: Order, now: Date): Promise<vo
    ══════════════════════════════════════════════════════════════════════ */
 
 /**
- * Fifteen minutes at the gate, then the two paths diverge completely.
+ * Fifteen minutes at the gate, and then there is only one thing that can happen.
  *
- *   PREPAID  the rider leaves the packet with the hostel guard. The platform
- *            already holds the money, so nothing is at risk but the food.
- *   COD      the rider cannot leave unpaid food. It goes back, the token is
- *            forfeited to the vendor as compensation, and a strike is recorded.
+ * The rider cannot leave unpaid food with a security desk and walk away, so
+ * the old prepaid path — leave the packet with the guard — has no meaning any
+ * more. Every uncollected order ends the same way: the food goes back, the
+ * vendor carries the loss of having cooked and carried it, and the student
+ * takes a strike.
+ *
+ * The vendor eats that loss rather than the platform, which is the honest
+ * allocation: we never held any of this money. What the strike buys is a
+ * record an admin can act on when the same student does it twice.
  *
  * F10 — the student who took the food and never tapped — is indistinguishable
- * from F7 at this point, and deliberately collapses into it. The confirm tap
- * is a receipt, not a payment gate: the vendor already has the cash or the
- * platform already has the money either way.
+ * from a no-show here, and deliberately collapses into it. The confirm tap is
+ * a receipt, not a payment gate: if the rider handed the packet over, they
+ * were paid for it at the same moment.
  */
 export async function closeStaleGates(now: Date = new Date()): Promise<SweepReport> {
   const report: SweepReport = { job: "close-stale-gates", scanned: 0, acted: 0, errors: [] };
@@ -158,15 +159,11 @@ export async function closeStaleGates(now: Date = new Date()): Promise<SweepRepo
     report.scanned += 1;
     if (now.getTime() < atGateAt.getTime() + campus.settings.gateGraceSeconds * 1_000) continue;
 
-    const isCod = order.payment.method === PAYMENT_METHOD.HYBRID_COD;
-
     const transition = await transitionOrder({
       orderId: order._id,
-      to: isCod ? ORDER_STATUS.NO_SHOW : ORDER_STATUS.DELIVERED_TO_SECURITY,
+      to: ORDER_STATUS.NO_SHOW,
       actor: ACTOR.SYSTEM,
-      reason: isCod
-        ? "COD order not collected within the grace window (F8)"
-        : "Prepaid order left with gate security after the grace window (F7)",
+      reason: "Order not collected within the grace window (F8)",
     });
 
     if (!transition.ok) {
@@ -174,149 +171,20 @@ export async function closeStaleGates(now: Date = new Date()): Promise<SweepRepo
       continue;
     }
 
-    if (isCod) {
-      // No refund, by design (D1). The token stays with the vendor as
-      // compensation for food that was cooked and carried for nothing.
-      await recordStrike({
-        userId: order.customerId,
-        orderId: order._id,
-        orderNumber: order.orderNumber,
-        reason: "NO_SHOW_COD",
-        actor: ACTOR.SYSTEM,
-      });
-      await notifyOrderEvent({
-        order: transition.order,
-        title: "Your order was not collected",
-        body: `${order.restaurantSnapshot.name} took it back. Cash orders that are not collected count as a strike.`,
-      });
-    } else {
-      await notifyOrderEvent({
-        order: transition.order,
-        title: "Left with gate security",
-        body: `Your order is with security at ${order.deliveryZoneSnapshot.name}. Collect it there.`,
-      });
-    }
+    await recordStrike({
+      userId: order.customerId,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      reason: "NO_SHOW",
+      actor: ACTOR.SYSTEM,
+    });
+    await notifyOrderEvent({
+      order: transition.order,
+      title: "Your order was not collected",
+      body: `${order.restaurantSnapshot.name} took it back. Orders that are not collected count as a strike.`,
+    });
 
     report.acted += 1;
-  }
-
-  return report;
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   F1 / F2 — the payment that never confirmed
-   ══════════════════════════════════════════════════════════════════════ */
-
-/**
- * An order stuck in PAYMENT_PENDING is a student on hostel wifi whose UPI app
- * succeeded while their browser tab died.
- *
- * Reconciliation against the gateway is Phase 9 work and belongs behind the
- * same `PaymentProvider` seam. What runs now is the other half: after the
- * abandon window, the order is closed as PAYMENT_FAILED so it stops sitting in
- * a student's history as a live order that will never move.
- */
-export async function abandonStalePayments(now: Date = new Date()): Promise<SweepReport> {
-  const report: SweepReport = { job: "abandon-payments", scanned: 0, acted: 0, errors: [] };
-
-  const cutoff = new Date(now.getTime() - DEFAULTS.paymentAbandonMinutes * 60_000);
-  const orders = await (await db.orders())
-    .find({ status: ORDER_STATUS.PAYMENT_PENDING, "timestamps.createdAt": { $lt: cutoff } })
-    .limit(200)
-    .toArray();
-
-  for (const order of orders) {
-    report.scanned += 1;
-
-    // Check with gateway first: if student completed payment just as tab closed, promote to PLACED
-    const provider = paymentProvider();
-    if (provider.checkStatus) {
-      try {
-        const check = await provider.checkStatus({ orderNumber: order.orderNumber });
-        if (check.status === "SUCCESS") {
-          await (await db.orders()).updateOne(
-            { _id: order._id },
-            {
-              $set: {
-                "payment.status": PAYMENT_STATUS.CAPTURED,
-                "payment.providerPaymentId": check.paymentId ?? null,
-                "payment.onlinePaidPaise": check.amountPaise ?? order.pricing.grandTotalPaise,
-              },
-            },
-          );
-          const promoted = await transitionOrder({
-            orderId: order._id,
-            to: ORDER_STATUS.PLACED,
-            actor: ACTOR.SYSTEM,
-            reason: `Payment verified during reconciliation sweep (${paymentProvider().name})`,
-          });
-          if (promoted.ok) {
-            report.acted += 1;
-            continue;
-          }
-        }
-      } catch {
-        // Continue to abandon if check failed
-      }
-    }
-
-    const transition = await transitionOrder({
-      orderId: order._id,
-      to: ORDER_STATUS.PAYMENT_FAILED,
-      actor: ACTOR.SYSTEM,
-      reason: `Payment not completed within ${DEFAULTS.paymentAbandonMinutes} minutes (F1)`,
-    });
-    if (transition.ok) report.acted += 1;
-    else report.errors.push(`${order.orderNumber}: ${transition.message}`);
-  }
-
-  return report;
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   F16 — the refund the gateway would not take
-   ══════════════════════════════════════════════════════════════════════ */
-
-/** Three attempts, then it is an admin's problem rather than a loop's. */
-export const REFUND_MAX_ATTEMPTS = 3;
-
-/**
- * Retry refunds that failed at the gateway.
- *
- * Money that fails to move must never fail silently. After three attempts the
- * order stops being retried and stays visible with its error payload, because
- * the fix at that point is a human opening the gateway dashboard — and a
- * cron that keeps retrying forever is how that human never finds out.
- */
-export async function retryFailedRefunds(now: Date = new Date()): Promise<SweepReport> {
-  const report: SweepReport = { job: "retry-refunds", scanned: 0, acted: 0, errors: [] };
-
-  const orders = await (await db.orders())
-    .find({ "refund.status": "FAILED", "refund.attempts": { $lt: REFUND_MAX_ATTEMPTS } })
-    .limit(50)
-    .toArray();
-
-  for (const order of orders) {
-    report.scanned += 1;
-
-    // Exponential backoff between attempts: 1, then 4, then 9 minutes. A
-    // gateway having a bad minute should not be hammered for it.
-    const attempts = order.refund?.attempts ?? 1;
-    const waitMs = attempts * attempts * 60_000;
-    const lastAt = order.refund?.at.getTime() ?? 0;
-    if (now.getTime() < lastAt + waitMs) continue;
-
-    const result = await issueRefund({
-      order,
-      amountPaise: order.refund?.amountPaise ?? order.pricing.refundableAmountPaise,
-      reason: `Retry ${attempts + 1} of a failed refund on ${order.orderNumber}`,
-      // The recovery entry was already booked on the first attempt; booking it
-      // again on each retry would debit the vendor three times for one refund.
-      recoverGatewayFeeFromVendor: false,
-    });
-
-    if (result.ok) report.acted += 1;
-    else report.errors.push(`${order.orderNumber}: ${result.message}`);
   }
 
   return report;
@@ -344,9 +212,7 @@ export async function runAllSweeps(now: Date = new Date()): Promise<SweepReport[
   return [
     await resolveExpiredStockouts(now),
     await expireUnackedOrders(now),
-    await abandonStalePayments(now),
     await closeStaleGates(now),
-    await retryFailedRefunds(now),
   ];
 }
 

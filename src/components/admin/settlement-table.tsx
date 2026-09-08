@@ -22,25 +22,26 @@ import {
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
-import { markPaid, runSettlementNow } from "@/server/actions/admin";
+import { markCollected, runSettlementNow } from "@/server/actions/admin";
 import { formatCampusDate } from "@/lib/campus-time";
 import { formatINRPlain } from "@/lib/money";
 
-export interface SettlementRow {
-  settlementId: string;
-  settlementDate: string;
+export interface StatementRow {
+  statementId: string;
+  statementDate: string;
   restaurantName: string;
-  accountLabel: string;
-  upiId: string | null;
-  grossPrepaidPaise: number;
+  /** So the admin can call them without leaving the screen. */
+  contactPhone: string;
+  cashCollectedPaise: number;
+  commissionDuePaise: number;
   adjustmentsPaise: number;
   openingBalancePaise: number;
-  netPayablePaise: number;
+  netDuePaise: number;
   carriedForwardPaise: number;
   orderCount: number;
-  codOrderCount: number;
   status: "PENDING" | "PAID";
-  utrReference: string | null;
+  collectionMethod: "CASH" | "UPI" | "BANK_TRANSFER" | null;
+  paymentReference: string | null;
 }
 
 export interface CampusOption {
@@ -49,24 +50,33 @@ export interface CampusOption {
   todayDate: string;
 }
 
+const METHOD_LABEL: Record<NonNullable<StatementRow["collectionMethod"]>, string> = {
+  CASH: "Cash",
+  UPI: "UPI",
+  BANK_TRANSFER: "Bank transfer",
+};
+
 /**
- * Settlement.
+ * Commission collections.
  *
- * v1 payout is an admin with a banking app and a CSV — deliberately, per
- * MONEY section 6. At ten to twenty vendors, five minutes a night genuinely
- * beats a payout-API activation, and this screen is that five minutes: run the
- * day, download the file, pay, come back and stamp each row with its UTR.
+ * ★ MONEY COMES IN ON THIS SCREEN. IT DOES NOT GO OUT. ★
+ *
+ * Every order is cash on delivery, so the vendor's own staff came back from
+ * every gate holding the full bill. TREFOOD never touched it. What this screen
+ * shows is the invoice: our commission on the day's deliveries, which the
+ * vendor hands over the next morning. Run the day, work down the list, and
+ * stamp each row as the money arrives.
  *
  * Re-running a day is safe and expected. The unique index on
- * `(restaurantId, settlementDate)` makes the second run a no-op, so the button
- * can be pressed twice by a nervous human without paying anyone twice.
+ * `(restaurantId, statementDate)` makes the second run a no-op, so the button
+ * can be pressed twice by a nervous human without invoicing anyone twice.
  */
 export function SettlementTable({
   rows,
   campuses,
   selectedDate,
 }: {
-  rows: SettlementRow[];
+  rows: StatementRow[];
   campuses: CampusOption[];
   selectedDate: string;
 }) {
@@ -76,16 +86,16 @@ export function SettlementTable({
 
   const run = async (): Promise<void> => {
     setRunning(true);
-    const result = await runSettlementNow({ campusId, settlementDate: date });
+    const result = await runSettlementNow({ campusId, statementDate: date });
     setRunning(false);
 
     if (result.status === "error") toast.error(result.message);
     else toast.success(result.message);
   };
 
-  const totalPayable = rows
+  const totalDue = rows
     .filter((row) => row.status === "PENDING")
-    .reduce((total, row) => total + row.netPayablePaise, 0);
+    .reduce((total, row) => total + row.netDuePaise, 0);
 
   return (
     <div className="space-y-5">
@@ -118,26 +128,26 @@ export function SettlementTable({
 
           <Button disabled={running || campusId === ""} onClick={() => void run()}>
             {running ? <Loader2 className="animate-spin" /> : <PlayCircle />}
-            Run settlement
+            Run statements
           </Button>
 
           {rows.length > 0 ? (
             <Button variant="secondary" onClick={() => downloadCsv(rows, date)}>
               <Download />
-              Download payout CSV
+              Download collections CSV
             </Button>
           ) : null}
 
           <p className="ml-auto text-sm text-muted">
-            Pending payout{" "}
-            <Money paise={totalPayable} exact className="font-semibold text-bone" />
+            Still to collect{" "}
+            <Money paise={totalDue} exact className="font-semibold text-bone" />
           </p>
         </div>
 
         <p className="mt-3 text-xs leading-relaxed text-muted">
-          Running the same day twice is safe — the second run is a no-op. Cash orders
-          contribute nothing here: the token already paid our commission and the cash already
-          paid the vendor, so a COD order needs no settlement at all.
+          Running the same day twice is safe — the second run is a no-op. Only delivered orders
+          carry commission: a rejection, an expiry or a no-show means no food changed hands and
+          no cash was collected, so there is nothing to bill for it.
         </p>
       </Card>
 
@@ -145,8 +155,8 @@ export function SettlementTable({
         <Card>
           <EmptyState
             icon={Banknote}
-            title="Nothing settled for this day"
-            description="Run the settlement above, or pick another date. Only delivered orders settle; anything still in flight rolls to the next day."
+            title="No statements for this day"
+            description="Run the statements above, or pick another date. Anything still in flight rolls to the next day."
           />
         </Card>
       ) : (
@@ -154,11 +164,12 @@ export function SettlementTable({
           <THead>
             <tr>
               <TH>Restaurant</TH>
-              <TH>Bank</TH>
-              <TH className="text-right">Prepaid</TH>
+              <TH>Phone</TH>
+              <TH className="text-right">Cash collected</TH>
+              <TH className="text-right">Commission</TH>
               <TH className="text-right">Adjustments</TH>
               <TH className="text-right">Opening</TH>
-              <TH className="text-right">Net payable</TH>
+              <TH className="text-right">Owes us</TH>
               <TH className="text-right">Carried</TH>
               <TH>Status</TH>
               <TH />
@@ -166,20 +177,27 @@ export function SettlementTable({
           </THead>
           <TBody>
             {rows.map((row) => (
-              <TR key={row.settlementId}>
+              <TR key={row.statementId}>
                 <TD>
                   <p className="font-medium">{row.restaurantName}</p>
                   <p className="mt-0.5 text-[11px] text-faint">
-                    {row.orderCount} order{row.orderCount === 1 ? "" : "s"} · {row.codOrderCount}{" "}
-                    cash
+                    {row.orderCount} order{row.orderCount === 1 ? "" : "s"} delivered
                   </p>
                 </TD>
                 <TD className="whitespace-nowrap text-xs text-muted">
-                  {row.accountLabel}
-                  {row.upiId ? <span className="block text-faint">{row.upiId}</span> : null}
+                  {row.contactPhone ? (
+                    <a href={`tel:${row.contactPhone}`} className="hover:text-saffron">
+                      {row.contactPhone}
+                    </a>
+                  ) : (
+                    <span className="text-faint">—</span>
+                  )}
+                </TD>
+                <TD className="text-right text-muted">
+                  <Money paise={row.cashCollectedPaise} exact />
                 </TD>
                 <TD className="text-right">
-                  <Money paise={row.grossPrepaidPaise} exact />
+                  <Money paise={row.commissionDuePaise} exact />
                 </TD>
                 <TD className="text-right">
                   <Signed paise={row.adjustmentsPaise} />
@@ -188,7 +206,7 @@ export function SettlementTable({
                   <Signed paise={row.openingBalancePaise} />
                 </TD>
                 <TD className="text-right font-semibold">
-                  <Money paise={row.netPayablePaise} exact />
+                  <Money paise={row.netDuePaise} exact />
                 </TD>
                 <TD className="text-right text-muted">
                   <Signed paise={row.carriedForwardPaise} />
@@ -196,10 +214,11 @@ export function SettlementTable({
                 <TD>
                   {row.status === "PAID" ? (
                     <span className="inline-flex flex-col gap-0.5">
-                      <Badge tone="success">Paid</Badge>
-                      {row.utrReference ? (
+                      <Badge tone="success">Collected</Badge>
+                      {row.paymentReference ? (
                         <span className="font-mono text-[10px] text-faint">
-                          {row.utrReference}
+                          {row.collectionMethod ? `${METHOD_LABEL[row.collectionMethod]} · ` : ""}
+                          {row.paymentReference}
                         </span>
                       ) : null}
                     </span>
@@ -208,8 +227,8 @@ export function SettlementTable({
                   )}
                 </TD>
                 <TD className="text-right">
-                  {row.status === "PENDING" && row.netPayablePaise > 0 ? (
-                    <MarkPaidDialog row={row} />
+                  {row.status === "PENDING" && row.netDuePaise > 0 ? (
+                    <MarkCollectedDialog row={row} />
                   ) : null}
                 </TD>
               </TR>
@@ -223,14 +242,19 @@ export function SettlementTable({
 
 /* ------------------------------------------------------------------ */
 
-function MarkPaidDialog({ row }: { row: SettlementRow }) {
+function MarkCollectedDialog({ row }: { row: StatementRow }) {
   const [open, setOpen] = useState(false);
-  const [utr, setUtr] = useState("");
+  const [method, setMethod] = useState<NonNullable<StatementRow["collectionMethod"]>>("CASH");
+  const [reference, setReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);
-    const result = await markPaid({ settlementId: row.settlementId, utrReference: utr.trim() });
+    const result = await markCollected({
+      statementId: row.statementId,
+      collectionMethod: method,
+      paymentReference: reference.trim(),
+    });
     setSubmitting(false);
 
     if (result.status === "error") {
@@ -245,38 +269,61 @@ function MarkPaidDialog({ row }: { row: SettlementRow }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="secondary">
-          Mark paid
+          Mark collected
         </Button>
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Paid <Money paise={row.netPayablePaise} exact /> to {row.restaurantName}?
+            Collected <Money paise={row.netDuePaise} exact /> from {row.restaurantName}?
           </DialogTitle>
           <DialogDescription>
-            Enter the UTR your bank gave you. It appears on the vendor&apos;s statement, which
-            is what stops the “I never got last Tuesday” conversation.
+            Record how the money came in and against what reference. It appears on the
+            vendor&apos;s statement, which is what stops the “I already paid for last Tuesday”
+            conversation.
           </DialogDescription>
         </DialogHeader>
 
-        <DialogBody>
-          <Label htmlFor={`utr-${row.settlementId}`}>UTR reference</Label>
-          <Input
-            id={`utr-${row.settlementId}`}
-            value={utr}
-            onChange={(event) => setUtr(event.target.value)}
-            placeholder="N123456789012345"
-          />
+        <DialogBody className="space-y-3">
+          <div>
+            <Label htmlFor={`method-${row.statementId}`}>How it was paid</Label>
+            <Select
+              id={`method-${row.statementId}`}
+              value={method}
+              onChange={(event) =>
+                setMethod(event.target.value as NonNullable<StatementRow["collectionMethod"]>)
+              }
+            >
+              <option value="CASH">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="BANK_TRANSFER">Bank transfer</option>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor={`ref-${row.statementId}`}>Reference</Label>
+            <Input
+              id={`ref-${row.statementId}`}
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+              placeholder={
+                method === "CASH" ? "Receipt number, or who collected it" : "UPI id or bank UTR"
+              }
+            />
+          </div>
         </DialogBody>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button disabled={utr.trim().length < 4 || submitting} onClick={() => void submit()}>
+          <Button
+            disabled={reference.trim().length < 3 || submitting}
+            onClick={() => void submit()}
+          >
             {submitting ? <Loader2 className="animate-spin" /> : null}
-            Confirm paid
+            Confirm collected
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -286,8 +333,9 @@ function MarkPaidDialog({ row }: { row: SettlementRow }) {
 
 function Signed({ paise }: { paise: number }) {
   if (paise === 0) return <span className="text-faint">—</span>;
+  // Positive adds to what the vendor owes us; negative credits them.
   return (
-    <span className={paise < 0 ? "text-chili" : "text-mint"}>
+    <span className={paise < 0 ? "text-mint" : "text-chili"}>
       {paise < 0 ? "−" : "+"}
       <Money paise={Math.abs(paise)} exact />
     </span>
@@ -295,44 +343,44 @@ function Signed({ paise }: { paise: number }) {
 }
 
 /**
- * The payout file.
+ * The collections file.
  *
  * Generated in the browser from what is on screen so the admin downloads
  * exactly the rows they are looking at. The canonical formatter lives in
  * `settlement.ts` for the server-side export; this mirrors its columns.
  */
-function downloadCsv(rows: SettlementRow[], date: string): void {
+function downloadCsv(rows: StatementRow[], date: string): void {
   const header = [
     "date",
     "restaurant",
-    "bank",
-    "upi",
-    "prepaidGross",
+    "phone",
+    "orders",
+    "cashCollected",
+    "commissionDue",
     "adjustments",
     "opening",
-    "netPayable",
+    "netDue",
     "carried",
-    "orders",
-    "codOrders",
     "status",
-    "utr",
+    "collectedVia",
+    "reference",
   ].join(",");
 
   const body = rows.map((row) =>
     [
-      row.settlementDate,
+      row.statementDate,
       quote(row.restaurantName),
-      quote(row.accountLabel),
-      quote(row.upiId ?? ""),
-      rupees(row.grossPrepaidPaise),
+      quote(row.contactPhone),
+      String(row.orderCount),
+      rupees(row.cashCollectedPaise),
+      rupees(row.commissionDuePaise),
       rupees(row.adjustmentsPaise),
       rupees(row.openingBalancePaise),
-      rupees(row.netPayablePaise),
+      rupees(row.netDuePaise),
       rupees(row.carriedForwardPaise),
-      String(row.orderCount),
-      String(row.codOrderCount),
       row.status,
-      quote(row.utrReference ?? ""),
+      quote(row.collectionMethod ?? ""),
+      quote(row.paymentReference ?? ""),
     ].join(","),
   );
 
@@ -341,12 +389,12 @@ function downloadCsv(rows: SettlementRow[], date: string): void {
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = `trefood-payouts-${formatCampusDate(date).replaceAll(" ", "-")}.csv`;
+  link.download = `trefood-collections-${formatCampusDate(date).replaceAll(" ", "-")}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
-/** Plain rupee decimals, no symbol and no grouping — this is pasted into a bank portal. */
+/** Plain rupee decimals, no symbol and no grouping — this opens in a spreadsheet. */
 function rupees(paise: number): string {
   return paise < 0 ? `-${formatINRPlain(-paise)}` : formatINRPlain(paise);
 }

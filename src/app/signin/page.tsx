@@ -39,7 +39,6 @@ export default async function SignInPage({
       email: user.email,
       role: user.role,
       restaurantName: restaurant?.name ?? null,
-      codBlocked: user.codBlocked,
       strikes: user.strikes,
       lands: landingForRole(user.role),
     });

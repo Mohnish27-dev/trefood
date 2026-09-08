@@ -327,9 +327,9 @@ export async function seedMokila(): Promise<void> {
     passwordHash: hashPassword("Mukesh@74798"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };

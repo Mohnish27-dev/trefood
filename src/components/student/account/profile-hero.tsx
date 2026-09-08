@@ -23,14 +23,14 @@ export function ProfileHero({
   phone,
   orderCount,
   noShowCount,
-  codAvailable,
+  orderingBlocked,
 }: {
   name: string;
   email: string;
   phone: string | null;
   orderCount: number;
   noShowCount: number;
-  codAvailable: boolean;
+  orderingBlocked: boolean;
 }) {
   const initial = name.trim().charAt(0).toUpperCase() || "?";
 
@@ -81,9 +81,9 @@ export function ProfileHero({
             tone={noShowCount > 0 ? "chili" : "bone"}
           />
           <HeroStat
-            label="Pay at gate"
-            value={codAvailable ? "On" : "Off"}
-            tone={codAvailable ? "mint" : "chili"}
+            label="Ordering"
+            value={orderingBlocked ? "Paused" : "On"}
+            tone={orderingBlocked ? "chili" : "mint"}
           />
         </div>
       </div>

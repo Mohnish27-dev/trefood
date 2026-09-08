@@ -65,10 +65,10 @@ export default async function CheckoutPage() {
       <CheckoutView
         zones={zones}
         selectedZoneId={selectedZoneId}
-        codBlockedReason={
-          session?.user.codBlocked === true
-            ? (session.user.codBlockedReason ??
-              "Cash on delivery is disabled on your account.")
+        orderingBlockedReason={
+          session?.user.ordersBlocked === true
+            ? (session.user.ordersBlockedReason ??
+              "Ordering is paused on your account.")
             : null
         }
         initialPhone={session?.user.phone ?? ""}

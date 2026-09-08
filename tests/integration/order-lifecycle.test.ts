@@ -5,14 +5,14 @@ import { getMongoClient } from "@/server/db/client";
 import { getOrderTimeline } from "@/server/services/audit";
 import { createOrder, transitionOrder } from "@/server/services/orders";
 import { revealGateCode } from "@/server/services/gate-code";
-import { ACTOR, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { ACTOR, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "@/lib/constants";
 import { rupeesToPaise } from "@/lib/money";
 import type { User } from "@/types/user";
 import { setUpCanteenFixture, tearDownCanteenFixture } from "./canteen-fixture";
 
 /**
- * The full path from cart to DELIVERED, for both payment methods, against a
- * real database. PROJECT_STRUCTURE.md section 7.5.
+ * The full path from cart to DELIVERED, against a real database.
+ * PROJECT_STRUCTURE.md section 7.5.
  *
  * Needs the campus from the seed (`npm run seed`); the restaurant it orders
  * from is created and removed by canteen-fixture, so the test no longer depends
@@ -34,9 +34,9 @@ async function demoStudent(): Promise<User> {
       phone: "+919876500001",
       campusId: "campus_nitp",
       restaurantId: null,
-      codBlocked: false,
-      codBlockedReason: null,
       strikes: 0,
+      ordersBlocked: false,
+      ordersBlockedReason: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -79,8 +79,7 @@ describe("prepaid order, cart to DELIVERED", () => {
         { itemId: "item_nc_veg_thali", quantity: 2, addOnOptionIds: ["opt_full"] },
         { itemId: "item_nc_maggi", quantity: 1, addOnOptionIds: [] },
       ],
-      method: PAYMENT_METHOD.ONLINE_100,
-      idempotencyKey: `test-prepaid-${Date.now()}-${Math.random()}`,
+      idempotencyKey: `test-cod-full-${Date.now()}-${Math.random()}`,
     });
 
     expect(created.ok).toBe(true);
@@ -101,11 +100,12 @@ describe("prepaid order, cart to DELIVERED", () => {
     expect(
       order.pricing.platformCommissionPaise + order.pricing.vendorReceivablePaise,
     ).toBe(order.pricing.commissionBasePaise);
-    // 0% convenience fee — user pays for order only
-    expect(order.pricing.convenienceFeePaise).toBe(0);
+    // Nothing is added to the bill: the student hands over exactly the base.
     expect(order.pricing.grandTotalPaise).toBe(R(285));
-    expect(order.pricing.refundableAmountPaise).toBe(R(285));
-    expect(order.payment.cashDueOnDeliveryPaise).toBe(0);
+    expect(order.payment.cashDuePaise).toBe(R(285));
+    expect(order.payment.method).toBe(PAYMENT_METHOD.COD);
+    expect(order.payment.status).toBe(PAYMENT_STATUS.DUE);
+    expect(order.payment.cashCollectedPaise).toBe(0);
 
     /* ── Snapshots ──────────────────────────────────────────── */
 
@@ -117,7 +117,7 @@ describe("prepaid order, cart to DELIVERED", () => {
     /* ── The gate code is server-side redacted at every step ── */
 
     expect(order.gateCode).toMatch(/^\d{4}$/);
-    expect(revealGateCode(order.gateCode, ORDER_STATUS.PAYMENT_PENDING, "STUDENT")).toBeNull();
+    expect(revealGateCode(order.gateCode, ORDER_STATUS.PLACED, "STUDENT")).toBeNull();
 
     /* ── Walk the FSM ───────────────────────────────────────── */
 
@@ -137,7 +137,8 @@ describe("prepaid order, cart to DELIVERED", () => {
       return result;
     };
 
-    await step(ORDER_STATUS.PLACED, ACTOR.WEBHOOK);
+    // No payment hop: the order is PLACED the moment it is created.
+    expect(order.status).toBe(ORDER_STATUS.PLACED);
     await step(ORDER_STATUS.ACCEPTED, ACTOR.VENDOR, { prepMinutes: 20 });
     await step(ORDER_STATUS.PREPARING, ACTOR.SYSTEM);
 
@@ -159,13 +160,17 @@ describe("prepaid order, cart to DELIVERED", () => {
     expect(delivered.ok && delivered.order.timestamps.deliveredAt).toBeInstanceOf(Date);
     expect(delivered.ok && delivered.order.prepMinutes).toBe(20);
 
+    // The packet and the cash change hands in the same motion.
+    expect(delivered.ok && delivered.order.payment.status).toBe(PAYMENT_STATUS.COLLECTED);
+    expect(delivered.ok && delivered.order.payment.cashCollectedPaise).toBe(R(285));
+    expect(delivered.ok && delivered.order.payment.collectedAt).toBeInstanceOf(Date);
+
     /* ── Audit trail ────────────────────────────────────────── */
 
     const timeline = await getOrderTimeline(order._id);
-    // creation + 7 transitions
-    expect(timeline.length).toBe(8);
+    // creation + 6 transitions
+    expect(timeline.length).toBe(7);
     expect(timeline.map((t) => t.to)).toEqual([
-      ORDER_STATUS.PAYMENT_PENDING,
       ORDER_STATUS.PLACED,
       ORDER_STATUS.ACCEPTED,
       ORDER_STATUS.PREPARING,
@@ -179,8 +184,8 @@ describe("prepaid order, cart to DELIVERED", () => {
   });
 });
 
-describe("hybrid COD order", () => {
-  it("splits the money so settlement is unnecessary", async () => {
+describe("the reversed settlement maths", () => {
+  it("leaves the vendor holding the cash and owing us the commission", async () => {
     const student = await demoStudent();
 
     const created = await createOrder({
@@ -188,7 +193,6 @@ describe("hybrid COD order", () => {
       restaurantId: "rest_nit_canteen",
       zoneId: "zone_main_gate",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 2, addOnOptionIds: ["opt_full"] }],
-      method: PAYMENT_METHOD.HYBRID_COD,
       idempotencyKey: `test-cod-${Date.now()}-${Math.random()}`,
     });
 
@@ -204,17 +208,14 @@ describe("hybrid COD order", () => {
     expect(order.pricing.platformCommissionPaise).toBe(R(24));
     expect(order.pricing.vendorReceivablePaise).toBe(R(216));
 
-    // THE invariant: the token IS the commission, the cash IS the receivable.
-    // Neither side owes the other anything, so a COD order never settles.
-    expect(order.payment.cashDueOnDeliveryPaise).toBe(order.pricing.vendorReceivablePaise);
-    expect(
-      order.pricing.platformCommissionPaise + order.payment.cashDueOnDeliveryPaise,
-    ).toBe(order.pricing.commissionBasePaise);
+    // The student hands over the whole bill, in cash, at the gate.
+    expect(order.payment.cashDuePaise).toBe(R(240));
+    expect(order.payment.cashDuePaise).toBe(order.pricing.grandTotalPaise);
 
-    // 0% convenience fee — user pays for order only
-    expect(order.pricing.convenienceFeePaise).toBe(0);
-    // Refundable is the token actually paid online.
-    expect(order.pricing.refundableAmountPaise).toBe(R(24));
+    // The vendor keeps their share out of it and owes us the rest.
+    expect(order.payment.cashDuePaise - order.pricing.platformCommissionPaise).toBe(
+      order.pricing.vendorReceivablePaise,
+    );
   });
 });
 
@@ -230,7 +231,6 @@ describe("F12 — duplicate submission", () => {
       // Two, not one: a single 45-rupee Maggi is below the canteen's
       // 50-rupee minimum and would be refused before idempotency mattered.
       lines: [{ itemId: "item_nc_maggi", quantity: 2, addOnOptionIds: [] }],
-      method: PAYMENT_METHOD.ONLINE_100,
       idempotencyKey: key,
     } as const;
 
@@ -261,7 +261,6 @@ describe("F14 — an item 86-ed before payment", () => {
       // Chilli Paneer is seeded unavailable.
       lines: [{ itemId: "item_nc_chilli_paneer", quantity: 1, addOnOptionIds: [] }],
       zoneId: "zone_main_gate",
-      method: PAYMENT_METHOD.ONLINE_100,
       idempotencyKey: `test-86-${Date.now()}-${Math.random()}`,
     });
 
@@ -271,7 +270,7 @@ describe("F14 — an item 86-ed before payment", () => {
   });
 });
 
-describe("COD is refused for a blocked student (F9)", () => {
+describe("a blocked student is refused (F9)", () => {
   it("rejects at the service layer, not just in the UI", async () => {
     const users = await db.users();
     const blockedFixture: User = {
@@ -283,9 +282,9 @@ describe("COD is refused for a blocked student (F9)", () => {
       phone: "+919876500002",
       campusId: "campus_nitp",
       restaurantId: null,
-      codBlocked: true,
-      codBlockedReason: "Refused to pay cash on delivery for TRF-NITP-0042",
       strikes: 2,
+      ordersBlocked: true,
+      ordersBlockedReason: "Refused to pay cash on delivery for TRF-NITP-0042",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -296,11 +295,10 @@ describe("COD is refused for a blocked student (F9)", () => {
       restaurantId: "rest_nit_canteen",
       zoneId: "zone_main_gate",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
-      method: PAYMENT_METHOD.HYBRID_COD,
-      idempotencyKey: `test-codblock-${Date.now()}-${Math.random()}`,
+      idempotencyKey: `test-block-${Date.now()}-${Math.random()}`,
     });
 
     expect(created.ok).toBe(false);
-    if (!created.ok) expect(created.code).toBe("COD_BLOCKED");
+    if (!created.ok) expect(created.code).toBe("ORDERING_BLOCKED");
   });
 });

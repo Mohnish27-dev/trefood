@@ -47,15 +47,12 @@ export default async function AdminPricingPage() {
                 initial={{
                   deliveryFeePaise: campus.settings.deliveryFeePaise,
                   commissionBps: campus.settings.commissionBps,
-                  gatewayFeeBps: campus.settings.gatewayFeeBps,
-                  codHandlingFeePaise: campus.settings.codHandlingFeePaise,
                   transitMinutes: campus.settings.transitMinutes,
                   vendorAckSeconds: campus.settings.vendorAckSeconds,
                   vendorAutoExpireSeconds: campus.settings.vendorAutoExpireSeconds,
                   gateGraceSeconds: campus.settings.gateGraceSeconds,
                   curfewBufferMinutes: campus.settings.curfewBufferMinutes,
                   stockoutResolutionSeconds: campus.settings.stockoutResolutionSeconds,
-                  codEnabled: campus.settings.codEnabled,
                 }}
               />
             </section>

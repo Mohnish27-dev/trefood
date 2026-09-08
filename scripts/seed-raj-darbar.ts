@@ -957,9 +957,9 @@ export async function seedRajDarbar(): Promise<void> {
     passwordHash: hashPassword("Rajdarbar@720902026"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };

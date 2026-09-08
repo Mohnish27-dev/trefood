@@ -145,9 +145,9 @@ export async function seedZaikaBiryani(): Promise<void> {
     passwordHash: hashPassword("ZaikaBiryani@2026"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };

@@ -4,20 +4,18 @@ import * as db from "@/server/db/collections";
 import {
   DEFAULTS,
   ORDER_STATUS,
-  PAYMENT_METHOD,
   VENDOR_ACTIVE_STATUSES,
   type OrderStatus,
-  type PaymentMethod,
 } from "@/lib/constants";
 import { campusDateString, campusDayRange } from "@/lib/campus-time";
 import type { Paise } from "@/lib/money";
 import { revealGateCode } from "./gate-code";
 import { ackDeadline, estimatedArrival, gateDeadline } from "./orders";
 import { listLedgerEntries } from "./ledger";
-import { listSettlements } from "./settlement";
+import { listStatements } from "./settlement";
 import type { Campus } from "@/types/campus";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
-import type { LedgerEntry, Settlement } from "@/types/finance";
+import type { CommissionStatement, LedgerEntry } from "@/types/finance";
 import type { Order } from "@/types/order";
 
 /**
@@ -62,10 +60,11 @@ export interface VendorBoardOrder {
 
   items: VendorBoardItem[];
 
-  method: PaymentMethod;
-  /** COD: what the rider must come back with. Prepaid: 0. */
-  cashDueOnDeliveryPaise: Paise;
+  /** What the rider must come back with. The whole bill, in cash, every time. */
+  cashDuePaise: Paise;
+  /** The vendor's share of it, once our commission comes out. */
   vendorReceivablePaise: Paise;
+  /** What the vendor will owe TREFOOD for this order once it is delivered. */
   platformCommissionPaise: Paise;
 
   /** Null until READY. Enforced server-side, not by the UI. */
@@ -170,8 +169,7 @@ function toBoardOrder(params: {
       isAvailable: params.availability.get(item.itemId) ?? true,
     })),
 
-    method: order.payment.method,
-    cashDueOnDeliveryPaise: order.payment.cashDueOnDeliveryPaise,
+    cashDuePaise: order.payment.cashDuePaise,
     vendorReceivablePaise: order.pricing.vendorReceivablePaise,
     platformCommissionPaise: order.pricing.platformCommissionPaise,
 
@@ -221,14 +219,16 @@ function needsAtGateNag(order: Order, now: Date): boolean {
 export interface EarningsDay {
   date: string;
   orderCount: number;
-  codOrderCount: number;
-  /** What the student paid, across both methods. */
+  /** The order value, before any coupon. The commission is charged on this. */
   grossPaise: Paise;
+  /** What the vendor owes TREFOOD for the day. */
   commissionPaise: Paise;
-  /** The vendor's share: bank transfer for prepaid, cash in hand for COD. */
-  receivablePaise: Paise;
-  /** Already in the vendor's till — needs no settlement at all. */
-  codCashPaise: Paise;
+  /** Coupons the vendor funded by collecting less at the gate. */
+  discountPaise: Paise;
+  /** Cash the vendor's delivery staff actually brought back. */
+  cashCollectedPaise: Paise;
+  /** What the vendor keeps: cash collected, less the commission on it. */
+  keptPaise: Paise;
 }
 
 export interface VendorEarnings {
@@ -237,9 +237,21 @@ export interface VendorEarnings {
   today: EarningsDay;
   ledger: LedgerEntry[];
   ledgerTotalPaise: number;
-  settlements: Settlement[];
-  /** Owed but not yet paid out: pending settlements plus today's unsettled prepaid. */
-  pendingPayoutPaise: Paise;
+  statements: CommissionStatement[];
+  /** Invoiced and not yet handed over. This is a DEBT, not a payout. */
+  outstandingDuePaise: Paise;
+}
+
+function emptyDay(date: string): EarningsDay {
+  return {
+    date,
+    orderCount: 0,
+    grossPaise: 0,
+    commissionPaise: 0,
+    discountPaise: 0,
+    cashCollectedPaise: 0,
+    keptPaise: 0,
+  };
 }
 
 export async function getVendorEarnings(params: {
@@ -257,17 +269,11 @@ export async function getVendorEarnings(params: {
   ).start;
 
   // Only orders that actually reached a student count as earnings. Anything
-  // rejected, expired or cancelled produced a refund, not revenue.
+  // rejected, expired, cancelled or never collected produced no cash at all.
   const delivered = await (await db.orders())
     .find({
       restaurantId: params.restaurant._id,
-      status: {
-        $in: [
-          ORDER_STATUS.DELIVERED,
-          ORDER_STATUS.DELIVERED_TO_SECURITY,
-          ORDER_STATUS.SETTLED,
-        ],
-      },
+      status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.SETTLED] },
       "timestamps.deliveredAt": { $gte: oldest },
     })
     .toArray();
@@ -278,15 +284,7 @@ export async function getVendorEarnings(params: {
       new Date(now.getTime() - i * 86_400_000),
       params.campus.timezone,
     );
-    buckets.set(date, {
-      date,
-      orderCount: 0,
-      codOrderCount: 0,
-      grossPaise: 0,
-      commissionPaise: 0,
-      receivablePaise: 0,
-      codCashPaise: 0,
-    });
+    buckets.set(date, emptyDay(date));
   }
 
   for (const order of delivered) {
@@ -296,36 +294,27 @@ export async function getVendorEarnings(params: {
     const bucket = buckets.get(date);
     if (!bucket) continue;
 
-    const isCod = order.payment.method === PAYMENT_METHOD.HYBRID_COD;
     bucket.orderCount += 1;
-    if (isCod) bucket.codOrderCount += 1;
     bucket.grossPaise += order.pricing.commissionBasePaise;
     bucket.commissionPaise += order.pricing.platformCommissionPaise;
-    bucket.receivablePaise += order.pricing.vendorReceivablePaise;
-    if (isCod) bucket.codCashPaise += order.payment.cashDueOnDeliveryPaise;
+    bucket.discountPaise += order.pricing.discountPaise;
+    bucket.cashCollectedPaise += order.payment.cashCollectedPaise;
+    bucket.keptPaise += order.payment.cashCollectedPaise - order.pricing.platformCommissionPaise;
   }
 
   const days = [...buckets.values()].sort((a, b) => b.date.localeCompare(a.date));
   const todayDate = campusDateString(now, params.campus.timezone);
-  const today = days.find((d) => d.date === todayDate) ?? {
-    date: todayDate,
-    orderCount: 0,
-    codOrderCount: 0,
-    grossPaise: 0,
-    commissionPaise: 0,
-    receivablePaise: 0,
-    codCashPaise: 0,
-  };
+  const today = days.find((d) => d.date === todayDate) ?? emptyDay(todayDate);
 
-  const [ledger, settlements] = await Promise.all([
+  const [ledger, statements] = await Promise.all([
     listLedgerEntries({ restaurantId: params.restaurant._id, limit: 50 }),
-    listSettlements({ restaurantId: params.restaurant._id, limit: 30 }),
+    listStatements({ restaurantId: params.restaurant._id, limit: 30 }),
   ]);
 
   const ledgerTotalPaise = ledger.reduce((total, entry) => total + entry.amountPaise, 0);
-  const pendingPayoutPaise = settlements
+  const outstandingDuePaise = statements
     .filter((s) => s.status === "PENDING")
-    .reduce((total, s) => total + s.netPayablePaise, 0);
+    .reduce((total, s) => total + s.netDuePaise, 0);
 
   return {
     restaurant: params.restaurant,
@@ -333,8 +322,8 @@ export async function getVendorEarnings(params: {
     today,
     ledger,
     ledgerTotalPaise,
-    settlements,
-    pendingPayoutPaise,
+    statements,
+    outstandingDuePaise,
   };
 }
 

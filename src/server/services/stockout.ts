@@ -1,9 +1,8 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
-import type { Paise } from "@/lib/money";
-import { issueRefund } from "./refunds";
+import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
+import { ceilRupeeOfBps, type Paise } from "@/lib/money";
 import { writeLedgerEntry } from "./ledger";
 import { transitionOrder } from "./orders";
 import { writeAudit } from "./audit";
@@ -18,17 +17,21 @@ import type { Order, StockoutResolution } from "@/types/order";
  *
  * The student then gets a blocking three-choice screen with a five-minute
  * timer. No answer means "remove it, deliver the rest" — the least-bad
- * default, because it gets the student both their food and their money back
- * without anyone waiting.
+ * default, because the student still eats and is never charged for the part
+ * that did not arrive, without anyone having to wait.
  *
- * Price rule, from the failures doc: a cheaper substitute refunds the
- * difference; a dearer one is absorbed by the vendor. TREFOOD never charges a
- * second time. Collecting an incremental 20 rupees mid-order needs a whole
- * second gateway flow that would fail more often than it works.
+ * Price rule, from the failures doc: a cheaper substitute costs the student
+ * less; a dearer one is absorbed by the vendor. TREFOOD never charges more
+ * than the student agreed to at checkout.
+ *
+ * Cash on delivery makes this far simpler than it used to be. No money has
+ * moved yet, so a shortfall is not a refund — it is just a smaller number for
+ * the rider to collect at the gate.
  *
  * The frozen `pricing` block is never rewritten here. A price is fixed at
- * creation (MONEY rule 5); what changes is what gets refunded, what cash the
- * rider collects, and what the vendor is owed — all recorded alongside it.
+ * creation (MONEY rule 5); what changes is `payment.cashDuePaise`, plus a
+ * ledger credit for the commission on food that never arrived — recorded
+ * alongside the price, never over it.
  */
 
 export type StockoutChoice = NonNullable<StockoutResolution["choice"]>;
@@ -94,9 +97,7 @@ export async function raiseStockout(params: {
 
 export interface StockoutOutcome {
   choice: StockoutChoice;
-  /** Money returned to the gateway, in paise. Zero for COD, which reduces cash instead. */
-  refundedPaise: Paise;
-  /** COD only: how much less cash the rider now collects. */
+  /** How much less cash the rider now collects at the gate. */
   cashReducedPaise: Paise;
   cancelled: boolean;
 }
@@ -121,11 +122,9 @@ export async function resolveStockout(params: {
   if (!line) return { ok: false, message: "That item is no longer on this order." };
 
   const orders = await db.orders();
-  const isCod = order.payment.method === PAYMENT_METHOD.HYBRID_COD;
 
   const outcome: StockoutOutcome = {
     choice: params.choice,
-    refundedPaise: 0,
     cashReducedPaise: 0,
     cancelled: false,
   };
@@ -133,71 +132,32 @@ export async function resolveStockout(params: {
   /* --- Cancel the whole order ------------------------------------- */
 
   if (params.choice === "CANCEL") {
-    const refund = await issueRefund({
-      order,
-      reason: `Student cancelled after ${stockout.itemName} ran out (F6)`,
-      actorId: params.actorId ?? null,
-    });
-    if (!refund.ok) return { ok: false, message: refund.message };
-
+    // Nothing to unwind. The student never paid, so cancelling costs them
+    // nothing and owes them nothing.
     const transition = await transitionOrder({
       orderId: order._id,
       to: ORDER_STATUS.CANCELLED_BY_ADMIN,
       // The FSM's SYSTEM actor, not STUDENT: this is a platform cancellation
-      // caused by the kitchen, which is why it carries a full refund and does
-      // not violate D1.
+      // caused by the kitchen. Nothing is owed in either direction, and D1 is
+      // untouched because this is vendor fault rather than change of mind.
       actor: ACTOR.SYSTEM,
       actorId: params.actorId ?? null,
       reason: `${stockout.itemName} ran out; student chose to cancel (F6)`,
     });
     if (!transition.ok) return { ok: false, message: transition.message };
 
-    outcome.refundedPaise = refund.skipped ? 0 : refund.amountPaise;
     outcome.cancelled = true;
   }
 
   /* --- Remove the line, deliver the rest --------------------------- */
 
   if (params.choice === "REMOVE") {
-    const shortfall = line.lineTotalPaise;
-
-    if (isCod) {
-      // No online money to return: the rider simply collects less at the gate.
-      // The creation-time invariant `cashDue === vendorReceivable` described a
-      // full delivery; this order is no longer one, and charging cash for food
-      // that never arrives would be the actual violation.
-      const reduced = Math.max(0, order.payment.cashDueOnDeliveryPaise - shortfall);
-      outcome.cashReducedPaise = order.payment.cashDueOnDeliveryPaise - reduced;
-      await orders.updateOne(
-        { _id: order._id },
-        { $set: { "payment.cashDueOnDeliveryPaise": reduced } },
-      );
-    } else {
-      const refund = await issueRefund({
-        order,
-        amountPaise: shortfall,
-        reason: `${stockout.itemName} was unavailable and removed (F6)`,
-        actorId: params.actorId ?? null,
-      });
-      if (!refund.ok) return { ok: false, message: refund.message };
-      outcome.refundedPaise = refund.skipped ? 0 : refund.amountPaise;
-
-      // The platform refunded food the vendor never cooked, out of money it is
-      // holding on the vendor's behalf. Without this debit TREFOOD absorbs a
-      // kitchen shortfall, which is neither fair nor sustainable.
-      if (outcome.refundedPaise > 0) {
-        await writeLedgerEntry({
-          restaurantId: order.restaurantId,
-          campusId: order.campusId,
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-          type: "STOCKOUT_SHORTFALL",
-          amountPaise: -outcome.refundedPaise,
-          note: `${stockout.itemName} not delivered on ${order.orderNumber}`,
-          createdBy: params.actorId ?? null,
-        });
-      }
-    }
+    outcome.cashReducedPaise = await reduceCashDue({
+      order,
+      byPaise: line.lineTotalPaise,
+      note: `${stockout.itemName} not delivered on ${order.orderNumber}`,
+      actorId: params.actorId ?? null,
+    });
 
     await orders.updateOne(
       { _id: order._id, "items.itemId": line.itemId },
@@ -222,29 +182,16 @@ export async function resolveStockout(params: {
     const originalPerUnit = line.unitPricePaise;
     const differencePerUnit = originalPerUnit - substitute.pricePaise;
 
-    if (differencePerUnit > 0 && !isCod) {
-      const refund = await issueRefund({
+    if (differencePerUnit > 0) {
+      outcome.cashReducedPaise = await reduceCashDue({
         order,
-        amountPaise: differencePerUnit * line.quantity,
-        reason: `Swapped ${stockout.itemName} for ${substitute.name} (F6)`,
+        byPaise: differencePerUnit * line.quantity,
+        note: `Swapped ${stockout.itemName} for a cheaper ${substitute.name} on ${order.orderNumber}`,
         actorId: params.actorId ?? null,
-        // Not a vendor fault worth a second debit — they are still cooking
-        // and still delivering. The gateway fee on a few rupees is noise.
-        recoverGatewayFeeFromVendor: false,
       });
-      if (!refund.ok) return { ok: false, message: refund.message };
-      outcome.refundedPaise = refund.skipped ? 0 : refund.amountPaise;
-    } else if (differencePerUnit > 0 && isCod) {
-      const reduce = differencePerUnit * line.quantity;
-      const reduced = Math.max(0, order.payment.cashDueOnDeliveryPaise - reduce);
-      outcome.cashReducedPaise = order.payment.cashDueOnDeliveryPaise - reduced;
-      await orders.updateOne(
-        { _id: order._id },
-        { $set: { "payment.cashDueOnDeliveryPaise": reduced } },
-      );
     }
-    // A dearer substitute is absorbed by the vendor. Nothing to charge, and
-    // deliberately no second payment flow.
+    // A dearer substitute is absorbed by the vendor. The student pays what
+    // they agreed to and not a rupee more.
 
     await orders.updateOne(
       { _id: order._id, "items.itemId": line.itemId },
@@ -286,11 +233,63 @@ export async function resolveStockout(params: {
 }
 
 /**
+ * Collect less at the gate, and bill us less for it.
+ *
+ * Two things have to move together or the vendor is charged for a sale they
+ * did not make. The cash the rider collects drops by the shortfall, and the
+ * commission frozen on the order — which was computed on a base that included
+ * this food — is credited back by the same rate.
+ *
+ * The credit is a ledger entry rather than an edit to `pricing`, because the
+ * price block is immutable once written (MONEY rule 5). The vendor sees the
+ * line on their statement, which is the honest way to show it: they were
+ * billed for the whole order, and then credited for the part of it that never
+ * left the kitchen.
+ */
+async function reduceCashDue(params: {
+  order: Order;
+  byPaise: Paise;
+  note: string;
+  actorId: string | null;
+}): Promise<Paise> {
+  const { order } = params;
+  const reduced = Math.max(0, order.payment.cashDuePaise - params.byPaise);
+  const actualReductionPaise = order.payment.cashDuePaise - reduced;
+  if (actualReductionPaise === 0) return 0;
+
+  await (await db.orders()).updateOne(
+    { _id: order._id },
+    { $set: { "payment.cashDuePaise": reduced } },
+  );
+
+  const commissionCreditPaise = ceilRupeeOfBps(
+    actualReductionPaise,
+    order.pricing.commissionBps,
+  );
+
+  if (commissionCreditPaise > 0) {
+    await writeLedgerEntry({
+      restaurantId: order.restaurantId,
+      campusId: order.campusId,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      type: "STOCKOUT_CREDIT",
+      // Negative: it reduces what the vendor owes us.
+      amountPaise: -commissionCreditPaise,
+      note: params.note,
+      createdBy: params.actorId,
+    });
+  }
+
+  return actualReductionPaise;
+}
+
+/**
  * The five-minute timer, fired by the sweep.
  *
  * "Remove it, deliver the rest" is the automatic choice because it is the only
- * one that cannot make things worse: the student still eats, and the money for
- * what did not arrive comes back without anyone having to ask.
+ * one that cannot make things worse: the student still eats, and they are
+ * never asked for cash for the part that did not arrive.
  */
 export async function autoResolveExpiredStockouts(now: Date = new Date()): Promise<number> {
   const pending = await (await db.orders())

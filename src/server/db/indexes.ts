@@ -16,8 +16,7 @@ import { COLLECTION, type CollectionName } from "./collections";
  *
  *   orders.orderNumber              a duplicate would be quoted at two gates
  *   orders.idempotencyKey           F12 — a double-tap must return the first order
- *   settlements(restaurantId,date)  F15 — a second nightly run must be a no-op
- *   webhookEvents.eventId           a replayed webhook must not double-process
+ *   statements(restaurantId,date)   F15 — a second nightly run must be a no-op
  */
 
 const INDEXES: Record<CollectionName, IndexDescription[]> = {
@@ -65,12 +64,12 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { customerId: 1, status: 1, "timestamps.createdAt": -1 }, name: "customer_status_recent" },
     // The vendor board poll, every 5 seconds. This one has to be fast.
     { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
-    // The cron sweeps: expire-unacked, close-stale-gates, reconcile-payments.
+    // The cron sweeps: expire-unacked and close-stale-gates.
     { key: { status: 1, "timestamps.placedAt": 1 }, name: "status_placedAt" },
     { key: { status: 1, "timestamps.atGateAt": 1 }, name: "status_atGateAt" },
     { key: { status: 1, "timestamps.createdAt": 1 }, name: "status_createdAt" },
-    // The settlement run, and the admin live radar.
-    { key: { restaurantId: 1, status: 1, "timestamps.deliveredAt": 1 }, name: "settlement_scan" },
+    // The nightly commission run, and the admin live radar.
+    { key: { restaurantId: 1, status: 1, "timestamps.deliveredAt": 1 }, name: "statement_scan" },
     { key: { campusId: 1, status: 1 }, name: "campus_status" },
   ],
 
@@ -85,17 +84,10 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { orderId: 1 }, sparse: true, name: "orderId" },
   ],
 
-  [COLLECTION.settlements]: [
+  [COLLECTION.commissionStatements]: [
     // F15 — this is what makes a second run of the nightly cron a no-op.
-    { key: { restaurantId: 1, settlementDate: 1 }, unique: true, name: "restaurant_date_unique" },
-    { key: { settlementDate: 1, status: 1 }, name: "date_status" },
-  ],
-
-  [COLLECTION.webhookEvents]: [
-    // Insert here BEFORE acting. A duplicate key error means already processed.
-    { key: { eventId: 1 }, unique: true, name: "eventId_unique" },
-    // Housekeeping: events older than 30 days are no longer useful for replay defence.
-    { key: { processedAt: 1 }, expireAfterSeconds: 60 * 60 * 24 * 30, name: "processedAt_ttl" },
+    { key: { restaurantId: 1, statementDate: 1 }, unique: true, name: "restaurant_date_unique" },
+    { key: { statementDate: 1, status: 1 }, name: "date_status" },
   ],
 
   [COLLECTION.auditLogs]: [
@@ -103,7 +95,7 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { actorId: 1, at: -1 }, name: "actor_at" },
     { key: { entity: 1, entityId: 1, at: -1 }, name: "entity_at" },
     // Deliberately NO ttl. The audit trail is append-only and permanent —
-    // it is the evidence in every refund and every chargeback.
+    // it is the evidence behind every payout a vendor questions.
   ],
 
   [COLLECTION.pushSubscriptions]: [

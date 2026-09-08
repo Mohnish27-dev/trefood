@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Download, Receipt, TrendingUp } from "lucide-react";
+import { Banknote, Download, Receipt, TrendingUp, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -19,11 +19,11 @@ import {
 export interface EarningsDayView {
   date: string;
   orderCount: number;
-  codOrderCount: number;
   grossPaise: number;
   commissionPaise: number;
-  receivablePaise: number;
-  codCashPaise: number;
+  discountPaise: number;
+  cashCollectedPaise: number;
+  keptPaise: number;
 }
 
 export interface LedgerRowView {
@@ -34,46 +34,48 @@ export interface LedgerRowView {
   amountPaise: number;
 }
 
-export interface SettlementRowView {
+export interface StatementRowView {
   id: string;
-  settlementDate: string;
-  grossPrepaidPaise: number;
+  statementDate: string;
+  commissionDuePaise: number;
   adjustmentsPaise: number;
-  netPayablePaise: number;
+  netDuePaise: number;
   carriedForwardPaise: number;
   status: "PENDING" | "PAID";
-  utrReference: string | null;
+  paymentReference: string | null;
 }
 
 /**
  * Vendor earnings.
  *
- * The number a restaurant owner actually wants is "what will land in my bank",
- * and the honest answer has three parts that this screen keeps visibly
- * separate:
+ * Money flows one way here, and the screen has to be honest about which way.
+ * The vendor's own staff collected the full bill in cash at every gate, so
+ * every rupee of it is already in their till. Nothing is owed TO them. What
+ * they need to see is the other side of that:
  *
- *   · **Cash already in the till** from COD orders. It never appears in a
- *     payout because it was settled at the gate — the token paid our
- *     commission and the cash paid them. Showing it as "pending" would be a
- *     lie that makes every statement look wrong.
- *   · **Bank transfer** for prepaid orders, once the nightly run closes the day.
- *   · **Adjustments**, which are almost always negative: the gateway fee lost
- *     on a refund they caused.
+ *   · **Cash collected today**, which is theirs and already in hand.
+ *   · **What they owe TREFOOD** — the commission on those deliveries, raised
+ *     as a statement each night and settled with us the next morning.
+ *   · **Adjustments**, usually credits: commission refunded on food a stockout
+ *     meant they never delivered.
+ *
+ * Showing the commission as a "payout pending" would be exactly backwards, and
+ * a vendor who misreads it once will be short when we come to collect.
  */
 export function EarningsView({
   days,
   today,
   ledger,
   ledgerTotalPaise,
-  settlements,
-  pendingPayoutPaise,
+  statements,
+  outstandingDuePaise,
 }: {
   days: EarningsDayView[];
   today: EarningsDayView;
   ledger: LedgerRowView[];
   ledgerTotalPaise: number;
-  settlements: SettlementRowView[];
-  pendingPayoutPaise: number;
+  statements: StatementRowView[];
+  outstandingDuePaise: number;
   commissionPct?: string;
 }) {
   const { t, lang } = useVendorLanguage();
@@ -98,15 +100,15 @@ export function EarningsView({
         <Stat
           icon={Banknote}
           label={t("cashWithYou")}
-          paise={today.codCashPaise}
-          hint={`${today.codOrderCount} ${today.codOrderCount === 1 ? t("cashOrderSettled") : t("cashOrdersSettled")}`}
+          paise={today.cashCollectedPaise}
+          hint={t("cashCollectedHint")}
           tone="mint"
         />
         <Stat
-          icon={Download}
-          label={t("awaitingBankTransfer")}
-          paise={pendingPayoutPaise}
-          hint={t("statementsWrittenPending")}
+          icon={Wallet}
+          label={t("commissionOwed")}
+          paise={outstandingDuePaise}
+          hint={t("commissionOwedHint")}
           tone="saffron"
         />
       </section>
@@ -121,8 +123,8 @@ export function EarningsView({
               <TH className="text-right">{t("ordersCount")}</TH>
               <TH className="text-right">{t("gross")}</TH>
               <TH className="text-right">{t("commission")}</TH>
-              <TH className="text-right">{t("netShare")}</TH>
-              <TH className="text-right">{t("ofWhichCash")}</TH>
+              <TH className="text-right">{t("cashCollected")}</TH>
+              <TH className="text-right">{t("youKeep")}</TH>
             </tr>
           </THead>
           <TBody>
@@ -136,11 +138,11 @@ export function EarningsView({
                 <TD className="text-right text-muted">
                   <Money paise={day.commissionPaise} />
                 </TD>
-                <TD className="text-right font-semibold">
-                  <Money paise={day.receivablePaise} />
-                </TD>
                 <TD className="text-right text-mint">
-                  <Money paise={day.codCashPaise} />
+                  <Money paise={day.cashCollectedPaise} />
+                </TD>
+                <TD className="text-right font-semibold">
+                  <Money paise={day.keptPaise} />
                 </TD>
               </TR>
             ))}
@@ -206,15 +208,15 @@ export function EarningsView({
       <section>
         <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="font-display text-sm font-semibold text-bone">{t("statements")}</h2>
-          {settlements.length > 0 ? (
-            <Button variant="ghost" size="sm" onClick={() => downloadCsv(settlements)}>
+          {statements.length > 0 ? (
+            <Button variant="ghost" size="sm" onClick={() => downloadCsv(statements)}>
               <Download />
               {t("downloadCsv")}
             </Button>
           ) : null}
         </div>
 
-        {settlements.length === 0 ? (
+        {statements.length === 0 ? (
           <Card>
             <EmptyState
               icon={Download}
@@ -227,25 +229,25 @@ export function EarningsView({
             <THead>
               <tr>
                 <TH>{t("day")}</TH>
-                <TH className="text-right">{t("prepaidOrders")}</TH>
+                <TH className="text-right">{t("commissionDue")}</TH>
                 <TH className="text-right">{t("adjustments")}</TH>
-                <TH className="text-right">{t("netPayable")}</TH>
+                <TH className="text-right">{t("netDue")}</TH>
                 <TH className="text-right">{t("carriedForward")}</TH>
                 <TH>{t("status")}</TH>
               </tr>
             </THead>
             <TBody>
-              {settlements.map((row) => (
+              {statements.map((row) => (
                 <TR key={row.id}>
-                  <TD className="whitespace-nowrap">{formatCampusDateLocalized(row.settlementDate, lang)}</TD>
+                  <TD className="whitespace-nowrap">{formatCampusDateLocalized(row.statementDate, lang)}</TD>
                   <TD className="text-right">
-                    <Money paise={row.grossPrepaidPaise} exact />
+                    <Money paise={row.commissionDuePaise} exact />
                   </TD>
                   <TD className="text-right">
                     <SignedMoney paise={row.adjustmentsPaise} />
                   </TD>
                   <TD className="text-right font-semibold">
-                    <Money paise={row.netPayablePaise} exact />
+                    <Money paise={row.netDuePaise} exact />
                   </TD>
                   <TD className="text-right text-muted">
                     <SignedMoney paise={row.carriedForwardPaise} />
@@ -254,9 +256,9 @@ export function EarningsView({
                     {row.status === "PAID" ? (
                       <span className="inline-flex flex-col gap-0.5">
                         <Badge tone="success">{t("paid")}</Badge>
-                        {row.utrReference ? (
+                        {row.paymentReference ? (
                           <span className="font-mono text-[10px] text-faint">
-                            {row.utrReference}
+                            {row.paymentReference}
                           </span>
                         ) : null}
                       </span>
@@ -311,28 +313,41 @@ function Stat({
   );
 }
 
-/** Adjustments are the one place a minus sign is meaningful, so it is shown. */
+/**
+ * Adjustments are the one place a minus sign is meaningful, so it is shown.
+ *
+ * The sign is against what the vendor OWES: negative is a credit in their
+ * favour, so it is the green one.
+ */
 function SignedMoney({ paise, className }: { paise: number; className?: string }) {
   if (paise === 0) return <span className={className}>—</span>;
   return (
-    <span className={paise < 0 ? `text-chili ${className ?? ""}` : `text-mint ${className ?? ""}`}>
+    <span className={paise < 0 ? `text-mint ${className ?? ""}` : `text-chili ${className ?? ""}`}>
       {paise < 0 ? "−" : "+"}
       <Money paise={Math.abs(paise)} exact />
     </span>
   );
 }
 
-function downloadCsv(rows: SettlementRowView[]): void {
-  const header = ["date", "prepaidGross", "adjustments", "netPayable", "carriedForward", "status", "utr"];
+function downloadCsv(rows: StatementRowView[]): void {
+  const header = [
+    "date",
+    "commissionDue",
+    "adjustments",
+    "netDue",
+    "carriedForward",
+    "status",
+    "reference",
+  ];
   const body = rows.map((row) =>
     [
-      row.settlementDate,
-      formatINRPlain(row.grossPrepaidPaise),
+      row.statementDate,
+      formatINRPlain(row.commissionDuePaise),
       signed(row.adjustmentsPaise),
-      formatINRPlain(row.netPayablePaise),
+      formatINRPlain(row.netDuePaise),
       signed(row.carriedForwardPaise),
       row.status,
-      row.utrReference ?? "",
+      row.paymentReference ?? "",
     ].join(","),
   );
 
@@ -343,7 +358,7 @@ function downloadCsv(rows: SettlementRowView[]): void {
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = `trefood-statements-${rows[0]?.settlementDate ?? "export"}.csv`;
+  link.download = `trefood-statements-${rows[0]?.statementDate ?? "export"}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }

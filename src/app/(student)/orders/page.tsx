@@ -70,9 +70,7 @@ export default async function OrdersPage() {
                     <div className="mt-3 flex items-center justify-between text-xs text-muted">
                       <span>{order.deliveryZoneSnapshot.name}</span>
                       <Money
-                        paise={
-                          order.payment.onlinePaidPaise + order.payment.cashDueOnDeliveryPaise
-                        }
+                        paise={order.payment.cashDuePaise}
                         className="font-semibold text-bone"
                       />
                     </div>

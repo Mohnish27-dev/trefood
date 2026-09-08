@@ -6,29 +6,34 @@ import { writeAudit } from "./audit";
 import type { User } from "@/types/user";
 
 /**
- * Student standing — strikes and the COD block. F8 and F9.
+ * Student standing — strikes, and the block only a human can apply. F8 and F9.
  *
- * The rule underneath every function here: a blocked-COD student is never a
- * banned student. Someone who must prepay is a *better* customer than a lost
- * one, and prepaid orders carry zero collection risk. Nothing in this file
- * closes an account.
+ * Every order is cash on delivery, which changes what a strike can mean. There
+ * is no "make them prepay instead" any more: blocking is banning. So strikes
+ * accumulate, and they surface the account on the admin queue, but they never
+ * stop an order on their own. A person decides whether someone has run out of
+ * chances, and that person can see the whole history when they do.
  *
- * Two ways to lose COD, deliberately asymmetric:
+ * Two things earn a strike, and the counter does not distinguish them:
  *
- *   F8  two no-shows. Accidental, so it takes twice.
- *   F9  one refusal to pay cash at the gate. Deliberate, so it takes once.
+ *   F8  a no-show at the gate. Usually accidental.
+ *   F9  refusing to pay the cash. Rarely accidental.
+ *
+ * The vendor absorbs the cost of both — they cooked the food and carried it —
+ * which is exactly why the record has to be good enough for an admin to act on.
  */
 
 export interface StrikeResult {
   user: User;
-  codBlockedNow: boolean;
+  /** True once the count crosses the alert threshold. Flags, never blocks. */
+  needsReview: boolean;
 }
 
 export async function recordStrike(params: {
   userId: string;
   orderId: string;
   orderNumber: string;
-  reason: "NO_SHOW_COD" | "REFUSED_PAYMENT";
+  reason: "NO_SHOW" | "REFUSED_PAYMENT";
   actor: Actor;
   actorId?: string | null;
 }): Promise<StrikeResult | null> {
@@ -38,27 +43,11 @@ export async function recordStrike(params: {
   if (!user) return null;
 
   const strikes = user.strikes + 1;
-  // F9 is immediate; F8 needs the threshold. Both are recorded as strikes so
-  // the account page and the admin queue tell the same story.
-  const blockNow =
-    params.reason === "REFUSED_PAYMENT" || strikes >= DEFAULTS.codStrikeThreshold;
-
-  const codBlockedReason = blockNow
-    ? params.reason === "REFUSED_PAYMENT"
-      ? `Refused to pay cash on delivery for ${params.orderNumber}`
-      : `${strikes} orders were not collected at the gate, including ${params.orderNumber}`
-    : user.codBlockedReason;
+  const needsReview = strikes >= DEFAULTS.strikeAlertThreshold;
 
   const updated = await users.findOneAndUpdate(
     { _id: params.userId },
-    {
-      $set: {
-        strikes,
-        codBlocked: user.codBlocked || blockNow,
-        codBlockedReason: codBlockedReason ?? null,
-        updatedAt: new Date(),
-      },
-    },
+    { $set: { strikes, updatedAt: new Date() } },
     { returnDocument: "after" },
   );
 
@@ -69,17 +58,20 @@ export async function recordStrike(params: {
     entityId: updated._id,
     orderId: params.orderId,
     from: `strikes:${user.strikes}`,
-    to: `strikes:${strikes}${blockNow ? " codBlocked" : ""}`,
+    to: `strikes:${strikes}${needsReview ? " needsReview" : ""}`,
     actorId: params.actorId ?? null,
     actorRole: params.actor,
     reason: `${params.reason} on ${params.orderNumber}`,
   });
 
-  return { user: updated, codBlockedNow: blockNow && !user.codBlocked };
+  return { user: updated, needsReview };
 }
 
-/** Admin override, both directions. Unblocking is as important as blocking. */
-export async function setCodBlocked(params: {
+/**
+ * Admin override, both directions. This is the ONLY thing that stops a student
+ * ordering, and unblocking matters as much as blocking: it is the way back.
+ */
+export async function setOrdersBlocked(params: {
   userId: string;
   blocked: boolean;
   reason: string;
@@ -93,8 +85,8 @@ export async function setCodBlocked(params: {
     { _id: params.userId },
     {
       $set: {
-        codBlocked: params.blocked,
-        codBlockedReason: params.blocked ? params.reason : null,
+        ordersBlocked: params.blocked,
+        ordersBlockedReason: params.blocked ? params.reason : null,
         updatedAt: new Date(),
       },
     },
@@ -105,8 +97,8 @@ export async function setCodBlocked(params: {
     await writeAudit({
       entity: "USER",
       entityId: updated._id,
-      from: before.codBlocked ? "codBlocked" : "codAllowed",
-      to: params.blocked ? "codBlocked" : "codAllowed",
+      from: before.ordersBlocked ? "ordersBlocked" : "ordersAllowed",
+      to: params.blocked ? "ordersBlocked" : "ordersAllowed",
       actorId: params.actorId,
       actorRole: ACTOR.ADMIN,
       reason: params.reason,
@@ -116,7 +108,7 @@ export async function setCodBlocked(params: {
   return updated;
 }
 
-/** Clearing strikes is how a student earns COD back after a bad fortnight. */
+/** Clearing strikes is how a student gets a clean slate after a bad fortnight. */
 export async function clearStrikes(params: {
   userId: string;
   actorId: string;
@@ -155,12 +147,12 @@ export interface StudentRow {
 export async function listStudents(params: {
   campusId?: string;
   query?: string;
-  codBlockedOnly?: boolean;
+  blockedOnly?: boolean;
   limit?: number;
 }): Promise<StudentRow[]> {
   const filter: Record<string, unknown> = { role: "STUDENT" };
   if (params.campusId) filter.campusId = params.campusId;
-  if (params.codBlockedOnly === true) filter.codBlocked = true;
+  if (params.blockedOnly === true) filter.ordersBlocked = true;
   if (params.query) {
     const escaped = params.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = [
