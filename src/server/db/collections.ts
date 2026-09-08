@@ -6,6 +6,7 @@ import { getDb } from "./client";
 import type {
   AuditLog,
   Campus,
+  CommissionStatement,
   Coupon,
   Counter,
   DeliveryPartner,
@@ -15,9 +16,7 @@ import type {
   Order,
   PushSubscription,
   Restaurant,
-  Settlement,
   User,
-  WebhookEvent,
 } from "@/types";
 
 /**
@@ -40,8 +39,7 @@ export const COLLECTION = {
   orders: "orders",
   coupons: "coupons",
   ledgerEntries: "ledgerEntries",
-  settlements: "settlements",
-  webhookEvents: "webhookEvents",
+  commissionStatements: "commissionStatements",
   auditLogs: "auditLogs",
   pushSubscriptions: "pushSubscriptions",
   counters: "counters",
@@ -74,11 +72,8 @@ export const coupons = async (): Promise<Collection<Coupon>> =>
 export const ledgerEntries = async (): Promise<Collection<LedgerEntry>> =>
   (await getDb()).collection<LedgerEntry>(COLLECTION.ledgerEntries);
 
-export const settlements = async (): Promise<Collection<Settlement>> =>
-  (await getDb()).collection<Settlement>(COLLECTION.settlements);
-
-export const webhookEvents = async (): Promise<Collection<WebhookEvent>> =>
-  (await getDb()).collection<WebhookEvent>(COLLECTION.webhookEvents);
+export const commissionStatements = async (): Promise<Collection<CommissionStatement>> =>
+  (await getDb()).collection<CommissionStatement>(COLLECTION.commissionStatements);
 
 export const auditLogs = async (): Promise<Collection<AuditLog>> =>
   (await getDb()).collection<AuditLog>(COLLECTION.auditLogs);

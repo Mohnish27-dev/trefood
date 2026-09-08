@@ -58,37 +58,39 @@ export interface OrderPricing {
   subtotalPaise: Paise;
   packagingFeePaise: Paise;
   deliveryFeePaise: Paise;
+  /** Vendor-absorbed. It comes off the cash the student hands over, never off
+      the commission base, so a coupon costs the vendor rather than TREFOOD. */
   discountPaise: Paise;
 
   /** D6 — subtotal + packaging + delivery. Delivery is NOT commission-exempt. */
   commissionBasePaise: Paise;
   /** Snapshotted, in case the campus rate changes later. */
   commissionBps: Bps;
-  /** CEIL to rupee. */
+  /** CEIL to rupee. What the vendor owes TREFOOD for this order. */
   platformCommissionPaise: Paise;
   /** The remainder. commission + receivable === commissionBase, exactly, forever. */
   vendorReceivablePaise: Paise;
 
-  gatewayFeeBps: Bps;
-  /** D2 — NON-REFUNDABLE. Pass-through to the payment gateway; never TREFOOD's money. */
-  convenienceFeePaise: Paise;
-
+  /** The cash the student hands over: commissionBase minus the discount. */
   grandTotalPaise: Paise;
-  /** D2 — grandTotal minus the convenience fee. Computed once, never recomputed. */
-  refundableAmountPaise: Paise;
 }
 
+/**
+ * Cash on delivery, and nothing else.
+ *
+ * No provider ids, no captured amount, no refund: money moves exactly once,
+ * in one direction, at the gate. `cashDuePaise` starts equal to
+ * `pricing.grandTotalPaise` and only ever falls — a stockout (F6) can shrink
+ * it when a line is dropped, because charging for food that never arrived is
+ * the one thing this flow must not do.
+ */
 export interface OrderPayment {
   method: PaymentMethod;
   status: PaymentStatus;
-  /** Provider-agnostic on purpose: D8 moved the gateway seam to PhonePe. */
-  providerOrderId: string | null;
-  providerPaymentId: string | null;
-  /** What actually reached the gateway. */
-  onlinePaidPaise: Paise;
-  /** COD: exactly vendorReceivable. Prepaid: 0. The invariant that self-settles COD. */
-  cashDueOnDeliveryPaise: Paise;
-  cashCollected: boolean | null;
+  cashDuePaise: Paise;
+  /** What the delivery partner actually took. Zero until handover. */
+  cashCollectedPaise: Paise;
+  collectedAt: Date | null;
 }
 
 export interface OrderTimestamps {
@@ -105,15 +107,6 @@ export interface OrderTimestamps {
 export interface OrderCancellation {
   reason: string;
   by: "VENDOR" | "ADMIN" | "SYSTEM";
-  at: Date;
-}
-
-export interface OrderRefund {
-  providerRefundId: string | null;
-  amountPaise: Paise;
-  status: "PENDING" | "PROCESSED" | "FAILED";
-  attempts: number;
-  lastError: string | null;
   at: Date;
 }
 
@@ -163,7 +156,6 @@ export interface Order {
 
   timestamps: OrderTimestamps;
   cancellation: OrderCancellation | null;
-  refund: OrderRefund | null;
   stockout: StockoutResolution | null;
 
   /** F11 — set when a curfew forced a reroute in flight. */
@@ -181,7 +173,7 @@ export interface Order {
 export interface AuditLog {
   _id: string;
   orderId: string | null;
-  entity: "ORDER" | "RESTAURANT" | "CAMPUS" | "USER" | "SETTLEMENT";
+  entity: "ORDER" | "RESTAURANT" | "CAMPUS" | "USER" | "STATEMENT";
   entityId: string;
   from: string | null;
   to: string;

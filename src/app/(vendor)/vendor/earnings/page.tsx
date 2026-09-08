@@ -27,7 +27,7 @@ export default async function VendorEarningsPage() {
         days={earnings.days}
         today={earnings.today}
         commissionPct={String(bpsToPct(commissionBps))}
-        pendingPayoutPaise={earnings.pendingPayoutPaise}
+        outstandingDuePaise={earnings.outstandingDuePaise}
         ledgerTotalPaise={earnings.ledgerTotalPaise}
         ledger={earnings.ledger.map((entry) => ({
           id: entry._id,
@@ -36,15 +36,15 @@ export default async function VendorEarningsPage() {
           note: entry.note,
           amountPaise: entry.amountPaise,
         }))}
-        settlements={earnings.settlements.map((row) => ({
+        statements={earnings.statements.map((row) => ({
           id: row._id,
-          settlementDate: row.settlementDate,
-          grossPrepaidPaise: row.grossPrepaidPaise,
+          statementDate: row.statementDate,
+          commissionDuePaise: row.commissionDuePaise,
           adjustmentsPaise: row.adjustmentsPaise,
-          netPayablePaise: row.netPayablePaise,
+          netDuePaise: row.netDuePaise,
           carriedForwardPaise: row.carriedForwardPaise,
           status: row.status,
-          utrReference: row.utrReference,
+          paymentReference: row.paymentReference,
         }))}
       />
   );

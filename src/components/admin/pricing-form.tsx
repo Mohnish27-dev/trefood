@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Money } from "@/components/shared/money";
 import { saveCampusSettings } from "@/server/actions/admin";
 import { bpsToPct, ceilRupeeOfBps, pctToBps, PAISE_PER_RUPEE } from "@/lib/money";
@@ -15,15 +14,12 @@ import { bpsToPct, ceilRupeeOfBps, pctToBps, PAISE_PER_RUPEE } from "@/lib/money
 export interface PricingValues {
   deliveryFeePaise: number;
   commissionBps: number;
-  gatewayFeeBps: number;
-  codHandlingFeePaise: number;
   transitMinutes: number;
   vendorAckSeconds: number;
   vendorAutoExpireSeconds: number;
   gateGraceSeconds: number;
   curfewBufferMinutes: number;
   stockoutResolutionSeconds: number;
-  codEnabled: boolean;
 }
 
 /**
@@ -33,11 +29,10 @@ export interface PricingValues {
  * screen changes tomorrow's orders and never rewrites yesterday's. That is
  * what makes it safe to tune during a launch week.
  *
- * The worked example at the bottom is not decoration. These fields interact —
- * the commission rounds up to a rupee, the convenience fee applies only to
- * what actually goes through the gateway, and COD charges the fee on the token
- * alone. Seeing a real 200-rupee order recalculate as you type is the only way
- * to be sure a rate change does what you meant.
+ * The worked example at the bottom is not decoration. The commission rounds up
+ * to a whole rupee and the vendor takes the remainder, so seeing a real
+ * 200-rupee order recalculate as you type is the only way to be sure a rate
+ * change does what you meant.
  */
 export function PricingForm({
   campusId,
@@ -69,8 +64,9 @@ export function PricingForm({
       <Card className="p-4">
         <h2 className="font-display text-sm font-semibold text-bone">Money</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          The delivery fee flows to the vendor in full. Commission is charged on food,
-          packaging and delivery combined.
+          Every order is cash on delivery. The vendor&rsquo;s staff collect the whole bill at the
+          gate and owe TREFOOD the commission on it, charged on food, packaging and delivery
+          combined.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -86,34 +82,6 @@ export function PricingForm({
             bps={values.commissionBps}
             onChange={(bps) => set("commissionBps", bps)}
             hint="10% is the launch rate"
-          />
-          <PercentField
-            id="gateway"
-            label="Convenience fee"
-            bps={values.gatewayFeeBps}
-            onChange={(bps) => set("gatewayFeeBps", bps)}
-            hint="Pass-through to the payment gateway. Never refunded — verify against your plan"
-          />
-          <RupeeField
-            id="codfee"
-            label="Cash handling fee"
-            paise={values.codHandlingFeePaise}
-            onChange={(paise) => set("codHandlingFeePaise", paise)}
-            hint="Ships at zero. Raise it only if cash orders outgrow your riders"
-          />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-raised px-3.5 py-3">
-          <div>
-            <p className="text-sm font-medium text-bone">Cash on delivery</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Campus-wide kill switch. Turning it off hides the cash option at every checkout.
-            </p>
-          </div>
-          <Switch
-            checked={values.codEnabled}
-            onCheckedChange={(next) => set("codEnabled", next)}
-            aria-label="Cash on delivery enabled"
           />
         </div>
       </Card>
@@ -187,11 +155,9 @@ export function PricingForm({
 /**
  * A live 200-rupee order, priced with the current form values.
  *
- * Mirrors `computePricing` exactly: commission ceils to a rupee, the vendor
- * takes the remainder, and the convenience fee applies to whatever actually
- * reaches the gateway — the whole total when prepaid, the commission token
- * alone when cash. It is a preview, never the source of truth; the server
- * recomputes every real order.
+ * Mirrors `computePricing` exactly: commission ceils to a whole rupee and the
+ * vendor takes the remainder. It is a preview, never the source of truth; the
+ * server recomputes every real order.
  */
 function WorkedExample({ values }: { values: PricingValues }) {
   const subtotal = 200 * PAISE_PER_RUPEE;
@@ -201,10 +167,6 @@ function WorkedExample({ values }: { values: PricingValues }) {
   const commission = ceilRupeeOfBps(base, values.commissionBps);
   const receivable = base - commission;
 
-  const prepaidFee = ceilRupeeOfBps(base, values.gatewayFeeBps);
-  const codToken = commission + values.codHandlingFeePaise;
-  const codFee = ceilRupeeOfBps(codToken, values.gatewayFeeBps);
-
   return (
     <Card className="p-4">
       <h2 className="font-display text-sm font-semibold text-bone">
@@ -213,25 +175,26 @@ function WorkedExample({ values }: { values: PricingValues }) {
 
       <div className="mt-3 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-line p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-faint">Prepaid</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+            At the gate
+          </p>
           <Line label="Commission base" paise={base} />
-          <Line label="TREFOOD commission" paise={commission} />
-          <Line label="Vendor receives" paise={receivable} strong />
-          <Line label="Convenience fee" paise={prepaidFee} />
-          <Line label="Student pays" paise={base + prepaidFee} strong />
+          <Line label="Student pays in cash" paise={base} strong />
+          <p className="mt-2 text-[11px] leading-relaxed text-muted">
+            Nothing is added to the bill and nothing is charged before delivery.
+          </p>
         </div>
 
         <div className="rounded-xl border border-line p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-faint">
-            Cash at the gate
+            End of the day
           </p>
-          <Line label="Online token" paise={codToken} />
-          <Line label="Convenience fee" paise={codFee} />
-          <Line label="Paid online" paise={codToken + codFee} strong />
-          <Line label="Cash to the rider" paise={receivable} strong />
+          <Line label="Vendor collected" paise={base} />
+          <Line label="Owes TREFOOD" paise={commission} strong />
+          <Line label="Vendor keeps" paise={receivable} strong />
           <p className="mt-2 text-[11px] leading-relaxed text-muted">
-            The token is the commission and the cash is the receivable, so a cash order needs
-            no settlement at all.
+            The vendor holds every rupee until they settle the commission with us the next
+            morning.
           </p>
         </div>
       </div>

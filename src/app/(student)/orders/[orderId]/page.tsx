@@ -48,10 +48,8 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
     gateCode: revealGateCode(order.gateCode, order.status, "STUDENT"),
     estimatedArrival: arrival?.toISOString() ?? null,
     gateDeadline: deadline?.toISOString() ?? null,
-    method: order.payment.method,
-    onlinePaidPaise: order.payment.onlinePaidPaise,
-    cashDueOnDeliveryPaise: order.payment.cashDueOnDeliveryPaise,
-    refundablePaise: order.pricing.refundableAmountPaise,
+    cashDuePaise: order.payment.cashDuePaise,
+    paymentStatus: order.payment.status,
     cancellationReason: order.cancellation?.reason ?? null,
     stockout: order.stockout
       ? {
@@ -60,9 +58,6 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
           choice: order.stockout.choice,
           resolved: order.stockout.resolvedAt !== null,
         }
-      : null,
-    refund: order.refund
-      ? { amountPaise: order.refund.amountPaise, status: order.refund.status }
       : null,
     reroutedFrom: order.reroutedFromZoneId,
     items: order.items.map((i) => ({

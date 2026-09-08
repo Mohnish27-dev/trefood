@@ -570,9 +570,9 @@ export async function seedKolkataBiryani(): Promise<void> {
     passwordHash: hashPassword("kolkatatraefood123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };

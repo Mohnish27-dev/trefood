@@ -81,7 +81,6 @@ export default async function AccountPage() {
   ]);
 
   const noShows = orders.filter((order) => order.status === ORDER_STATUS.NO_SHOW);
-  const codAvailable = !user.codBlocked && (campus?.settings.codEnabled ?? true);
 
   const favouriteCount = user.favouriteRestaurantIds?.length ?? 0;
   const campusSlug = campus?.slug ?? DEFAULT_CAMPUS_SLUG;
@@ -106,11 +105,11 @@ export default async function AccountPage() {
           phone={user.phone}
           orderCount={orders.length}
           noShowCount={noShows.length}
-          codAvailable={codAvailable}
+          orderingBlocked={user.ordersBlocked}
         />
 
         {/* ── The one thing that cannot wait behind a row ───────── */}
-        {user.codBlocked ? (
+        {user.ordersBlocked ? (
           <Card className="border-chili/30 p-4">
             <div className="flex items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-chili/25 bg-chili-wash">
@@ -118,16 +117,14 @@ export default async function AccountPage() {
               </span>
               <div className="min-w-0">
                 <p className="font-display text-sm font-semibold text-bone">
-                  Cash at the gate is switched off
+                  Ordering is paused on this account
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
-                  {user.codBlockedReason ??
-                    "Cash on delivery is switched off on your account."}{" "}
-                  You can still order anything you like — just pay online at checkout. This
-                  is not permanent.
+                  {user.ordersBlockedReason ?? "Ordering is paused on your account."} This is
+                  not permanent.
                 </p>
                 <Link
-                  href="/account/payments"
+                  href="/account/support"
                   className="mt-2 inline-block text-sm font-medium text-saffron underline-offset-4 hover:underline"
                 >
                   How to get it back
@@ -146,8 +143,9 @@ export default async function AccountPage() {
                   {user.strikes} strike{user.strikes === 1 ? "" : "s"} on this account
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
-                  They come from cash orders left uncollected at the gate. Collect your next
-                  few and cash stays available.
+                  They come from orders left uncollected at the gate. The restaurant cooked and
+                  carried that food for nothing, so please cancel early rather than not turning
+                  up.
                 </p>
               </div>
             </div>
@@ -185,8 +183,8 @@ export default async function AccountPage() {
             href="/account/payments"
             icon={BadgeIndianRupee}
             label="Payments"
-            hint={codAvailable ? "Online and cash at the gate" : "Online only"}
-            tone={codAvailable ? "mint" : "chili"}
+            hint={"Cash at the gate, every order"}
+            tone="mint"
           />
         </SettingsGroup>
 

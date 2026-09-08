@@ -21,9 +21,8 @@ import {
 } from "@/server/services/admin";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
-import { issueRefund } from "@/server/services/refunds";
-import { markSettlementPaid, runSettlement } from "@/server/services/settlement";
-import { clearStrikes, setCodBlocked } from "@/server/services/students";
+import { markStatementCollected, runSettlement } from "@/server/services/settlement";
+import { clearStrikes, setOrdersBlocked } from "@/server/services/students";
 import { runAllSweeps } from "@/server/services/sweeps";
 import { notifyOrderEvent } from "@/server/services/push";
 import type { DeliveryZone } from "@/types/campus";
@@ -49,15 +48,12 @@ const settingsSchema = z.object({
   campusId: z.string().min(1),
   deliveryFeePaise: z.number().int().min(0).max(100_000),
   commissionBps: z.number().int().min(0).max(3_000),
-  gatewayFeeBps: z.number().int().min(0).max(1_000),
-  codHandlingFeePaise: z.number().int().min(0).max(10_000),
   transitMinutes: z.number().int().min(1).max(60),
   vendorAckSeconds: z.number().int().min(30).max(900),
   vendorAutoExpireSeconds: z.number().int().min(60).max(1_800),
   gateGraceSeconds: z.number().int().min(120).max(3_600),
   curfewBufferMinutes: z.number().int().min(0).max(60),
   stockoutResolutionSeconds: z.number().int().min(60).max(1_800),
-  codEnabled: z.boolean(),
 });
 
 export async function saveCampusSettings(input: unknown): Promise<AdminActionState> {
@@ -83,13 +79,9 @@ export async function saveCampusSettings(input: unknown): Promise<AdminActionSta
 
   const updated = await updateCampusSettings({
     campusId,
-    // `couponFundedBy` and `roundingMode` are locked decisions (A1, A4), not
-    // levers. They are carried forward rather than exposed as fields.
-    settings: {
-      ...rest,
-      couponFundedBy: campus.settings.couponFundedBy,
-      roundingMode: campus.settings.roundingMode,
-    },
+    // `roundingMode` is a locked decision (A4), not a lever. It is carried
+    // forward rather than exposed as a field.
+    settings: { ...rest, roundingMode: campus.settings.roundingMode },
     actorId: user._id,
   });
 
@@ -412,7 +404,7 @@ export async function deleteVendorAccount(input: unknown): Promise<AdminActionSt
    Orders
    ══════════════════════════════════════════════════════════════════════ */
 
-/** The override for a power cut, a closure, an emergency. Always a full refund. */
+/** The override for a power cut, a closure, an emergency. */
 export async function cancelOrderAsAdmin(input: unknown): Promise<AdminActionState> {
   const parsed = z
     .object({
@@ -438,42 +430,33 @@ export async function cancelOrderAsAdmin(input: unknown): Promise<AdminActionSta
   });
   if (!result.ok) return { status: "error", message: result.message };
 
-  const refund = await issueRefund({
-    order: result.order,
-    reason: `Cancelled by TREFOOD: ${parsed.data.reason}`,
-    actorId: user._id,
-    // Platform-side cancellation, so the vendor does not carry the gateway fee.
-    recoverGatewayFeeFromVendor: false,
-  });
-  if (!refund.ok) {
-    return { status: "error", message: `Cancelled, but the refund failed: ${refund.message}` };
-  }
-
+  // No money to return: the student pays at the gate, and this order never
+  // reached one.
   await notifyOrderEvent({
     order: result.order,
     title: "Order cancelled",
-    body: `${parsed.data.reason}. Your refund is on its way.`,
+    body: `${parsed.data.reason}. You have not been charged.`,
   });
 
   revalidatePath("/admin/orders");
-  return { status: "ok", message: `${order.orderNumber} cancelled and refunded` };
+  return { status: "ok", message: `${order.orderNumber} cancelled` };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Settlement
+   Commission statements
    ══════════════════════════════════════════════════════════════════════ */
 
 export async function runSettlementNow(input: unknown): Promise<AdminActionState> {
   const parsed = z
     .object({
       campusId: z.string().min(1),
-      settlementDate: z
+      statementDate: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date")
         .optional(),
     })
     .safeParse(input);
-  if (!parsed.success) return { status: "error", message: "Invalid settlement request." };
+  if (!parsed.success) return { status: "error", message: "Invalid statement request." };
 
   const { user } = await requireAdmin();
 
@@ -482,9 +465,9 @@ export async function runSettlementNow(input: unknown): Promise<AdminActionState
 
   const result = await runSettlement({
     campus,
-    ...(parsed.data.settlementDate === undefined
+    ...(parsed.data.statementDate === undefined
       ? {}
-      : { settlementDate: parsed.data.settlementDate }),
+      : { statementDate: parsed.data.statementDate }),
     actorId: user._id,
   });
 
@@ -492,17 +475,22 @@ export async function runSettlementNow(input: unknown): Promise<AdminActionState
   return {
     status: "ok",
     message:
-      `${result.settlementDate}: ${result.written.length} statement(s) written, ` +
-      `${result.ordersSettled} order(s) settled` +
+      `${result.statementDate}: ${result.written.length} statement(s) written, ` +
+      `${result.ordersSettled} order(s) invoiced` +
       (result.skipped.length > 0 ? `, ${result.skipped.length} already run` : ""),
   };
 }
 
-export async function markPaid(input: unknown): Promise<AdminActionState> {
+/** The vendor handed the commission over. Records how, and against what reference. */
+export async function markCollected(input: unknown): Promise<AdminActionState> {
   const parsed = z
     .object({
-      settlementId: z.string().min(1),
-      utrReference: z.string().trim().min(4, "Enter the bank's UTR reference"),
+      statementId: z.string().min(1),
+      collectionMethod: z.enum(["CASH", "UPI", "BANK_TRANSFER"]),
+      paymentReference: z
+        .string()
+        .trim()
+        .min(3, "Enter a reference: the UPI id, bank UTR, or cash receipt number"),
     })
     .safeParse(input);
   if (!parsed.success) {
@@ -510,18 +498,25 @@ export async function markPaid(input: unknown): Promise<AdminActionState> {
   }
 
   const { user } = await requireAdmin();
-  const result = await markSettlementPaid({ ...parsed.data, actorId: user._id });
+  const result = await markStatementCollected({ ...parsed.data, actorId: user._id });
   if (!result.ok) return { status: "error", message: result.message };
 
   revalidatePath("/admin/settlements");
-  return { status: "ok", message: "Marked paid" };
+  return { status: "ok", message: "Marked collected" };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
    Students
    ══════════════════════════════════════════════════════════════════════ */
 
-export async function toggleStudentCod(input: unknown): Promise<AdminActionState> {
+/**
+ * Stop, or restore, a student's ability to order.
+ *
+ * This is the only thing that blocks an account. Strikes accumulate on their
+ * own and flag the account for review, but blocking is a person's call — cash
+ * is the only way to order, so this is a ban and should feel like one.
+ */
+export async function toggleStudentOrdering(input: unknown): Promise<AdminActionState> {
   const parsed = z
     .object({
       userId: z.string().min(1),
@@ -534,13 +529,13 @@ export async function toggleStudentCod(input: unknown): Promise<AdminActionState
   }
 
   const { user } = await requireAdmin();
-  const updated = await setCodBlocked({ ...parsed.data, actorId: user._id });
+  const updated = await setOrdersBlocked({ ...parsed.data, actorId: user._id });
   if (!updated) return { status: "error", message: "That student does not exist." };
 
   revalidatePath("/admin/students");
   return {
     status: "ok",
-    message: parsed.data.blocked ? "Cash on delivery disabled" : "Cash on delivery restored",
+    message: parsed.data.blocked ? "Ordering paused" : "Ordering restored",
   };
 }
 

@@ -11,16 +11,13 @@
  * `computePricing`. If pricing logic ever appears in a component, the two will
  * drift, and a student will be charged something other than what they were
  * shown. PRD Part 4.3.
+ *
+ * There is one payment method and one direction of travel: the student hands
+ * `grandTotalPaise` in cash to the delivery partner at the gate, and that is
+ * the only moment money moves. No gateway, no token, no convenience fee.
  */
 
-import {
-  assertNonNegativePaise,
-  ceilRupeeOfBps,
-  clampToZero,
-  type Bps,
-  type Paise,
-} from "@/lib/money";
-import { PAYMENT_METHOD, type PaymentMethod } from "@/lib/constants";
+import { assertNonNegativePaise, ceilRupeeOfBps, type Bps, type Paise } from "@/lib/money";
 import type { OrderPricing } from "@/types/order";
 
 /* ------------------------------------------------------------------ */
@@ -40,13 +37,12 @@ export interface PricingInput {
   packagingFeePaise: Paise;
   /** Campus flat delivery fee (D5). In the commission base (D6). */
   deliveryFeePaise: Paise;
-  /** Coupon value. Platform-funded (A1), so it is subtracted AFTER the base is fixed. */
+  /**
+   * Coupon value. Vendor-absorbed: it comes off the cash collected but never
+   * off the commission base, so the promotion costs the vendor and not TREFOOD.
+   */
   discountPaise: Paise;
   commissionBps: Bps;
-  gatewayFeeBps: Bps;
-  /** A7 — ships at zero. */
-  codHandlingFeePaise: Paise;
-  method: PaymentMethod;
 }
 
 /* ------------------------------------------------------------------ */
@@ -58,12 +54,8 @@ export interface PricingResult {
   pricing: OrderPricing;
   /** Per-line totals, so the caller can build OrderItem[] without recomputing. */
   lineTotalsPaise: Paise[];
-  /** What the gateway must charge right now. */
-  onlinePaidPaise: Paise;
-  /** What the rider collects at the gate. Exactly vendorReceivable for COD, 0 for prepaid. */
-  cashDueOnDeliveryPaise: Paise;
-  /** A7's lever, surfaced so a statement can show it as its own line. */
-  codHandlingFeePaise: Paise;
+  /** What the delivery partner collects at the gate. Always the grand total. */
+  cashDuePaise: Paise;
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,64 +93,25 @@ export function computePricing(input: PricingInput): PricingResult {
 
   /* --- 3. The split that never drifts (A4) ------------------------ */
 
-  // Commission rounds UP; the vendor receivable is the remainder. This is
-  // what makes `commission + vendorReceivable === commissionBase` hold
-  // exactly, forever, rather than approximately.
+  // Commission rounds UP; the vendor's share is the remainder. This is what
+  // makes `commission + vendorReceivable === commissionBase` hold exactly,
+  // forever, rather than approximately.
+  //
+  // It is computed on the PRE-DISCOUNT base, and that is precisely what makes
+  // a coupon vendor-funded: the vendor collects less cash at the gate but owes
+  // the same commission, so the promotion comes out of their share.
   const platformCommissionPaise = ceilRupeeOfBps(commissionBasePaise, input.commissionBps);
   const vendorReceivablePaise = commissionBasePaise - platformCommissionPaise;
 
-  /* --- 4. What the student owes ----------------------------------- */
+  /* --- 4. What the student hands over ----------------------------- */
 
-  // Coupons are platform-funded (A1): the discount comes off AFTER the base is
-  // fixed, so the vendor is still paid on the full base and TREFOOD absorbs the
-  // coupon out of its own commission.
-  const discountPaise = Math.min(input.discountPaise, commissionBasePaise);
-  const payableByStudentPaise = clampToZero(commissionBasePaise - discountPaise);
-
-  /* --- 5. The gateway charge and its non-refundable fee ------------ */
-
-  // The convenience fee is charged only on what actually goes through the
-  // gateway. For COD that is just the token, which is why COD currently costs
-  // the student less than prepaid — the known asymmetry in A7.
-  const codHandlingFeePaise =
-    input.method === PAYMENT_METHOD.HYBRID_COD ? input.codHandlingFeePaise : 0;
-
-  const onlineChargeBasePaise =
-    input.method === PAYMENT_METHOD.ONLINE_100
-      ? payableByStudentPaise
-      : platformCommissionPaise + codHandlingFeePaise;
-
-  // D2 — never refundable, and never TREFOOD's money. Pass-through to the gateway.
-  const convenienceFeePaise = ceilRupeeOfBps(onlineChargeBasePaise, input.gatewayFeeBps);
-
-  const onlinePaidPaise = onlineChargeBasePaise + convenienceFeePaise;
-
-  /* --- 6. The COD invariant (PRD Part 4.12) ----------------------- */
-
-  // codOnlineToken === platformCommission  AND
-  // cashDueOnDelivery === vendorReceivable
-  //
-  // Because the token IS the commission and the cash IS the receivable, a COD
-  // order requires zero settlement: TREFOOD already holds exactly what it is
-  // owed and the vendor already holds exactly what they are owed. There is no
-  // debt in either direction. Do not let a future feature break this.
-  const cashDueOnDeliveryPaise =
-    input.method === PAYMENT_METHOD.HYBRID_COD ? vendorReceivablePaise : 0;
-
-  const grandTotalPaise = payableByStudentPaise + convenienceFeePaise + codHandlingFeePaise;
-
-  /* --- 7. Refundable amount (D2) ---------------------------------- */
-
-  // MONEY section 7 invariant 4 states `refundableAmount = grandTotal - convenienceFee`,
-  // while MONEY section 5 states that a COD refund is limited to the token
-  // actually paid online (Example B: 24 paid, 1 convenience, so 23 refundable).
-  // Those disagree for COD — grandTotal there is 226, and there is no cash to
-  // return because none was ever collected.
-  //
-  // Resolved as `onlinePaid - convenienceFee`, which satisfies BOTH: for
-  // ONLINE_100 onlinePaid IS grandTotal, so invariant 4 holds unchanged; for
-  // HYBRID_COD it yields exactly the section 5 figure.
-  const refundableAmountPaise = onlinePaidPaise - convenienceFeePaise;
+  // Capped at the vendor's own share. A coupon may wipe out everything the
+  // vendor would have kept, but it must never leave them owing TREFOOD more
+  // than they collected — that would be cooking at a loss to fund our
+  // promotion. The coupon validator's 10%-of-base ceiling means this never
+  // binds in practice; it is here so it cannot start binding silently.
+  const discountPaise = Math.min(input.discountPaise, vendorReceivablePaise);
+  const grandTotalPaise = commissionBasePaise - discountPaise;
 
   const pricing: OrderPricing = {
     subtotalPaise,
@@ -169,26 +122,12 @@ export function computePricing(input: PricingInput): PricingResult {
     commissionBps: input.commissionBps,
     platformCommissionPaise,
     vendorReceivablePaise,
-    gatewayFeeBps: input.gatewayFeeBps,
-    convenienceFeePaise,
     grandTotalPaise,
-    refundableAmountPaise,
   };
 
-  assertInvariants(pricing, {
-    method: input.method,
-    onlinePaidPaise,
-    cashDueOnDeliveryPaise,
-    codHandlingFeePaise,
-  });
+  assertInvariants(pricing, { cashDuePaise: grandTotalPaise });
 
-  return {
-    pricing,
-    lineTotalsPaise,
-    onlinePaidPaise,
-    cashDueOnDeliveryPaise,
-    codHandlingFeePaise,
-  };
+  return { pricing, lineTotalsPaise, cashDuePaise: grandTotalPaise };
 }
 
 /* ------------------------------------------------------------------ */
@@ -213,15 +152,10 @@ function validate(input: PricingInput): void {
   assertNonNegativePaise(input.packagingFeePaise, "packagingFeePaise");
   assertNonNegativePaise(input.deliveryFeePaise, "deliveryFeePaise");
   assertNonNegativePaise(input.discountPaise, "discountPaise");
-  assertNonNegativePaise(input.codHandlingFeePaise, "codHandlingFeePaise");
 
-  for (const [label, bps] of [
-    ["commissionBps", input.commissionBps],
-    ["gatewayFeeBps", input.gatewayFeeBps],
-  ] as const) {
-    if (!Number.isSafeInteger(bps) || bps < 0 || bps > 10_000) {
-      throw new PricingError("BAD_RATE", `${label} must be 0..10000 basis points, got ${bps}.`);
-    }
+  const bps = input.commissionBps;
+  if (!Number.isSafeInteger(bps) || bps < 0 || bps > 10_000) {
+    throw new PricingError("BAD_RATE", `commissionBps must be 0..10000 basis points, got ${bps}.`);
   }
 }
 
@@ -230,10 +164,7 @@ function validate(input: PricingInput): void {
 /* ------------------------------------------------------------------ */
 
 interface InvariantContext {
-  method: PaymentMethod;
-  onlinePaidPaise: Paise;
-  cashDueOnDeliveryPaise: Paise;
-  codHandlingFeePaise: Paise;
+  cashDuePaise: Paise;
 }
 
 /**
@@ -260,46 +191,30 @@ export function assertInvariants(p: OrderPricing, ctx: InvariantContext): void {
     fail(2, `commission + receivable ${split} !== base ${p.commissionBasePaise}`);
   }
 
-  // 3. grandTotal === commissionBase - discount + convenienceFee
-  //    (plus the A7 handling fee, which ships at zero)
-  const expectedGrand =
-    p.commissionBasePaise - p.discountPaise + p.convenienceFeePaise + ctx.codHandlingFeePaise;
+  // 3. grandTotal === commissionBase - discount. Nothing is added to a bill
+  //    any more: the menu price plus fees, minus the coupon, is the cash.
+  const expectedGrand = p.commissionBasePaise - p.discountPaise;
   if (p.grandTotalPaise !== expectedGrand) {
     fail(3, `grandTotal ${p.grandTotalPaise} !== ${expectedGrand}`);
   }
 
-  // 4. refundableAmount === onlinePaid - convenienceFee
-  //    For ONLINE_100 this is identical to `grandTotal - convenienceFee`.
-  if (p.refundableAmountPaise !== ctx.onlinePaidPaise - p.convenienceFeePaise) {
-    fail(4, `refundable ${p.refundableAmountPaise} !== onlinePaid - convenienceFee`);
+  // 4. The cash collected at the gate IS the grand total. There is no other
+  //    moment money can move, so any gap here is money nobody ever collects.
+  if (ctx.cashDuePaise !== p.grandTotalPaise) {
+    fail(4, `cashDue ${ctx.cashDuePaise} !== grandTotal ${p.grandTotalPaise}`);
   }
 
-  if (ctx.method === PAYMENT_METHOD.HYBRID_COD) {
-    // 5. onlinePaid === platformCommission + convenienceFee
-    //    cashDue    === vendorReceivable
-    const expectedOnline =
-      p.platformCommissionPaise + ctx.codHandlingFeePaise + p.convenienceFeePaise;
-    if (ctx.onlinePaidPaise !== expectedOnline) {
-      fail(5, `COD onlinePaid ${ctx.onlinePaidPaise} !== ${expectedOnline}`);
-    }
-    if (ctx.cashDueOnDeliveryPaise !== p.vendorReceivablePaise) {
-      fail(5, `COD cashDue ${ctx.cashDueOnDeliveryPaise} !== receivable ${p.vendorReceivablePaise}`);
-    }
-  } else {
-    // 6. onlinePaid === grandTotal, cashDue === 0
-    if (ctx.onlinePaidPaise !== p.grandTotalPaise) {
-      fail(6, `prepaid onlinePaid ${ctx.onlinePaidPaise} !== grandTotal ${p.grandTotalPaise}`);
-    }
-    if (ctx.cashDueOnDeliveryPaise !== 0) {
-      fail(6, `prepaid cashDue ${ctx.cashDueOnDeliveryPaise} !== 0`);
-    }
+  // 5. The vendor is never underwater: the cash they collect always covers
+  //    the commission they will owe us on it.
+  if (p.grandTotalPaise < p.platformCommissionPaise) {
+    fail(5, `grandTotal ${p.grandTotalPaise} < commission ${p.platformCommissionPaise}`);
   }
 
-  // 7. All values are integers >= 0. No floats anywhere in the chain.
+  // 6. All values are integers >= 0. No floats anywhere in the chain.
   for (const [label, value] of Object.entries(p)) {
     if (typeof value !== "number") continue;
     if (!Number.isSafeInteger(value) || value < 0) {
-      fail(7, `${label} is ${value}, which is not a non-negative safe integer`);
+      fail(6, `${label} is ${value}, which is not a non-negative safe integer`);
     }
   }
 }
@@ -308,11 +223,7 @@ export function assertInvariants(p: OrderPricing, ctx: InvariantContext): void {
 /* Errors                                                              */
 /* ------------------------------------------------------------------ */
 
-export type PricingErrorCode =
-  | "EMPTY_CART"
-  | "BAD_QUANTITY"
-  | "BAD_RATE"
-  | "INVARIANT_VIOLATION";
+export type PricingErrorCode = "EMPTY_CART" | "BAD_QUANTITY" | "BAD_RATE" | "INVARIANT_VIOLATION";
 
 export class PricingError extends Error {
   readonly code: PricingErrorCode;

@@ -26,13 +26,15 @@ export interface User {
   favouriteRestaurantIds?: string[];
 
   /**
-   * F8/F9 — COD is disabled after two no-shows, or immediately on a refusal
-   * to pay. Never a permanent ban: a blocked-COD student who must prepay is a
-   * better customer than a lost one, and prepaid carries zero collection risk.
+   * F8/F9 — a no-show at the gate, or a refusal to pay the cash, records a
+   * strike. Strikes never block on their own: cash on delivery is the only way
+   * to order, so an automatic block would be an automatic ban. They surface
+   * the account on the admin queue, and an admin decides.
    */
-  codBlocked: boolean;
-  codBlockedReason: string | null;
   strikes: number;
+  /** Admin-set. The only thing that actually stops a student ordering. */
+  ordersBlocked: boolean;
+  ordersBlockedReason: string | null;
 
   /** Quick Unlock settings (4-digit PIN hash/salt, Biometrics, and app lock preferences) */
   quickUnlock?: {
@@ -55,6 +57,6 @@ export interface User {
 export interface StudentStrike {
   orderId: string;
   orderNumber: string;
-  reason: "NO_SHOW_COD" | "REFUSED_PAYMENT";
+  reason: "NO_SHOW" | "REFUSED_PAYMENT";
   at: Date;
 }

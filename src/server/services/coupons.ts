@@ -13,7 +13,6 @@ export interface CreateCouponParams {
   description?: string | null | undefined;
   restaurantId?: string | null | undefined;
   campusId?: string | null | undefined;
-  fundedBy?: "PLATFORM" | "VENDOR" | undefined;
   type: "FLAT" | "PERCENT";
   valuePaise: Paise;
   valueBps?: number | undefined;
@@ -52,7 +51,6 @@ export async function createCouponDirectly(
     description: params.description ?? null,
     restaurantId: params.restaurantId ?? null,
     campusId,
-    fundedBy: params.fundedBy ?? "PLATFORM",
     type: params.type,
     valuePaise: params.type === "FLAT" ? params.valuePaise : 0,
     valueBps: params.type === "PERCENT" ? (params.valueBps ?? 0) : 0,

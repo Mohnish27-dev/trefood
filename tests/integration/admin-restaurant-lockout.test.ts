@@ -4,7 +4,6 @@ import * as db from "@/server/db/collections";
 import { getMongoClient } from "@/server/db/client";
 import { setRestaurantOpenAsAdmin } from "@/server/services/admin";
 import { previewCart, createOrder } from "@/server/services/orders";
-import { PAYMENT_METHOD } from "@/lib/constants";
 import { setUpCanteenFixture, tearDownCanteenFixture, CANTEEN_ID } from "./canteen-fixture";
 import type { User } from "@/types/user";
 
@@ -21,8 +20,8 @@ async function getTestStudent(): Promise<User> {
       phone: "+919876500099",
       campusId: "campus_nitp",
       restaurantId: null,
-      codBlocked: false,
-      codBlockedReason: null,
+      ordersBlocked: false,
+      ordersBlockedReason: null,
       strikes: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -77,7 +76,6 @@ describe("Admin restaurant lockout & ordering restrictions", () => {
     const preview = await previewCart({
       restaurantId: CANTEEN_ID,
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
-      method: PAYMENT_METHOD.ONLINE_100,
     });
 
     expect(preview).not.toBeNull();
@@ -95,7 +93,6 @@ describe("Admin restaurant lockout & ordering restrictions", () => {
       zoneId: "zone_boys_hostel",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
       idempotencyKey: "test_order_closed_guard",
-      method: PAYMENT_METHOD.ONLINE_100,
     });
 
     expect(orderResult.ok).toBe(false);
@@ -164,7 +161,6 @@ describe("Admin restaurant lockout & ordering restrictions", () => {
     const preview = await previewCart({
       restaurantId: CANTEEN_ID,
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
-      method: PAYMENT_METHOD.ONLINE_100,
     });
 
     expect(preview).not.toBeNull();
@@ -179,7 +175,6 @@ describe("Admin restaurant lockout & ordering restrictions", () => {
       zoneId: "zone_boys_hostel",
       lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }],
       idempotencyKey: "test_order_after_reopen",
-      method: PAYMENT_METHOD.ONLINE_100,
     });
 
     expect(orderResult.ok).toBe(true);

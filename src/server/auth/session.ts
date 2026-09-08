@@ -192,7 +192,7 @@ async function resolveStubUser(): Promise<User | null> {
 
 /**
  * Phase 8. The Supabase JWT identifies the auth user; the `users` collection
- * mirrors it with the role, phone and codBlocked flag that the domain needs.
+ * mirrors it with the role, phone and standing flags that the domain needs.
  * If a student signs in for the first time, auto-provisions their MongoDB record.
  */
 async function resolveSupabaseUser(): Promise<User | null> {
@@ -238,8 +238,8 @@ async function resolveSupabaseUser(): Promise<User | null> {
       phone: authUser.phone ?? null,
       campusId: "campus_nitp",
       restaurantId: null,
-      codBlocked: false,
-      codBlockedReason: null,
+      ordersBlocked: false,
+      ordersBlockedReason: null,
       strikes: 0,
       createdAt: new Date(),
       updatedAt: new Date(),

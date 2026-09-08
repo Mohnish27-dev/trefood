@@ -10,8 +10,6 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 export const ORDER_STATUS = {
-  PAYMENT_PENDING: "PAYMENT_PENDING",
-  PAYMENT_FAILED: "PAYMENT_FAILED",
   PLACED: "PLACED",
   ACCEPTED: "ACCEPTED",
   PREPARING: "PREPARING",
@@ -19,7 +17,6 @@ export const ORDER_STATUS = {
   OUT_FOR_DELIVERY: "OUT_FOR_DELIVERY",
   AT_GATE: "AT_GATE",
   DELIVERED: "DELIVERED",
-  DELIVERED_TO_SECURITY: "DELIVERED_TO_SECURITY",
   NO_SHOW: "NO_SHOW",
   REJECTED_BY_VENDOR: "REJECTED_BY_VENDOR",
   EXPIRED_NO_ACK: "EXPIRED_NO_ACK",
@@ -31,7 +28,6 @@ export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 
 /** Statuses from which nothing further can happen without an admin. */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
-  ORDER_STATUS.PAYMENT_FAILED,
   ORDER_STATUS.REJECTED_BY_VENDOR,
   ORDER_STATUS.EXPIRED_NO_ACK,
   ORDER_STATUS.CANCELLED_BY_ADMIN,
@@ -52,9 +48,9 @@ export const VENDOR_ACTIVE_STATUSES: readonly OrderStatus[] = [
 /**
  * Statuses visible in a customer's order history.
  *
- * In-progress, delivered, and rejected/cancelled orders are shown.
- * Abandoned checkout attempts (PAYMENT_PENDING, PAYMENT_FAILED) are excluded so
- * customer order history is never cluttered with unfulfilled payment attempts.
+ * Every order a student places is real from the moment it is placed — there is
+ * no payment step in front of it any more — so every status a customer can
+ * reach belongs in their history.
  */
 export const CUSTOMER_VISIBLE_STATUSES: readonly OrderStatus[] = [
   ORDER_STATUS.PLACED,
@@ -64,7 +60,6 @@ export const CUSTOMER_VISIBLE_STATUSES: readonly OrderStatus[] = [
   ORDER_STATUS.OUT_FOR_DELIVERY,
   ORDER_STATUS.AT_GATE,
   ORDER_STATUS.DELIVERED,
-  ORDER_STATUS.DELIVERED_TO_SECURITY,
   ORDER_STATUS.NO_SHOW,
   ORDER_STATUS.REJECTED_BY_VENDOR,
   ORDER_STATUS.EXPIRED_NO_ACK,
@@ -94,11 +89,7 @@ export const STUDENT_STEPPER: readonly {
   {
     key: "delivered",
     label: "Delivered",
-    statuses: [
-      ORDER_STATUS.DELIVERED,
-      ORDER_STATUS.DELIVERED_TO_SECURITY,
-      ORDER_STATUS.SETTLED,
-    ],
+    statuses: [ORDER_STATUS.DELIVERED, ORDER_STATUS.SETTLED],
   },
 ];
 
@@ -116,36 +107,45 @@ export const ROLE = {
 
 export type Role = (typeof ROLE)[keyof typeof ROLE];
 
-/** Who fired a transition. Broader than Role: cron and webhooks act too. */
+/** Who fired a transition. Broader than Role: the cron sweeps act too. */
 export const ACTOR = {
   STUDENT: "STUDENT",
   VENDOR: "VENDOR",
   ADMIN: "ADMIN",
   SYSTEM: "SYSTEM",
-  WEBHOOK: "WEBHOOK",
 } as const;
 
 export type Actor = (typeof ACTOR)[keyof typeof ACTOR];
 
 /* ══════════════════════════════════════════════════════════════════════
    Payment — MONEY_AND_SETTLEMENT.md sections 3 and 4
+
+   TREFOOD is cash on delivery, end to end. The student pays NOTHING to place
+   an order; the whole bill is handed to the delivery partner at the gate, in
+   cash, on the packet changing hands. There is no gateway, no token, no
+   convenience fee and no refund path, because no money ever moves before the
+   food does.
+
+   That reverses the direction money settles in. The vendor ends the day
+   holding every rupee their orders were worth, and owes TREFOOD the
+   commission on them. `services/settlement.ts` collects; it does not pay out.
    ══════════════════════════════════════════════════════════════════════ */
 
 export const PAYMENT_METHOD = {
-  /** Student pays the whole grandTotal online. */
-  ONLINE_100: "ONLINE_100",
-  /** Student pays the commission as a token online, the receivable in cash at the gate. */
-  HYBRID_COD: "HYBRID_COD",
+  /** The only method. The student pays the full bill in cash, at handover. */
+  COD: "COD",
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
 
 export const PAYMENT_STATUS = {
-  PENDING: "PENDING",
-  CAPTURED: "CAPTURED",
-  FAILED: "FAILED",
-  REFUNDED: "REFUNDED",
-  PARTIALLY_REFUNDED: "PARTIALLY_REFUNDED",
+  /** Placed and in flight. The cash has not changed hands yet. */
+  DUE: "DUE",
+  /** The delivery partner took the cash at the gate. */
+  COLLECTED: "COLLECTED",
+  /** The order ended without the food being handed over: rejected, expired,
+      cancelled, or a no-show. Nobody owes anybody anything. */
+  UNCOLLECTED: "UNCOLLECTED",
 } as const;
 
 export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
@@ -180,26 +180,22 @@ export const DEFAULTS = {
   curfewBufferMinutes: 10,
   /** F6 — student has 5 minutes to resolve a stockout before "drop it" is assumed. */
   stockoutResolutionSeconds: 300,
-  /** F1 — an unpaid order is abandoned after this long. */
-  paymentAbandonMinutes: 15,
-  /** F1 — reconciliation ignores orders younger than this, to let the webhook win the race. */
-  reconcileAfterMinutes: 3,
   /** F18 — nag the vendor once this multiple of prep time has elapsed without an at-gate tap. */
   atGateNagMultiplier: 2,
   /** F4 — three expiries in a day closes the restaurant automatically. */
   dailyExpiryCloseThreshold: 3,
-  /** F8 — two COD no-shows blocks COD for that student. */
-  codStrikeThreshold: 2,
+  /**
+   * F8 — no-shows past this count flag a student for an admin to look at.
+   *
+   * It does not block them. Cash on delivery is the only way to order now, so
+   * an automatic block would be an automatic ban, and that is a decision a
+   * person should make rather than a counter.
+   */
+  strikeAlertThreshold: 2,
 
-  /** D6 — 10% commission, as basis points. */
+  /** D6 — 10% commission, as basis points. What the vendor owes us per order. */
   commissionBps: 1_000,
-  /** A3 — Gateway convenience fee passed to the student. 0 so the user pays for the order only. */
-  gatewayFeeBps: 0,
-  /** A7 — COD handling fee lever. Ships at zero; turn it on only if COD share climbs. */
-  codHandlingFeePaise: 0,
-  /** A1 — coupons are platform-funded, so the vendor is paid on the pre-discount base. */
-  couponFundedBy: "PLATFORM",
-  /** A4 — commission rounds up, vendor receivable takes the remainder. */
+  /** A4 — commission rounds up, the vendor's share takes the remainder. */
   roundingMode: "CEIL",
 
   /** Prep time bounds offered to the vendor on accept. */
@@ -227,7 +223,6 @@ export const STUCK_REASON = {
   ACK_OVERDUE: "ACK_OVERDUE",
   GATE_OVERDUE: "GATE_OVERDUE",
   AT_GATE_NOT_TAPPED: "AT_GATE_NOT_TAPPED",
-  PAYMENT_HANGING: "PAYMENT_HANGING",
   STOCKOUT_UNANSWERED: "STOCKOUT_UNANSWERED",
 } as const;
 
@@ -237,7 +232,6 @@ export const STUCK_LABEL: Record<StuckReason, string> = {
   ACK_OVERDUE: "Vendor has not accepted",
   GATE_OVERDUE: "Waiting at the gate past grace",
   AT_GATE_NOT_TAPPED: "No 'rider at gate' tap",
-  PAYMENT_HANGING: "Payment never confirmed",
   STOCKOUT_UNANSWERED: "Stockout unanswered",
 };
 

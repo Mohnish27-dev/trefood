@@ -477,9 +477,9 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
     passwordHash: hashPassword(params.password),
     campusId: params.campusId,
     restaurantId,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -571,9 +571,7 @@ export async function getRadar(params: {
   const campuses = await (await db.campuses()).find({}).toArray();
   const campusById = new Map(campuses.map((c) => [c._id, c]));
 
-  const filter: Record<string, unknown> = {
-    status: { $nin: [...TERMINAL_STATUSES, ORDER_STATUS.PAYMENT_PENDING] },
-  };
+  const filter: Record<string, unknown> = { status: { $nin: [...TERMINAL_STATUSES] } };
   if (params.campusId) filter.campusId = params.campusId;
 
   const orders = await (await db.orders())

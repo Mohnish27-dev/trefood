@@ -171,11 +171,7 @@ const ITEMS: MenuItem[] = [
  * pick is reachable.
  */
 export async function setUpCanteenFixture(): Promise<void> {
-  const campuses = await db.campuses();
-  const campus = await campuses.findOne({ _id: CAMPUS_ID });
-  if (campus && !campus.settings.codEnabled) {
-    await campuses.updateOne({ _id: CAMPUS_ID }, { $set: { "settings.codEnabled": true } });
-  }
+  const campus = await (await db.campuses()).findOne({ _id: CAMPUS_ID });
   const servedZoneIds = campus
     ? campus.zones.map((zone) => zone.id)
     : ["zone_main_gate", "zone_boys_hostel"];

@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { computePricing, PricingError, type PricingInput } from "@/server/services/pricing";
-import { PAYMENT_METHOD } from "@/lib/constants";
 import { rupeesToPaise } from "@/lib/money";
 
 const R = rupeesToPaise;
 
-/** Worked Example A and B share this order: 200 food + 10 packaging + 15 delivery. */
+/** The worked example: 200 food + 10 packaging + 15 delivery. */
 function baseInput(overrides: Partial<PricingInput> = {}): PricingInput {
   return {
     lines: [{ quantity: 1, unitPricePaise: R(200), addOnPricesPaise: [] }],
@@ -14,20 +13,17 @@ function baseInput(overrides: Partial<PricingInput> = {}): PricingInput {
     deliveryFeePaise: R(15),
     discountPaise: 0,
     commissionBps: 1_000, // 10%
-    gatewayFeeBps: 236, // 2.36%
-    codHandlingFeePaise: 0,
-    method: PAYMENT_METHOD.ONLINE_100,
     ...overrides,
   };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   The two worked examples, to the exact rupee.
+   The worked example, to the exact rupee.
    MONEY_AND_SETTLEMENT.md sections 3 and 4.
    ══════════════════════════════════════════════════════════════════════ */
 
-describe("Worked Example A — 100% online", () => {
-  const { pricing, onlinePaidPaise, cashDueOnDeliveryPaise } = computePricing(baseInput());
+describe("Worked Example — cash on delivery", () => {
+  const { pricing, cashDuePaise } = computePricing(baseInput());
 
   it("food subtotal is 200", () => expect(pricing.subtotalPaise).toBe(R(200)));
   it("commission base is 225", () => expect(pricing.commissionBasePaise).toBe(R(225)));
@@ -36,91 +32,46 @@ describe("Worked Example A — 100% online", () => {
     expect(pricing.platformCommissionPaise).toBe(R(23));
   });
 
-  it("vendor receivable is 202", () => expect(pricing.vendorReceivablePaise).toBe(R(202)));
+  it("the vendor's share is 202", () => expect(pricing.vendorReceivablePaise).toBe(R(202)));
 
-  it("convenience fee is 6 — CEIL(2.36% of 225 = 5.31)", () => {
-    expect(pricing.convenienceFeePaise).toBe(R(6));
+  it("the student pays 225 in cash — nothing is added to the bill", () => {
+    expect(pricing.grandTotalPaise).toBe(R(225));
+    expect(cashDuePaise).toBe(R(225));
   });
 
-  it("student pays 231 online", () => {
-    expect(pricing.grandTotalPaise).toBe(R(231));
-    expect(onlinePaidPaise).toBe(R(231));
-  });
-
-  it("nothing is due in cash", () => expect(cashDueOnDeliveryPaise).toBe(0));
-
-  it("refundable if the vendor fails is 225, not 231", () => {
-    expect(pricing.refundableAmountPaise).toBe(R(225));
-  });
-});
-
-describe("Worked Example B — hybrid COD", () => {
-  const input = baseInput({ method: PAYMENT_METHOD.HYBRID_COD });
-  const { pricing, onlinePaidPaise, cashDueOnDeliveryPaise } = computePricing(input);
-
-  it("the online token IS the commission — 23", () => {
-    expect(pricing.platformCommissionPaise).toBe(R(23));
-  });
-
-  it("convenience fee is 1 — CEIL(2.36% of 23 = 0.54)", () => {
-    expect(pricing.convenienceFeePaise).toBe(R(1));
-  });
-
-  it("student pays 24 online at checkout", () => expect(onlinePaidPaise).toBe(R(24)));
-
-  it("cash handed over at the gate is 202, exactly the receivable", () => {
-    expect(cashDueOnDeliveryPaise).toBe(R(202));
-    expect(cashDueOnDeliveryPaise).toBe(pricing.vendorReceivablePaise);
-  });
-
-  it("total student outlay is 226", () => {
-    expect(onlinePaidPaise + cashDueOnDeliveryPaise).toBe(R(226));
-  });
-
-  it("refundable is 23 — the token minus its convenience fee, per MONEY section 5", () => {
-    // NOT grandTotal - convenienceFee (225). There is no cash to refund,
-    // because no cash was ever collected.
-    expect(pricing.refundableAmountPaise).toBe(R(23));
-  });
-
-  it("COD is currently cheaper than prepaid — the known A7 asymmetry", () => {
-    const prepaid = computePricing(baseInput()).pricing.grandTotalPaise;
-    expect(onlinePaidPaise + cashDueOnDeliveryPaise).toBeLessThan(prepaid);
+  it("the vendor collects the whole bill and owes us the commission on it", () => {
+    expect(cashDuePaise - pricing.platformCommissionPaise).toBe(pricing.vendorReceivablePaise);
   });
 });
 
 /* ══════════════════════════════════════════════════════════════════════
-   The COD invariant that makes settlement unnecessary.
-   PRD Part 4.12 — "any change that breaks it is rejected".
+   The invariant the reversed settlement rests on.
    ══════════════════════════════════════════════════════════════════════ */
 
-describe("the COD self-settling invariant", () => {
+describe("the collection invariant", () => {
   it("holds across a wide range of order values", () => {
     for (let rupees = 30; rupees <= 2_000; rupees += 7) {
-      const { pricing, onlinePaidPaise, cashDueOnDeliveryPaise } = computePricing(
-        baseInput({
-          method: PAYMENT_METHOD.HYBRID_COD,
-          lines: [{ quantity: 1, unitPricePaise: R(rupees), addOnPricesPaise: [] }],
-        }),
+      const { pricing, cashDuePaise } = computePricing(
+        baseInput({ lines: [{ quantity: 1, unitPricePaise: R(rupees), addOnPricesPaise: [] }] }),
       );
 
-      // codOnlineToken === platformCommission
-      expect(onlinePaidPaise - pricing.convenienceFeePaise).toBe(pricing.platformCommissionPaise);
-      // cashDueOnDelivery === vendorReceivable
-      expect(cashDueOnDeliveryPaise).toBe(pricing.vendorReceivablePaise);
-      // Therefore the platform owes the vendor nothing and vice versa.
-      expect(pricing.platformCommissionPaise + cashDueOnDeliveryPaise).toBe(
+      // The cash collected is the whole bill.
+      expect(cashDuePaise).toBe(pricing.grandTotalPaise);
+      // What the vendor keeps, plus what they owe us, is exactly what they took.
+      expect(pricing.platformCommissionPaise + pricing.vendorReceivablePaise).toBe(
         pricing.commissionBasePaise,
       );
+      // And they can always cover what they owe out of what they collected.
+      expect(cashDuePaise).toBeGreaterThanOrEqual(pricing.platformCommissionPaise);
     }
   });
 });
 
 /* ══════════════════════════════════════════════════════════════════════
-   All seven invariants, fuzzed.
+   All the invariants, fuzzed.
    ══════════════════════════════════════════════════════════════════════ */
 
-describe("the seven reconciliation invariants under fuzzing", () => {
+describe("the reconciliation invariants under fuzzing", () => {
   // Deterministic PRNG, so a failure is reproducible rather than a ghost.
   let seed = 0x5eed;
   const rand = (): number => {
@@ -139,32 +90,22 @@ describe("the seven reconciliation invariants under fuzzing", () => {
         addOnPricesPaise: Array.from({ length: randInt(0, 3) }, () => randInt(0, 5_000)),
       }));
 
-      const method = rand() > 0.5 ? PAYMENT_METHOD.ONLINE_100 : PAYMENT_METHOD.HYBRID_COD;
-
       const input: PricingInput = {
         lines,
         packagingFeePaise: randInt(0, 3_000),
         deliveryFeePaise: randInt(0, 5_000),
         discountPaise: rand() > 0.7 ? randInt(0, 4_000) : 0,
         commissionBps: randInt(0, 3_000),
-        gatewayFeeBps: randInt(0, 500),
-        codHandlingFeePaise: 0,
-        method,
       };
 
-      // computePricing asserts all seven internally and throws on violation.
-      const { pricing, onlinePaidPaise, cashDueOnDeliveryPaise } = computePricing(input);
+      // computePricing asserts every invariant internally and throws on violation.
+      const { pricing, cashDuePaise } = computePricing(input);
 
       // Restate the two that matter most, so a regression names itself.
       expect(pricing.platformCommissionPaise + pricing.vendorReceivablePaise).toBe(
         pricing.commissionBasePaise,
       );
-
-      if (method === PAYMENT_METHOD.HYBRID_COD) {
-        expect(cashDueOnDeliveryPaise).toBe(pricing.vendorReceivablePaise);
-      } else {
-        expect(onlinePaidPaise).toBe(pricing.grandTotalPaise);
-      }
+      expect(cashDuePaise).toBe(pricing.grandTotalPaise);
     }
   });
 });
@@ -223,21 +164,23 @@ describe("add-ons", () => {
   });
 });
 
-describe("coupons (A1 — platform-funded)", () => {
-  it("do not reduce what the vendor is paid", () => {
+describe("coupons — vendor-absorbed", () => {
+  it("do not reduce the commission the vendor owes", () => {
     const without = computePricing(baseInput()).pricing;
     const withCoupon = computePricing(baseInput({ discountPaise: R(20) })).pricing;
 
-    expect(withCoupon.vendorReceivablePaise).toBe(without.vendorReceivablePaise);
     expect(withCoupon.commissionBasePaise).toBe(without.commissionBasePaise);
-    // The student pays 20 less; TREFOOD absorbs it out of its own commission.
-    expect(withCoupon.grandTotalPaise).toBeLessThan(without.grandTotalPaise);
+    expect(withCoupon.platformCommissionPaise).toBe(without.platformCommissionPaise);
+    // The student hands over 20 less, and that 20 comes out of the vendor's share.
+    expect(withCoupon.grandTotalPaise).toBe(without.grandTotalPaise - R(20));
   });
 
-  it("cannot drive a total below zero", () => {
-    const { pricing } = computePricing(baseInput({ discountPaise: R(10_000) }));
-    expect(pricing.grandTotalPaise).toBeGreaterThanOrEqual(0);
-    expect(pricing.discountPaise).toBe(pricing.commissionBasePaise);
+  it("cannot leave the vendor owing more than they collected", () => {
+    const { pricing, cashDuePaise } = computePricing(baseInput({ discountPaise: R(10_000) }));
+    expect(pricing.grandTotalPaise).toBeGreaterThanOrEqual(pricing.platformCommissionPaise);
+    // The discount is capped at the vendor's own share, never past it.
+    expect(pricing.discountPaise).toBe(pricing.vendorReceivablePaise);
+    expect(cashDuePaise).toBe(pricing.platformCommissionPaise);
   });
 });
 

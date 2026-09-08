@@ -130,9 +130,6 @@ export const CAMPUS: Campus = {
   settings: {
     deliveryFeePaise: R(15), // PRD Part 8.3 — set the real fee before launch
     commissionBps: DEFAULTS.commissionBps,
-    gatewayFeeBps: DEFAULTS.gatewayFeeBps, // A3 — 0 bps: user pays for order only without convenience fees
-    codHandlingFeePaise: DEFAULTS.codHandlingFeePaise,
-    couponFundedBy: "PLATFORM",
     roundingMode: "CEIL",
     transitMinutes: 8, // PRD Part 8.3 — walk it and time it
     vendorAckSeconds: DEFAULTS.vendorAckSeconds,
@@ -140,7 +137,6 @@ export const CAMPUS: Campus = {
     gateGraceSeconds: DEFAULTS.gateGraceSeconds,
     curfewBufferMinutes: DEFAULTS.curfewBufferMinutes,
     stockoutResolutionSeconds: DEFAULTS.stockoutResolutionSeconds,
-    codEnabled: true,
   },
   isActive: true,
   createdAt: new Date("2026-08-01T00:00:00Z"),
@@ -159,9 +155,9 @@ function user(partial: Pick<User, "_id" | "role" | "name" | "email"> & Partial<U
     phone: null,
     campusId: CAMPUS_ID,
     restaurantId: null,
-    codBlocked: false,
-    codBlockedReason: null,
     strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
     createdAt: new Date("2026-08-10T00:00:00Z"),
     updatedAt: new Date("2026-08-10T00:00:00Z"),
     ...partial,

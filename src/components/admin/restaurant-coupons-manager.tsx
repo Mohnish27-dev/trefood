@@ -151,9 +151,6 @@ function CouponCard({
             </Badge>
           </div>
 
-          <Badge tone={coupon.fundedBy === "PLATFORM" ? "info" : "warning"}>
-            {coupon.fundedBy === "PLATFORM" ? "Platform Funded" : "Vendor Funded"}
-          </Badge>
         </div>
 
         {coupon.description ? (
@@ -254,7 +251,6 @@ function CreateCouponDialog({
   const [value, setValue] = useState("30");
   const [maxDiscountRupees, setMaxDiscountRupees] = useState("100");
   const [minOrderRupees, setMinOrderRupees] = useState("100");
-  const [fundedBy, setFundedBy] = useState<"PLATFORM" | "VENDOR">("PLATFORM");
   const [perStudentLimit, setPerStudentLimit] = useState("1");
   const [totalLimit, setTotalLimit] = useState("");
 
@@ -273,7 +269,6 @@ function CreateCouponDialog({
       code: code.trim().toUpperCase(),
       description: description.trim() || undefined,
       restaurantId,
-      fundedBy,
       type,
       value: parseFloat(value),
       maxDiscountRupees: type === "PERCENT" && maxDiscountRupees ? parseFloat(maxDiscountRupees) : undefined,
@@ -413,21 +408,8 @@ function CreateCouponDialog({
               </div>
             </div>
 
-            {/* Funding Source & Per Student Limit */}
+            {/* Per Student Limit */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="coupon-funding">Funded By</Label>
-                <select
-                  id="coupon-funding"
-                  value={fundedBy}
-                  onChange={(e) => setFundedBy(e.target.value as "PLATFORM" | "VENDOR")}
-                  className="w-full h-11 rounded-xl border border-line bg-surface px-3 text-xs text-bone focus:outline-none focus:border-saffron"
-                >
-                  <option value="PLATFORM">Platform (TREFOOD Commission)</option>
-                  <option value="VENDOR">Vendor (Restaurant Base)</option>
-                </select>
-              </div>
-
               <div>
                 <Label htmlFor="coupon-per-student">Per Student Limit</Label>
                 <Input

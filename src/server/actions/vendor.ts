@@ -4,13 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULTS, ORDER_STATUS, PAYMENT_METHOD } from "@/lib/constants";
+import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
 import { formatINR, rupeesToPaise } from "@/lib/money";
 import { newId } from "@/lib/ids";
 import { requireVendor } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
-import { issueRefund } from "@/server/services/refunds";
 import { raiseStockout } from "@/server/services/stockout";
 import { recordStrike } from "@/server/services/students";
 import { notifyOrderEvent } from "@/server/services/push";
@@ -108,7 +107,7 @@ const rejectSchema = z.object({
   reason: z.string().trim().min(3, "Say why. The student sees this."),
 });
 
-/** F5 — rejection, with a written reason and a full refund. */
+/** F5 — rejection, with a written reason. Nothing was paid, so nothing goes back. */
 export async function rejectOrder(input: unknown): Promise<VendorActionState> {
   const parsed = rejectSchema.safeParse(input);
   if (!parsed.success) {
@@ -127,23 +126,16 @@ export async function rejectOrder(input: unknown): Promise<VendorActionState> {
   });
   if (!rejected.ok) return { status: "error", message: rejected.message };
 
-  // D1/D3 — vendor fault, so the student is made whole and the fee that the
-  // gateway keeps is booked against this restaurant's next payout.
-  const refund = await issueRefund({
-    order: rejected.order,
-    reason: `Rejected by vendor: ${parsed.data.reason}`,
-    actorId: user._id,
-  });
-  if (!refund.ok) return { status: "error", message: `Order rejected, but the refund failed: ${refund.message}` };
-
+  // Nothing to unwind. The student had not paid a rupee, so a rejection costs
+  // them only the wait — which is exactly why it still needs a written reason.
   await notifyOrderEvent({
     order: rejected.order,
     title: "Order could not be accepted",
-    body: `${rejected.order.restaurantSnapshot.name}: ${parsed.data.reason}. Your refund is on its way.`,
+    body: `${rejected.order.restaurantSnapshot.name}: ${parsed.data.reason}. You have not been charged.`,
   });
 
   revalidatePath("/vendor/orders");
-  return { status: "ok", message: "Rejected and refunded" };
+  return { status: "ok", message: "Rejected" };
 }
 
 /** Packed. This is where the gate code becomes visible to the vendor. */
@@ -218,15 +210,13 @@ export async function riderAtGate(input: unknown): Promise<VendorActionState> {
   if (!result.ok) return { status: "error", message: result.message };
 
   const order = result.order;
-  const cash =
-    order.payment.method === PAYMENT_METHOD.HYBRID_COD
-      ? ` Keep ${formatINR(order.payment.cashDueOnDeliveryPaise)} in cash ready.`
-      : "";
 
   await notifyOrderEvent({
     order,
     title: `Your order is at ${order.deliveryZoneSnapshot.name}`,
-    body: `Match the 4-digit code on the packet, then tap Confirm Received.${cash}`,
+    body:
+      `Match the 4-digit code on the packet, then tap Confirm Received. ` +
+      `Keep ${formatINR(order.payment.cashDuePaise)} in cash ready.`,
     // The one notification worth surviving a glance at a lock screen.
     requireInteraction: true,
   });
@@ -239,7 +229,13 @@ export async function riderAtGate(input: unknown): Promise<VendorActionState> {
    Gate outcomes the vendor reports
    ══════════════════════════════════════════════════════════════════════ */
 
-/** COD fallback: the rider came back with the right cash, student never tapped. */
+/**
+ * The rider came back with the cash and the student never tapped.
+ *
+ * `transitionOrder` records the collection as part of moving to DELIVERED, so
+ * this is the vendor-side twin of the student's Confirm Received — the same
+ * ending, reached from the other side of the handover.
+ */
 export async function confirmCashCollected(input: unknown): Promise<VendorActionState> {
   const parsed = orderIdSchema.safeParse(input);
   if (!parsed.success) return { status: "error", message: "Invalid order." };
@@ -248,9 +244,6 @@ export async function confirmCashCollected(input: unknown): Promise<VendorAction
 
   const order = await scopedOrder(parsed.data.orderId, restaurantId);
   if (!order) return { status: "error", message: "That order is not yours." };
-  if (order.payment.method !== PAYMENT_METHOD.HYBRID_COD) {
-    return { status: "error", message: "This is a prepaid order — there is no cash to collect." };
-  }
 
   const result = await transitionOrder({
     orderId: order._id,
@@ -262,40 +255,8 @@ export async function confirmCashCollected(input: unknown): Promise<VendorAction
   });
   if (!result.ok) return { status: "error", message: result.message };
 
-  await (await db.orders()).updateOne(
-    { _id: order._id },
-    { $set: { "payment.cashCollected": true } },
-  );
-
   revalidatePath("/vendor/orders");
   return { status: "ok", message: "Closed as delivered" };
-}
-
-/** F7 — prepaid, nobody came. The packet goes to the hostel guard. */
-export async function leaveWithSecurity(input: unknown): Promise<VendorActionState> {
-  const parsed = orderIdSchema.safeParse(input);
-  if (!parsed.success) return { status: "error", message: "Invalid order." };
-
-  const { restaurantId, user } = await requireVendor();
-
-  const result = await transitionOrder({
-    orderId: parsed.data.orderId,
-    to: ORDER_STATUS.DELIVERED_TO_SECURITY,
-    actor: ACTOR.VENDOR,
-    actorId: user._id,
-    requireRestaurantId: restaurantId,
-    reason: "Student did not come to the gate; packet left with security",
-  });
-  if (!result.ok) return { status: "error", message: result.message };
-
-  await notifyOrderEvent({
-    order: result.order,
-    title: "Left with gate security",
-    body: `Your order is with security at ${result.order.deliveryZoneSnapshot.name}. Collect it there.`,
-  });
-
-  revalidatePath("/vendor/orders");
-  return { status: "ok", message: "Recorded as left with security" };
 }
 
 const noShowSchema = z.object({
@@ -305,11 +266,12 @@ const noShowSchema = z.object({
 });
 
 /**
- * F8 / F9 — the COD order that came back.
+ * F8 / F9 — the order that came back.
  *
- * No refund, ever: the food was cooked and carried, and the token stays with
- * the vendor as compensation. That is D1 working exactly as intended — refunds
- * are for vendor and platform fault, and this is neither.
+ * The vendor carries this loss in full: they cooked the food, carried it to a
+ * gate, and came back with neither the food nor the cash. There is no token to
+ * forfeit any more and nothing for the platform to pass on, so all the record
+ * can do is make the student's pattern visible to an admin.
  */
 export async function reportNoShow(input: unknown): Promise<VendorActionState> {
   const parsed = noShowSchema.safeParse(input);
@@ -332,18 +294,14 @@ export async function reportNoShow(input: unknown): Promise<VendorActionState> {
   });
   if (!result.ok) return { status: "error", message: result.message };
 
-  if (parsed.data.refused) {
-    await (await db.orders()).updateOne(
-      { _id: order._id },
-      { $set: { "payment.cashCollected": false } },
-    );
-  }
+  // `transitionOrder` already marked the payment UNCOLLECTED on the way into
+  // NO_SHOW, so there is nothing further to write against the order here.
 
   const strike = await recordStrike({
     userId: order.customerId,
     orderId: order._id,
     orderNumber: order.orderNumber,
-    reason: parsed.data.refused ? "REFUSED_PAYMENT" : "NO_SHOW_COD",
+    reason: parsed.data.refused ? "REFUSED_PAYMENT" : "NO_SHOW",
     actor: ACTOR.VENDOR,
     actorId: user._id,
   });
@@ -352,8 +310,8 @@ export async function reportNoShow(input: unknown): Promise<VendorActionState> {
   return {
     status: "ok",
     message:
-      strike?.codBlockedNow === true
-        ? "Recorded. Cash on delivery is now disabled for this student."
+      strike?.needsReview === true
+        ? "Recorded. This student has been flagged for TREFOOD to review."
         : "Recorded",
   };
 }
@@ -812,7 +770,7 @@ export async function deleteVendorCategory(input: unknown): Promise<VendorAction
  * The surge release valve. One tap, and the restaurant stops taking orders.
  *
  * This is the fix for an exam-week flood, and it is worth teaching on day one:
- * twenty minutes closed beats a cascade of F4 expiries and three refunds.
+ * twenty minutes closed beats a cascade of F4 expiries and three angry students.
  */
 export async function setRestaurantOpen(input: unknown): Promise<VendorActionState> {
   const parsed = z.object({ isOpen: z.boolean() }).safeParse(input);

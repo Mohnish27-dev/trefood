@@ -15,7 +15,7 @@ import { StockoutScreen } from "./stockout-screen";
 import { usePoll } from "@/hooks/use-poll";
 import { confirmReceived } from "@/server/actions/student";
 import { clientEnv } from "@/lib/env";
-import { ORDER_STATUS, PAYMENT_METHOD, type OrderStatus } from "@/lib/constants";
+import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import type { OrderPollResponse } from "@/app/api/orders/[orderId]/poll/route";
 
 /**
@@ -49,10 +49,7 @@ export function OrderTracker({ initial }: { initial: OrderPollResponse }) {
   // never received an order has no reason to want an icon on their home
   // screen, and a prompt dismissed once is spent for weeks.
   useEffect(() => {
-    if (
-      order.status === ORDER_STATUS.DELIVERED ||
-      order.status === ORDER_STATUS.DELIVERED_TO_SECURITY
-    ) {
+    if (order.status === ORDER_STATUS.DELIVERED) {
       markInstallPromptEarned();
     }
   }, [order.status]);
@@ -106,9 +103,7 @@ function StatusScreen({
     order.status === ORDER_STATUS.AT_GATE;
 
   const isDelivered =
-    order.status === ORDER_STATUS.DELIVERED ||
-    order.status === ORDER_STATUS.DELIVERED_TO_SECURITY ||
-    order.status === ORDER_STATUS.SETTLED;
+    order.status === ORDER_STATUS.DELIVERED || order.status === ORDER_STATUS.SETTLED;
 
   const handleConfirmPickup = async (): Promise<void> => {
     if (!order.gateCode) return;
@@ -188,17 +183,9 @@ function StatusScreen({
           {order.cancellationReason ? (
             <p className="mt-2 text-xs text-muted">Reason: {order.cancellationReason}</p>
           ) : null}
-          {order.refundablePaise > 0 ? (
-            <p className="mt-3 text-sm text-bone">
-              Refund of{" "}
-              <Money
-                paise={order.refund?.amountPaise ?? order.refundablePaise}
-                className="font-semibold"
-              />{" "}
-              {order.refund?.status === "PROCESSED" ? "has been sent" : "is on its way"}. It takes
-              3–5 working days to appear.
-            </p>
-          ) : null}
+          <p className="mt-3 text-sm text-bone">
+            You have not been charged anything. Nothing is paid until the food reaches you.
+          </p>
         </Card>
       ) : null}
 
@@ -223,16 +210,16 @@ function StatusScreen({
             )}
           </p>
 
-          {/* COD Notice */}
-          {order.method === PAYMENT_METHOD.HYBRID_COD && order.cashDueOnDeliveryPaise > 0 ? (
+          {/* The one number that matters at the gate. Every order is cash. */}
+          {order.cashDuePaise > 0 ? (
             <div className="mt-4 rounded-xl border border-amber/30 bg-amber-wash/30 p-3 text-left flex items-center gap-3">
               <Wallet className="size-5 shrink-0 text-amber" />
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-amber">
-                  Cash to Pay at Gate
+                  Cash to pay at gate
                 </p>
                 <p className="font-display text-lg font-bold text-bone">
-                  <Money paise={order.cashDueOnDeliveryPaise} />
+                  <Money paise={order.cashDuePaise} />
                 </p>
               </div>
             </div>
@@ -322,14 +309,16 @@ function StatusScreen({
         </div>
 
         <div className="border-t border-line p-4">
-          <MoneyRow label="Paid online" paise={order.onlinePaidPaise} />
-          {order.cashDueOnDeliveryPaise > 0 ? (
+          {order.paymentStatus === "COLLECTED" ? (
+            <MoneyRow label="Paid in cash" paise={order.cashDuePaise} emphasis />
+          ) : (
             <MoneyRow
               label="Cash at the gate"
-              paise={order.cashDueOnDeliveryPaise}
+              paise={order.cashDuePaise}
               hint="Exact amount, please"
+              emphasis
             />
-          ) : null}
+          )}
         </div>
       </Card>
 
@@ -355,7 +344,6 @@ function isFailure(status: OrderStatus): boolean {
     status === ORDER_STATUS.REJECTED_BY_VENDOR ||
     status === ORDER_STATUS.EXPIRED_NO_ACK ||
     status === ORDER_STATUS.CANCELLED_BY_ADMIN ||
-    status === ORDER_STATUS.PAYMENT_FAILED ||
     status === ORDER_STATUS.NO_SHOW
   );
 }
