@@ -18,7 +18,7 @@ import { assertTransition } from "./order-state";
 import { computePricing, type PricingLineInput } from "./pricing";
 import { generateGateCode } from "./gate-code";
 import { writeAudit } from "./audit";
-import { getCampusById, getMenuItemsByIds, getRestaurantById } from "./catalog";
+import { getCampusById, getMenuItemsByIds, getRestaurantById, isRestaurantServing } from "./catalog";
 import { campusLocalMinutes, getEffectiveMinOrderPaise } from "./curfew";
 import { validateCouponForOrder } from "./coupons";
 import type { Campus, DeliveryZone } from "@/types/campus";
@@ -99,6 +99,15 @@ export async function previewCart(params: {
   const issues: CartIssue[] = [];
   const orderItems: OrderItem[] = [];
   const pricingLines: PricingLineInput[] = [];
+
+  if (!restaurant.isOpen) {
+    issues.push({
+      itemId: restaurant._id,
+      itemName: restaurant.name,
+      code: "UNAVAILABLE",
+      message: `${restaurant.name} is currently closed and not accepting orders.`,
+    });
+  }
 
   for (const line of params.lines) {
     const item = itemMap.get(line.itemId);
@@ -214,7 +223,7 @@ function resolveAddOns(
 
 export type CreateOrderResult =
   | { ok: true; order: Order; reused: boolean }
-  | { ok: false; code: "CART_INVALID" | "COD_BLOCKED" | "COD_DISABLED" | "BELOW_MINIMUM"; message: string; issues?: CartIssue[] };
+  | { ok: false; code: "CART_INVALID" | "COD_BLOCKED" | "COD_DISABLED" | "BELOW_MINIMUM" | "RESTAURANT_CLOSED"; message: string; issues?: CartIssue[] };
 
 export async function createOrder(params: {
   customer: User;
@@ -269,6 +278,17 @@ export async function createOrder(params: {
     return { ok: false, code: "CART_INVALID", message: "This cart can no longer be priced." };
   }
 
+  const now = new Date();
+  const nowMinutes = campusLocalMinutes(now, preview.campus.timezone);
+
+  if (!preview.restaurant.isOpen || !isRestaurantServing(preview.restaurant, nowMinutes)) {
+    return {
+      ok: false,
+      code: "RESTAURANT_CLOSED",
+      message: `${preview.restaurant.name} is currently closed and not taking orders.`,
+    };
+  }
+
   // F13/F14 — never charge a price the student did not see, and never take an
   // order containing something the kitchen has run out of.
   if (preview.issues.length > 0) {
@@ -315,7 +335,6 @@ export async function createOrder(params: {
   }
 
   const orderNumber = await nextOrderNumber(preview.campus);
-  const now = new Date();
 
   const order: Order = {
     _id: newId(),

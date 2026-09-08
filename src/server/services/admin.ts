@@ -300,6 +300,45 @@ export async function updateRestaurantDisplayOrders(params: {
   });
 }
 
+export async function setRestaurantOpenAsAdmin(params: {
+  restaurantId: string;
+  isOpen: boolean;
+  actorId: string;
+}): Promise<Restaurant | null> {
+  const restaurants = await db.restaurants();
+  const before = await restaurants.findOne({ _id: params.restaurantId });
+  if (!before) return null;
+
+  const updated = await restaurants.findOneAndUpdate(
+    { _id: params.restaurantId },
+    {
+      $set: {
+        isOpen: params.isOpen,
+        adminClosed: !params.isOpen,
+        ...(params.isOpen ? { autoClosedAt: null, expiryCountToday: 0 } : {}),
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" },
+  );
+
+  if (updated) {
+    await writeAudit({
+      entity: "RESTAURANT",
+      entityId: updated._id,
+      from: before.isOpen ? "open" : "closed",
+      to: params.isOpen ? "open" : "closed",
+      actorId: params.actorId,
+      actorRole: ACTOR.ADMIN,
+      reason: params.isOpen
+        ? "Admin reopened restaurant"
+        : "Admin closed restaurant (vendor locked out)",
+    });
+  }
+
+  return updated;
+}
+
 export async function updatePayoutDetails(params: {
   restaurantId: string;
   payout: Restaurant["payout"];
@@ -402,6 +441,7 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
     opensMinutes: 7 * 60, // 07:00
     closesMinutes: 23 * 60 + 30, // 23:30
     isOpen: true,
+    adminClosed: false,
     isApproved: true,
     rating: null,
     ratingCount: 0,

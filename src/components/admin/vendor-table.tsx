@@ -1,9 +1,10 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, Percent, Power, PowerOff, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   reviewVendorKyc,
   saveCommissionOverride,
   savePayoutDetails,
+  toggleRestaurantOpenAction,
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
 import { AddVendorDialog, type CampusOption } from "@/components/admin/add-vendor-dialog";
@@ -46,6 +48,7 @@ export interface AdminVendorRow {
   kycStatus: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason: string | null;
   isOpen: boolean;
+  adminClosed?: boolean;
   zoneCount: number;
   minOrderPaise: number;
   packagingFeePaise: number;
@@ -147,6 +150,30 @@ export function AdminVendorTable({
 
 function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
   const effectiveBps = vendor.commissionBpsOverride ?? vendor.campusCommissionBps;
+  const [isOpen, setIsOpen] = useState(vendor.isOpen);
+  const [isAdminClosed, setIsAdminClosed] = useState(Boolean(vendor.adminClosed));
+  const [togglingOpen, setTogglingOpen] = useState(false);
+
+  const handleToggleOpen = async () => {
+    const nextState = !isOpen;
+    setTogglingOpen(true);
+    setIsOpen(nextState);
+    setIsAdminClosed(!nextState);
+
+    const res = await toggleRestaurantOpenAction({
+      restaurantId: vendor.restaurantId,
+      isOpen: nextState,
+    });
+
+    if (res.status === "error") {
+      setIsOpen(!nextState);
+      setIsAdminClosed(Boolean(vendor.adminClosed));
+      toast.error(res.message);
+    } else {
+      toast.success(res.message);
+    }
+    setTogglingOpen(false);
+  };
 
   return (
     <Card className="p-4">
@@ -163,6 +190,13 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
               Rank #{getRestaurantDisplayPriority(vendor)}
             </span>
           ) : null}
+          {isOpen ? (
+            <Badge tone="success">Open</Badge>
+          ) : isAdminClosed ? (
+            <Badge tone="danger">Closed by Admin</Badge>
+          ) : (
+            <Badge tone="warning">Closed</Badge>
+          )}
           <KycBadge status={vendor.kycStatus} />
         </div>
       </div>
@@ -190,6 +224,32 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
         <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={togglingOpen}
+            onClick={handleToggleOpen}
+            className={cn(
+              "gap-1.5 transition-colors",
+              isOpen
+                ? "text-chili border-chili/30 hover:bg-chili/10 hover:border-chili/50"
+                : "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50",
+            )}
+            title={
+              isOpen
+                ? "Turn off canteen (vendor will not be able to turn it on)"
+                : "Turn on canteen"
+            }
+          >
+            {togglingOpen ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : isOpen ? (
+              <PowerOff className="size-3.5 text-chili" />
+            ) : (
+              <Power className="size-3.5 text-mint" />
+            )}
+            {isOpen ? "Turn Off" : "Turn On"}
+          </Button>
           <KycDialog vendor={vendor} />
           <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
           <PayoutDialog vendor={vendor} />
