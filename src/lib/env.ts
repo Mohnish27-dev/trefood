@@ -153,7 +153,7 @@ const clientSchema = z.object({
 
   // Support channels shown on the account screens. Unset means the channel is
   // not offered — better a missing row than a published number nobody answers.
-  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().default("support@trefood.in"),
+  NEXT_PUBLIC_SUPPORT_EMAIL: z.string().default("tregoinworks@gmail.com"),
   /** Digits only, with country code, e.g. 919876543210. */
   NEXT_PUBLIC_SUPPORT_WHATSAPP: optionalString,
   NEXT_PUBLIC_SUPPORT_PHONE: optionalString,
