@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isAuthorisedCron, unauthorisedCron } from "@/server/cron-guard";
 import { listAllCampuses } from "@/server/services/admin";
-import { runSettlement } from "@/server/services/settlement";
+import { FutureStatementDateError, runSettlement } from "@/server/services/settlement";
 import { resetDailyExpiryCounts } from "@/server/services/sweeps";
 import { campusDateString } from "@/lib/campus-time";
 
@@ -29,9 +29,24 @@ export async function GET(request: Request): Promise<Response> {
   const campuses = await listAllCampuses();
 
   const runs = [];
+  const refused: string[] = [];
   for (const campus of campuses) {
     const statementDate = date ?? campusDateString(new Date(), campus.timezone);
-    const result = await runSettlement({ campus, statementDate });
+
+    let result;
+    try {
+      result = await runSettlement({ campus, statementDate });
+    } catch (error: unknown) {
+      // `?date=` in the future. Refuse that campus and carry on with the rest
+      // rather than 500-ing the whole run — the other campuses are innocent,
+      // and a cron that fails loudly on one bad parameter stops billing
+      // everybody.
+      if (error instanceof FutureStatementDateError) {
+        refused.push(`${campus.slug}: ${error.message}`);
+        continue;
+      }
+      throw error;
+    }
 
     // The F4 counter is a per-day vendor-health signal, so it resets with the
     // day it counts. Only on a live run: re-settling last Tuesday must not
@@ -49,5 +64,5 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  return NextResponse.json({ runs });
+  return NextResponse.json(refused.length > 0 ? { runs, refused } : { runs });
 }

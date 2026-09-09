@@ -23,7 +23,6 @@ import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
  */
 
 const R = rupeesToPaise;
-const HM = (h: number, m = 0): number => h * 60 + m;
 
 export const CANTEEN_ID = "rest_nit_canteen";
 const CAMPUS_ID = "campus_nitp";
@@ -83,8 +82,16 @@ function canteen(servedZoneIds: string[]): Restaurant {
     foodGstBps: 0,
     commissionBpsOverride: null, // use the campus rate, so 10% is exact
     servedZoneIds,
-    opensMinutes: HM(7),
-    closesMinutes: HM(23, 30),
+    // Open around the clock. `isGateOpenAt` treats opens === closes as a full
+    // 24-hour window, and that is deliberate here: these hours used to be
+    // 07:00–23:30, which meant the whole integration suite failed with
+    // "NIT Canteen is currently closed" for seven and a half hours out of
+    // every twenty-four. A settlement test that only passes before bedtime is
+    // a settlement test nobody can trust at 2 AM, which is exactly when the
+    // nightly run fires. No test asserts these hours; the lockout suite closes
+    // the restaurant through `isOpen`, which still works.
+    opensMinutes: 0,
+    closesMinutes: 0,
     isOpen: true,
     isApproved: true,
     rating: 4.4,

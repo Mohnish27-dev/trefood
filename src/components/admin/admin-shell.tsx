@@ -8,6 +8,7 @@ import {
   Radar,
   SlidersHorizontal,
   Store,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -32,6 +33,7 @@ const SECTIONS: { heading: string; links: { href: string; label: string; icon: t
     {
       heading: "Money",
       links: [
+        { href: "/admin/earnings", label: "Earnings", icon: TrendingUp },
         { href: "/admin/settlements", label: "Settlements", icon: Banknote },
         { href: "/admin/pricing", label: "Pricing & timers", icon: SlidersHorizontal },
       ],

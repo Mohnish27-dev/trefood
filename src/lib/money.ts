@@ -190,6 +190,77 @@ export function formatINR(paise: Paise, options: { exact?: boolean } = {}): stri
   return exact ? inrExact.format(rupees) : inrWhole.format(rupees);
 }
 
+/* ------------------------------------------------------------------ */
+/* Compact rendering — dashboards and chart axes                       */
+/* ------------------------------------------------------------------ */
+
+const LAKH_PAISE = 100_00_000;
+const CRORE_PAISE = 100_00_00_000;
+
+/**
+ * At most two decimals, trailing zeros dropped: 4.82, 38.6, 5.
+ *
+ * Significant digits rather than fixed ones, so a tile never reads "₹5.00L"
+ * where "₹5L" is the honest width.
+ *
+ * An `Intl` formatter rather than `toFixed` or `Math.round`. Both are banned
+ * in this codebase and the ban is right even here, where the output is only a
+ * label: the habit of rounding a money-derived number by hand is the habit
+ * that eventually puts a float in a settlement total. This stays inside the
+ * render boundary, where a formatter belongs.
+ */
+const compactUnit = new Intl.NumberFormat("en-IN", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+function trimmed(value: number): string {
+  return compactUnit.format(value);
+}
+
+/**
+ * Compact rupees for a stat tile: ₹18,420 · ₹4.82L · ₹1.4Cr.
+ *
+ * ★ Indian units, never Western ones. ★ A dashboard read in Patna that says
+ * "4.8M" is a dashboard somebody has to convert in their head before they can
+ * act on it, and half of them will convert it wrong.
+ *
+ * Anything under a lakh stays fully written out, because that is the range an
+ * admin reconciles against a physical cash count — "₹18,420" is a number you
+ * can check, "₹18.4K" is not.
+ */
+export function formatINRCompact(paise: Paise): string {
+  assertPaise(paise, "formatINRCompact input");
+  const sign = paise < 0 ? "-" : "";
+  const magnitude = Math.abs(paise);
+
+  if (magnitude >= CRORE_PAISE) return `${sign}₹${trimmed(magnitude / CRORE_PAISE)}Cr`;
+  if (magnitude >= LAKH_PAISE) return `${sign}₹${trimmed(magnitude / LAKH_PAISE)}L`;
+  return `${sign}${inrWhole.format(magnitude / PAISE_PER_RUPEE)}`;
+}
+
+/**
+ * Always-compact rupees for a chart axis tick, where the column is narrow and
+ * the reader wants the shape of the scale rather than an exact figure.
+ *
+ * Unlike `formatINRCompact` this abbreviates thousands too, because an axis
+ * that reads "₹1,20,000" wraps or collides with its neighbour.
+ */
+export function formatINRAxis(paise: Paise): string {
+  assertPaise(paise, "formatINRAxis input");
+  const sign = paise < 0 ? "-" : "";
+  const magnitude = Math.abs(paise);
+
+  if (magnitude >= CRORE_PAISE) return `${sign}₹${trimmed(magnitude / CRORE_PAISE)}Cr`;
+  if (magnitude >= LAKH_PAISE) return `${sign}₹${trimmed(magnitude / LAKH_PAISE)}L`;
+  if (magnitude >= 1_000 * PAISE_PER_RUPEE) {
+    return `${sign}₹${trimmed(magnitude / (1_000 * PAISE_PER_RUPEE))}K`;
+  }
+  // Under a thousand there is nothing to abbreviate, so hand it to the same
+  // whole-rupee formatter every other screen uses.
+  return `${sign}${inrWhole.format(magnitude / PAISE_PER_RUPEE)}`;
+}
+
 /** Digits only, no symbol — for inputs and CSV columns. */
 export function formatINRPlain(paise: Paise): string {
   assertPaise(paise, "formatINRPlain input");
