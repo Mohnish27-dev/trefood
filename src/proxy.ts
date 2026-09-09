@@ -42,33 +42,43 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     },
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const isServerAction = request.headers.has("next-action");
+  if (isServerAction) {
+    return response;
+  }
+
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = rawUrl?.trim().replace(/^=+/, "").trim();
 
   let hasSupabaseUser = false;
 
   if (supabaseUrl && supabaseAnonKey) {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
+    try {
+      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options),
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    });
+      });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    hasSupabaseUser = !!user;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      hasSupabaseUser = !!user;
+    } catch {
+      hasSupabaseUser = false;
+    }
   }
 
   const hasDemoCookie = request.cookies.has(DEMO_SESSION_COOKIE);
