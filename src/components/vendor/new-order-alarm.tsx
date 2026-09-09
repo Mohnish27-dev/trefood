@@ -6,26 +6,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const ALARM_AUDIO_PATH = "/audio/alarm_sound.mpeg";
+
 /**
  * ★ The new-order alarm ★
  *
  * A missed order is lost revenue and a broken promise, so it is defended three
- * ways (ARCH section 5). This component owns two of them — the looping chime
+ * ways (ARCH section 5). This component owns two of them — the looping alarm audio
  * and the browser notification — while the card owns the third, the red flash.
  *
- * Two decisions worth stating:
+ * Uses the alarm audio file located at `public/audio/alarm_sound.mpeg`.
+ * Looping is enabled so it keeps ringing until silenced or accepted.
  *
- * **The chime is synthesised, not a file.** An MP3 is one more request to fail
- * on canteen wifi, one more asset to cache-bust, and silence at 23:00 if it
- * 404s. Two oscillators and a gain envelope cost nothing, work offline, and
- * cannot go missing.
- *
- * **It stops only on interaction.** Not on a timer, not after N repeats. The
+ * It stops only on interaction: not on a timer, not after N repeats. The
  * whole point is that it keeps going until a human touches the tablet — and it
  * starts again the moment the next order lands, even if the last one was
  * silenced.
  *
- * Autoplay policy means an AudioContext cannot start before a gesture, so when
+ * Autoplay policy means media playback cannot start before a gesture, so when
  * the browser refuses we say so and offer a button rather than pretending the
  * alarm is armed. A vendor who believes they will be alerted and is not is
  * worse off than one who knows they are watching the screen.
@@ -41,44 +39,45 @@ export function NewOrderAlarm({
   const [silenced, setSilenced] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(false);
 
-  const audioRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousCount = useRef(newOrderCount);
 
-  /* ── The chime ──────────────────────────────────────────────── */
+  /* ── The alarm audio element ───────────────────────────────── */
 
-  const chime = useCallback((): void => {
-    const context = audioRef.current;
-    if (!context || context.state !== "running") return;
-
-    // Two short rising tones. Pitched around 880/1320 Hz, which cuts through
-    // an extractor fan far better than a low tone does.
-    const now = context.currentTime;
-    for (const [index, frequency] of [880, 1_320].entries()) {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-
-      const start = now + index * 0.18;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 0.2);
+  const getAudio = useCallback((): HTMLAudioElement | null => {
+    if (typeof window === "undefined") return null;
+    if (!audioRef.current) {
+      const audio = new Audio(ALARM_AUDIO_PATH);
+      audio.loop = true;
+      audio.preload = "auto";
+      audioRef.current = audio;
     }
+    return audioRef.current;
   }, []);
 
   const arm = useCallback(async (): Promise<void> => {
-    try {
-      audioRef.current ??= new AudioContext();
-      await audioRef.current.resume();
-      setArmed(audioRef.current.state === "running");
-      chime();
-    } catch {
-      setArmed(false);
+    const audio = getAudio();
+    if (audio) {
+      try {
+        if (newOrderCount > 0 && !silenced) {
+          audio.currentTime = 0;
+          await audio.play();
+        } else {
+          // Play briefly muted to unlock browser autoplay policy during user gesture
+          const prevVolume = audio.volume;
+          audio.volume = 0;
+          await audio.play();
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = prevVolume;
+        }
+        setArmed(true);
+      } catch {
+        if (audio) {
+          audio.volume = 1;
+        }
+        setArmed(false);
+      }
     }
 
     if ("Notification" in window && Notification.permission === "default") {
@@ -87,7 +86,7 @@ export function NewOrderAlarm({
     } else if ("Notification" in window) {
       setNotificationsOn(Notification.permission === "granted");
     }
-  }, [chime]);
+  }, [getAudio, newOrderCount, silenced]);
 
   // Any interaction anywhere counts as arming, so a vendor who taps Accept has
   // already armed the alarm for the next order without being asked twice.
@@ -105,23 +104,51 @@ export function NewOrderAlarm({
     // screen now, never the ones that have not landed yet.
     if (newOrderCount > previousCount.current) {
       setSilenced(false);
+      if (armed) {
+        const audio = getAudio();
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch((err) => {
+            console.warn("[NewOrderAlarm] Playback prevented:", err);
+            setArmed(false);
+          });
+        }
+      }
       notifyBackgroundTab(newOrderCount, restaurantName, notificationsOn);
     }
     previousCount.current = newOrderCount;
-  }, [newOrderCount, restaurantName, notificationsOn]);
+  }, [newOrderCount, restaurantName, notificationsOn, armed, getAudio]);
 
   useEffect(() => {
-    if (newOrderCount === 0 || silenced || !armed) return;
+    const audio = getAudio();
+    if (!audio) return;
 
-    chime();
-    const id = setInterval(chime, 2_500);
-    return () => clearInterval(id);
-  }, [newOrderCount, silenced, armed, chime]);
+    if (newOrderCount > 0 && !silenced && armed) {
+      if (audio.paused) {
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn("[NewOrderAlarm] Playback prevented:", err);
+            setArmed(false);
+          });
+        }
+      }
+    } else {
+      if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    }
+  }, [newOrderCount, silenced, armed, getAudio]);
 
   useEffect(() => {
     return () => {
-      void audioRef.current?.close();
-      audioRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
     };
   }, []);
 

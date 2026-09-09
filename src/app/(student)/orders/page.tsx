@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Star } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/states";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
-import { TERMINAL_STATUSES } from "@/lib/constants";
+import { ORDER_STATUS, TERMINAL_STATUSES } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Your orders" };
 export const dynamic = "force-dynamic";
@@ -68,7 +68,23 @@ export default async function OrdersPage() {
                     </p>
 
                     <div className="mt-3 flex items-center justify-between text-xs text-muted">
-                      <span>{order.deliveryZoneSnapshot.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{order.deliveryZoneSnapshot.name}</span>
+                        {(order.status === ORDER_STATUS.DELIVERED ||
+                          order.status === ORDER_STATUS.SETTLED) && (
+                          order.feedback ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-saffron">
+                              <Star className="size-3 fill-saffron" />
+                              {order.feedback.rating}.0
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-saffron/30 bg-saffron-wash/20 px-2 py-0.5 text-[10px] font-medium text-saffron">
+                              <Star className="size-2.5 text-saffron" />
+                              Rate order
+                            </span>
+                          )
+                        )}
+                      </div>
                       <Money
                         paise={order.payment.cashDuePaise}
                         className="font-semibold text-bone"

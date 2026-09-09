@@ -207,3 +207,111 @@ export async function confirmReceived(input: unknown): Promise<ConfirmState> {
   revalidatePath("/orders");
   return { status: "success" };
 }
+
+/* ------------------------------------------------------------------ */
+/* Post-Delivery Feedback & Star Rating                               */
+/* ------------------------------------------------------------------ */
+
+export const feedbackSchema = z.object({
+  orderId: z.string().min(1, "Order ID is required"),
+  rating: z.number().int().min(1, "Rating must be at least 1 star").max(5, "Rating cannot exceed 5 stars"),
+  comment: z.string().trim().max(500, "Feedback must be 500 characters or less").optional().nullable(),
+  tags: z.array(z.string().trim().max(50)).max(10).optional(),
+});
+
+export type FeedbackState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | {
+      status: "success";
+      feedback: {
+        rating: number;
+        comment: string | null;
+        tags: string[];
+        createdAt: string;
+      };
+    };
+
+/**
+ * Submit post-delivery feedback with star rating and optional comments.
+ *
+ * Verifies order ownership and guarantees that feedback can only be submitted
+ * after delivery is confirmed (DELIVERED or SETTLED). Recalculates the
+ * restaurant's running rating and ratingCount atomically.
+ */
+export async function submitOrderFeedback(input: unknown): Promise<FeedbackState> {
+  const parsed = feedbackSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Please provide a valid rating.",
+    };
+  }
+
+  const { user } = await requireSession();
+
+  const order = await getOrderForCustomer(parsed.data.orderId, user._id);
+  if (!order) {
+    return { status: "error", message: "That order was not found or is not yours." };
+  }
+
+  if (order.status !== ORDER_STATUS.DELIVERED && order.status !== ORDER_STATUS.SETTLED) {
+    return {
+      status: "error",
+      message: "Feedback can only be shared after the food has been delivered to your gate.",
+    };
+  }
+
+  const createdAt = new Date();
+  const feedbackData = {
+    rating: parsed.data.rating,
+    comment: parsed.data.comment && parsed.data.comment.trim().length > 0 ? parsed.data.comment.trim() : null,
+    tags: parsed.data.tags ?? [],
+    createdAt,
+  };
+
+  // Update order document
+  await (await db.orders()).updateOne(
+    { _id: order._id },
+    { $set: { feedback: feedbackData } },
+  );
+
+  // Recalculate restaurant rating
+  const restaurant = await getRestaurantById(order.restaurantId);
+  if (restaurant) {
+    const currentCount = restaurant.ratingCount ?? 0;
+    const currentAvg = restaurant.rating ?? 0;
+    let newRating: number;
+    let newCount: number;
+
+    if (order.feedback) {
+      // User is updating their previously submitted rating
+      const oldRating = order.feedback.rating;
+      newCount = currentCount;
+      const newSum = currentAvg * currentCount - oldRating + parsed.data.rating;
+      newRating = newCount > 0 ? Math.floor(((newSum / newCount) * 10) + 0.5) / 10 : parsed.data.rating;
+    } else {
+      newCount = currentCount + 1;
+      const newSum = currentAvg * currentCount + parsed.data.rating;
+      newRating = Math.floor(((newSum / newCount) * 10) + 0.5) / 10;
+    }
+
+    await (await db.restaurants()).updateOne(
+      { _id: restaurant._id },
+      { $set: { rating: newRating, ratingCount: newCount } },
+    );
+  }
+
+  revalidatePath(`/orders/${order._id}`);
+  revalidatePath("/orders");
+
+  return {
+    status: "success",
+    feedback: {
+      rating: feedbackData.rating,
+      comment: feedbackData.comment,
+      tags: feedbackData.tags,
+      createdAt: createdAt.toISOString(),
+    },
+  };
+}

@@ -164,6 +164,16 @@ export interface Order {
   /** Applied coupon code and identifier for audit and receipt */
   couponCode?: string | null;
   couponId?: string | null;
+
+  /** Customer feedback after delivery completed */
+  feedback?: OrderFeedback | null;
+}
+
+export interface OrderFeedback {
+  rating: number; // 1 to 5 stars
+  comment?: string | null;
+  tags?: string[];
+  createdAt: Date;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
