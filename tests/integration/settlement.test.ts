@@ -8,6 +8,7 @@ import {
   listStatements,
   runSettlement,
   COLLECTION_FLOOR_PAISE,
+  FutureStatementDateError,
 } from "@/server/services/settlement";
 import { campusDayRange } from "@/lib/campus-time";
 import { ACTOR, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/constants";
@@ -39,9 +40,27 @@ import { setUpCanteenFixture, tearDownCanteenFixture } from "./canteen-fixture";
 const R = rupeesToPaise;
 const RESTAURANT_ID = "rest_nit_canteen";
 
-/** Deliberately absurd, so a stray row is obviously from this test. */
-const DAY_ONE = "2099-01-01";
-const DAY_TWO = "2099-01-02";
+/**
+ * Far in the PAST, and that direction is load-bearing.
+ *
+ * These used to be 2099 dates, on the reasoning that an absurd future date
+ * could never collide with a real run. That stopped being safe the moment the
+ * run started sweeping every unbilled delivered order up to the end of the
+ * statement day: a 2099 run against the shared database would bill every real
+ * order this platform has ever taken onto a test statement and close all of
+ * them, and teardown deletes the statement but cannot un-settle the orders.
+ *
+ * `runSettlement` now refuses a future date outright, so these have to be
+ * historical anyway. 2020 predates the first real order by years, which means
+ * the sweep can reach the fixture's orders and nothing else.
+ */
+const DAY_ONE = "2020-01-01";
+const DAY_TWO = "2020-01-02";
+const DAY_THREE = "2020-01-03";
+const DAY_FOUR = "2020-01-04";
+
+/** Every statement day this file writes, so teardown misses none of them. */
+const TEST_DAYS = [DAY_ONE, DAY_TWO, DAY_THREE, DAY_FOUR];
 
 let campus: Campus;
 let student: User;
@@ -90,7 +109,7 @@ afterAll(async () => {
   const statements = await db.commissionStatements();
   const statementIds = (
     await statements
-      .find({ statementDate: { $in: [DAY_ONE, DAY_TWO] } })
+      .find({ statementDate: { $in: TEST_DAYS } })
       .project<{ _id: string }>({ _id: 1 })
       .toArray()
   ).map((s) => s._id);
@@ -99,7 +118,7 @@ afterAll(async () => {
       await db.auditLogs()
     ).deleteMany({ entity: "STATEMENT", entityId: { $in: statementIds } });
   }
-  await statements.deleteMany({ statementDate: { $in: [DAY_ONE, DAY_TWO] } });
+  await statements.deleteMany({ statementDate: { $in: TEST_DAYS } });
   if (createdOrderIds.length > 0) {
     await (await db.orders()).deleteMany({ _id: { $in: createdOrderIds } });
     await (await db.auditLogs()).deleteMany({ orderId: { $in: createdOrderIds } });
@@ -299,5 +318,61 @@ describe("the nightly commission run", () => {
       expect(statement.netDuePaise).toBe(net);
       expect(statement.carriedForwardPaise).toBe(0);
     }
+  });
+
+  it("bills an order delivered too late for its own run on the following one", async () => {
+    // The leak this guards against, which cost real commission:
+    //
+    // An order is handed over at 23:59:30, seconds after the nightly run has
+    // already written this vendor's row. Its own day is invoiced and immutable,
+    // so a re-run of that day skips the vendor entirely. If the next night's
+    // run then only looked at orders delivered inside ITS day, the commission
+    // on that order would never be billed by any run, ever — it would simply
+    // sit in DELIVERED forever.
+    await runSettlement({ campus, statementDate: DAY_THREE, actorId: "user_admin" });
+
+    // Delivered into a day that has already been invoiced.
+    const late = await deliveredOrderOn(DAY_THREE);
+
+    const dayThree = (await listStatements({ statementDate: DAY_THREE })).find(
+      (row) => row.restaurantId === RESTAURANT_ID,
+    );
+    // It missed its own statement, and that statement does not change.
+    expect(dayThree?.orderCount).toBe(0);
+    expect(dayThree?.commissionDuePaise).toBe(0);
+
+    await runSettlement({ campus, statementDate: DAY_FOUR, actorId: "user_admin" });
+
+    const dayFour = (await listStatements({ statementDate: DAY_FOUR })).find(
+      (row) => row.restaurantId === RESTAURANT_ID,
+    );
+    expect(dayFour).toBeDefined();
+    if (!dayFour) return;
+
+    // The straggler is picked up rather than lost.
+    expect(dayFour.orderCount).toBe(1);
+    expect(dayFour.commissionDuePaise).toBe(late.pricing.platformCommissionPaise);
+
+    // And billed exactly once. SETTLED is not billable, so widening the date
+    // bound cannot turn into a double charge on the next run.
+    const settled = await (await db.orders()).findOne({ _id: late._id });
+    expect(settled?.status).toBe(ORDER_STATUS.SETTLED);
+
+    const rerun = await runSettlement({ campus, statementDate: DAY_FOUR, actorId: "user_admin" });
+    expect(rerun.ordersSettled).toBe(0);
+  });
+
+  it("refuses to invoice a day that has not happened yet", async () => {
+    // The sweep is bounded above by the end of the statement day and by
+    // nothing else, so a run dated in the future would bill every delivered
+    // order on the platform onto one statement and close all of them. A
+    // settled order can never be billed again, so there is no undo. One
+    // mistyped year in the date box is all it would take.
+    await expect(
+      runSettlement({ campus, statementDate: "2099-01-01", actorId: "user_admin" }),
+    ).rejects.toThrow(FutureStatementDateError);
+
+    // Nothing was written for the refused day.
+    expect(await listStatements({ statementDate: "2099-01-01" })).toHaveLength(0);
   });
 });

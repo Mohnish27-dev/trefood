@@ -16,7 +16,8 @@ import type { CommissionStatement } from "@/types/finance";
  * The nightly commission run. MONEY_AND_SETTLEMENT.md section 6.
  *
  *   cashCollected  = SUM(cash actually taken at the gate) -- context, not owed
- *   commissionDue  = SUM(platformCommission) for the day's DELIVERED orders
+ *   commissionDue  = SUM(platformCommission) for every DELIVERED order not
+ *                    yet invoiced as of the end of this day
  *   adjustments    = SUM(ledger entries for the day)      -- signed, see finance.ts
  *   netDue         = commissionDue + adjustments + openingBalance
  *
@@ -29,10 +30,13 @@ import type { CommissionStatement } from "@/types/finance";
  *
  * Four properties this file exists to guarantee:
  *
- *   1. Only DELIVERED orders count. A rejection, an expiry, a cancellation or
- *      a no-show means no food changed hands and no cash was collected, so
- *      there is no commission to charge on it. Charging one would be billing a
- *      vendor for a sale they never made.
+ *   1. Only DELIVERED orders count, and each one counts exactly once. A
+ *      rejection, an expiry, a cancellation or a no-show means no food changed
+ *      hands and no cash was collected, so there is no commission to charge on
+ *      it. Charging one would be billing a vendor for a sale they never made.
+ *      Billing is bounded by STATUS, not by date: an invoiced order moves to
+ *      SETTLED and can never be picked up again, so an order delivered too
+ *      late for its own run lands on the next one instead of vanishing.
  *   2. The run is idempotent (F15). The unique index on
  *      `(restaurantId, statementDate)` makes a second run a no-op rather than
  *      a second invoice.
@@ -63,14 +67,45 @@ export interface StatementRunResult {
   ordersSettled: number;
 }
 
+/**
+ * Refused because the day has not happened yet. See the guard in
+ * `runSettlement` — this is an operator mistake, not a system failure.
+ */
+export class FutureStatementDateError extends Error {
+  constructor(statementDate: string, today: string) {
+    super(
+      `Cannot invoice ${statementDate}: it is after ${today} in this campus. ` +
+        `A statement covers a day that has finished.`,
+    );
+    this.name = "FutureStatementDateError";
+  }
+}
+
 export async function runSettlement(params: {
   campus: Campus;
   /** Campus-local "YYYY-MM-DD". Defaults to today in the campus timezone. */
   statementDate?: string;
   actorId?: string | null;
 }): Promise<StatementRunResult> {
-  const statementDate =
-    params.statementDate ?? campusDateString(new Date(), params.campus.timezone);
+  const today = campusDateString(new Date(), params.campus.timezone);
+  const statementDate = params.statementDate ?? today;
+
+  // ★ A statement may never be dated in the future. ★
+  //
+  // This is a real business rule — you cannot invoice a day that has not
+  // finished — but it earns its place as a SAFETY RAIL. The order sweep below
+  // is bounded above by the end of the statement day and nothing else, so a
+  // run dated 2099 would bill every delivered order this platform has ever
+  // taken onto a single statement and close all of them. One mistyped year in
+  // the date box on the collections screen would do it, silently and
+  // irreversibly, because a settled order can never be billed again.
+  //
+  // Lexicographic comparison is exact here: both sides are zero-padded ISO
+  // days produced by the same function.
+  if (statementDate > today) {
+    throw new FutureStatementDateError(statementDate, today);
+  }
+
   const { start, end } = campusDayRange(statementDate, params.campus.timezone);
 
   const [orders, statements, restaurants] = await Promise.all([
@@ -95,13 +130,35 @@ export async function runSettlement(params: {
         return { skipped: restaurant._id, written: null, ordersSettled: 0 };
       }
 
+      // Everything delivered up to the END of this day and not yet invoiced —
+      // deliberately NOT just the orders whose delivery fell inside it.
+      //
+      // The window used to be `[start, end)`, and that quietly leaked money. An
+      // order delivered at 23:59:30, moments after the run wrote this vendor's
+      // row, missed its own day; the next night's run then filtered on the next
+      // day's `deliveredAt` and missed it too. The statement for the day it
+      // belonged to already existed, so a re-run skipped the vendor entirely.
+      // The commission on that order was never billed by any run, ever.
+      //
+      // Double-billing is impossible regardless of how wide this window is:
+      // an invoiced order leaves DELIVERED for SETTLED below, and SETTLED is
+      // not in BILLABLE_STATUSES. The status filter — not the date bound — is
+      // what makes an order billable exactly once. So the bound is now a
+      // cutoff rather than a window, and a straggler simply lands on the next
+      // statement the vendor receives.
       const dayOrders = await orders
         .find({
           restaurantId: restaurant._id,
           status: { $in: [...BILLABLE_STATUSES] },
-          "timestamps.deliveredAt": { $gte: start, $lt: end },
+          "timestamps.deliveredAt": { $lt: end },
         })
         .toArray();
+
+      // Carried in from an earlier day. Worth naming in the audit trail: it is
+      // the difference between a vendor's order count and what they counted.
+      const stragglerCount = dayOrders.filter(
+        (o) => o.timestamps.deliveredAt !== null && o.timestamps.deliveredAt < start,
+      ).length;
 
       const cashCollectedPaise = dayOrders.reduce(
         (total, o) => total + o.payment.cashCollectedPaise,
@@ -166,13 +223,17 @@ export async function runSettlement(params: {
         to: "PENDING",
         actorId: params.actorId ?? null,
         actorRole: ACTOR.SYSTEM,
-        reason: `Commission statement ${statementDate} for ${restaurant.name}: ${dayOrders.length} order(s)`,
+        reason:
+          `Commission statement ${statementDate} for ${restaurant.name}: ` +
+          `${dayOrders.length} order(s)` +
+          (stragglerCount > 0 ? `, ${stragglerCount} carried in from an earlier day` : ""),
       });
 
       let settledCount = 0;
       // Orders close only after the immutable row exists, so a crash between the
       // two leaves them re-runnable rather than billed against nothing.
       for (const order of dayOrders) {
+        
         const result = await transitionOrder({
           orderId: order._id,
           to: ORDER_STATUS.SETTLED,

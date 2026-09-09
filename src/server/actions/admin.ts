@@ -21,7 +21,11 @@ import {
 } from "@/server/services/admin";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder } from "@/server/services/orders";
-import { markStatementCollected, runSettlement } from "@/server/services/settlement";
+import {
+  FutureStatementDateError,
+  markStatementCollected,
+  runSettlement,
+} from "@/server/services/settlement";
 import { clearStrikes, setOrdersBlocked } from "@/server/services/students";
 import { runAllSweeps } from "@/server/services/sweeps";
 import { notifyOrderEvent } from "@/server/services/push";
@@ -463,13 +467,23 @@ export async function runSettlementNow(input: unknown): Promise<AdminActionState
   const campus = await getCampusById(parsed.data.campusId);
   if (!campus) return { status: "error", message: "That campus does not exist." };
 
-  const result = await runSettlement({
-    campus,
-    ...(parsed.data.statementDate === undefined
-      ? {}
-      : { statementDate: parsed.data.statementDate }),
-    actorId: user._id,
-  });
+  let result;
+  try {
+    result = await runSettlement({
+      campus,
+      ...(parsed.data.statementDate === undefined
+        ? {}
+        : { statementDate: parsed.data.statementDate }),
+      actorId: user._id,
+    });
+  } catch (error: unknown) {
+    // A future date is a typo in the date box, not a fault. Say what is wrong
+    // rather than surfacing a stack trace to somebody chasing cash.
+    if (error instanceof FutureStatementDateError) {
+      return { status: "error", message: error.message };
+    }
+    throw error;
+  }
 
   revalidatePath("/admin/settlements");
   return {
