@@ -1,5 +1,22 @@
 import type { NextConfig } from "next";
 
+const allowedOrigins = [
+  "trefood.in",
+  "*.trefood.in",
+  "localhost:3000",
+];
+
+if (process.env.NEXT_PUBLIC_APP_URL) {
+  try {
+    const parsed = new URL(process.env.NEXT_PUBLIC_APP_URL);
+    if (!allowedOrigins.includes(parsed.host)) {
+      allowedOrigins.push(parsed.host);
+    }
+  } catch {
+    // Ignore invalid URL
+  }
+}
+
 const nextConfig: NextConfig = {
   // Self-contained server bundle. Required for a small Docker image and for
   // any host that is not Vercel. On Vercel, native serverless deployment is used.
@@ -7,7 +24,11 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
-  // allowedDevOrigins: ["brute-heap-ashamed.ngrok-free.dev"],
+  experimental: {
+    serverActions: {
+      allowedOrigins,
+    },
+  },
 
   // Menu images live in Supabase Storage, never in Mongo (DECISIONS.md section 3).
   images: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedbackSchema } from "@/server/actions/student";
+import { feedbackSchema } from "@/lib/validation/feedback";
 import { ORDER_STATUS } from "@/lib/constants";
 
 describe("Post-Delivery Feedback Validation & Logic", () => {
