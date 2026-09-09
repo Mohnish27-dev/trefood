@@ -17,7 +17,6 @@ import { ensureIndexes } from "@/server/db/indexes";
 import { getMongoClient } from "@/server/db/client";
 import * as db from "@/server/db/collections";
 import {
-  ADMIN_EMAIL,
   CAMPUS,
   LEGACY_ADMIN_EMAILS,
   LEGACY_DEMO_ORDER_KEY_PATTERN,
@@ -185,7 +184,7 @@ async function main(): Promise<void> {
       await users.replaceOne({ _id: u._id }, u, { upsert: true });
     }
   }
-  console.log(`    admin: ${ADMIN_EMAIL}`);
+  console.log(`    admins: ${USERS.map((u) => u.email).join(", ")}`);
 
   console.log("\nSeed complete.\n");
   console.log("  1. Sign in as admin       /signin");
