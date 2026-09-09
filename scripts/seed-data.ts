@@ -148,6 +148,7 @@ export const CAMPUS: Campus = {
    ══════════════════════════════════════════════════════════════════════ */
 
 export const ADMIN_EMAIL = "zaid0072khan@gmail.com";
+export const ADMIN_EMAILS = [ADMIN_EMAIL, "suryamsuryainas@gmail.com"];
 
 function user(partial: Pick<User, "_id" | "role" | "name" | "email"> & Partial<User>): User {
   return {
@@ -170,6 +171,13 @@ export const USERS: User[] = [
     role: ROLE.SUPER_ADMIN,
     name: "Zaid Khan",
     email: ADMIN_EMAIL,
+    campusId: null,
+  }),
+  user({
+    _id: "user_admin_suryam",
+    role: ROLE.SUPER_ADMIN,
+    name: "Suryam",
+    email: "suryamsuryainas@gmail.com",
     campusId: null,
   }),
 ];

@@ -504,9 +504,11 @@ export function StudentAuthForm({
                       className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
                     />
                   </div>
-                  <p className="mt-1 text-[11px] text-muted/70 pl-2">
-                    {isAdminRedirect ? "e.g. zaid0072khan@gmail.com" : "e.g. student@nitp.ac.in"}
-                  </p>
+                  {!isAdminRedirect && (
+                    <p className="mt-1 text-[11px] text-muted/70 pl-2">
+                      e.g. student@nitp.ac.in
+                    </p>
+                  )}
                 </div>
 
                 {studentMode !== "magic" ? (
