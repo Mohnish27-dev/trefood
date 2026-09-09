@@ -163,7 +163,11 @@ export function CheckoutView({
       console.error("Order placement failed:", err);
       const isTechnicalReactError =
         err instanceof Error &&
-        (err.message.includes("Minified React error") || err.message.includes("react.dev/errors"));
+        (err.message.includes("Minified React error") ||
+          err.message.includes("react.dev/errors") ||
+          err.message.includes("Server Components render") ||
+          err.message.includes("Failed to find Server Action") ||
+          err.message.includes("Failed to fetch"));
 
       setError(
         isTechnicalReactError || !(err instanceof Error)
