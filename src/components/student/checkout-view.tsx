@@ -143,7 +143,10 @@ export function CheckoutView({
         })),
         // F12 — a fresh key per attempt, so a double-tap returns the first order
         // rather than creating a twin.
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `idem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
         phone: phone.replace(/\s/g, ""),
         couponCode: couponCode || undefined,
       });
@@ -158,10 +161,14 @@ export function CheckoutView({
       setError(result.status === "error" ? result.message : "Something went wrong.");
     } catch (err) {
       console.error("Order placement failed:", err);
+      const isTechnicalReactError =
+        err instanceof Error &&
+        (err.message.includes("Minified React error") || err.message.includes("react.dev/errors"));
+
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to process order right now. Please try again.",
+        isTechnicalReactError || !(err instanceof Error)
+          ? "Unable to process order right now. Please check your connection or sign in and try again."
+          : err.message,
       );
     } finally {
       setSubmitting(false);
@@ -322,10 +329,17 @@ export function CheckoutView({
       {error ? (
         <div
           role="alert"
-          className="mb-4 flex gap-2.5 rounded-xl border border-chili/30 bg-chili-wash px-3.5 py-3 text-sm leading-relaxed text-chili"
+          className="mb-4 flex flex-col gap-2 rounded-xl border border-chili/30 bg-chili-wash px-3.5 py-3 text-sm leading-relaxed text-chili"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <span>{error}</span>
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          {error.toLowerCase().includes("sign in") ? (
+            <Button asChild size="sm" variant="secondary" className="self-start mt-1">
+              <Link href="/signin?next=/checkout">Sign in to continue</Link>
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

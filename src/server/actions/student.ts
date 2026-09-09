@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import * as db from "@/server/db/collections";
 import { ACTOR, ORDER_STATUS } from "@/lib/constants";
-import { requireSession } from "@/server/auth/session";
+import { getSession } from "@/server/auth/session";
 import { getCampusById, getRestaurantById } from "@/server/services/catalog";
 import { checkCurfew } from "@/server/services/curfew";
 import { createOrder, getOrderForCustomer, transitionOrder } from "@/server/services/orders";
@@ -55,68 +55,86 @@ export type PlaceOrderState =
  * up the moment this returns.
  */
 export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
-  const parsed = placeOrderSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid order." };
-  }
+  try {
+    const parsed = placeOrderSchema.safeParse(input);
+    if (!parsed.success) {
+      return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid order." };
+    }
 
-  const { user } = await requireSession();
-  const data = parsed.data;
+    const session = await getSession();
+    if (!session) {
+      return {
+        status: "error",
+        message: "You need to sign in to place an order. Please sign in and try again.",
+      };
+    }
+    const user = session.user;
+    const data = parsed.data;
 
-  // D7 — phone captured at first checkout, then reused forever.
-  if (user.phone !== data.phone) {
-    await (await db.users()).updateOne(
-      { _id: user._id },
-      { $set: { phone: data.phone, updatedAt: new Date() } },
-    );
-  }
+    // D7 — phone captured at first checkout, then reused forever.
+    if (user.phone !== data.phone) {
+      await (await db.users()).updateOne(
+        { _id: user._id },
+        { $set: { phone: data.phone, updatedAt: new Date() } },
+      );
+    }
 
-  const restaurant = await getRestaurantById(data.restaurantId);
-  if (!restaurant) return { status: "error", message: "That restaurant is no longer available." };
+    const restaurant = await getRestaurantById(data.restaurantId);
+    if (!restaurant) return { status: "error", message: "That restaurant is no longer available." };
 
-  const campus = await getCampusById(restaurant.campusId);
-  if (!campus) return { status: "error", message: "That campus is no longer available." };
+    const campus = await getCampusById(restaurant.campusId);
+    if (!campus) return { status: "error", message: "That campus is no longer available." };
 
-  const zone = campus.zones.find((z) => z.id === data.zoneId);
-  if (!zone) return { status: "error", message: "That delivery gate no longer exists." };
+    const zone = campus.zones.find((z) => z.id === data.zoneId);
+    if (!zone) return { status: "error", message: "That delivery gate no longer exists." };
 
-  // F11 layer 1, re-run server-side against the REAL prep time. The client
-  // already showed this, but the client is not authorisation and the clock
-  // moves between rendering and tapping.
-  const verdict = checkCurfew({
-    now: new Date(),
-    timezone: campus.timezone,
-    zone,
-    prepMinutes: restaurant.prepMinutes,
-    transitMinutes: campus.settings.transitMinutes,
-    bufferMinutes: campus.settings.curfewBufferMinutes,
-  });
+    // F11 layer 1, re-run server-side against the REAL prep time. The client
+    // already showed this, but the client is not authorisation and the clock
+    // moves between rendering and tapping.
+    const verdict = checkCurfew({
+      now: new Date(),
+      timezone: campus.timezone,
+      zone,
+      prepMinutes: restaurant.prepMinutes,
+      transitMinutes: campus.settings.transitMinutes,
+      bufferMinutes: campus.settings.curfewBufferMinutes,
+    });
 
-  if (!verdict.available) {
-    return { status: "error", message: verdict.message ?? "That gate cannot be reached in time." };
-  }
+    if (!verdict.available) {
+      return { status: "error", message: verdict.message ?? "That gate cannot be reached in time." };
+    }
 
-  const created = await createOrder({
-    customer: { ...user, phone: data.phone },
-    restaurantId: data.restaurantId,
-    zoneId: data.zoneId,
-    lines: data.lines,
-    idempotencyKey: data.idempotencyKey,
-    couponCode: data.couponCode,
-  });
+    const created = await createOrder({
+      customer: { ...user, phone: data.phone },
+      restaurantId: data.restaurantId,
+      zoneId: data.zoneId,
+      lines: data.lines,
+      idempotencyKey: data.idempotencyKey,
+      couponCode: data.couponCode,
+    });
 
-  if (!created.ok) {
+    if (!created.ok) {
+      return {
+        status: "error",
+        message: created.message,
+        ...(created.issues
+          ? { issues: created.issues.map((i) => ({ itemId: i.itemId, message: i.message })) }
+          : {}),
+      };
+    }
+
+    revalidatePath("/orders");
+    return { status: "success", orderId: created.order._id };
+  } catch (err) {
+    console.error("placeOrder server action failed:", err);
     return {
       status: "error",
-      message: created.message,
-      ...(created.issues
-        ? { issues: created.issues.map((i) => ({ itemId: i.itemId, message: i.message })) }
-        : {}),
+      message:
+        err instanceof Error && !err.message.includes("Minified React error")
+          ? err.message
+          : "Unable to process order right now. Please try again.",
     };
   }
-
-  revalidatePath("/orders");
-  return { status: "success", orderId: created.order._id };
 }
 
 /* ------------------------------------------------------------------ */
@@ -149,63 +167,78 @@ export type ConfirmState =
  * it" — see the DELIVERED branch of `transitionOrder`.
  */
 export async function confirmReceived(input: unknown): Promise<ConfirmState> {
-  const parsed = confirmSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid code." };
-  }
+  try {
+    const parsed = confirmSchema.safeParse(input);
+    if (!parsed.success) {
+      return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid code." };
+    }
 
-  const { user } = await requireSession();
+    const session = await getSession();
+    if (!session) {
+      return { status: "error", message: "You need to be signed in to confirm this order." };
+    }
+    const user = session.user;
 
-  // Ownership, not just role.
-  const order = await getOrderForCustomer(parsed.data.orderId, user._id);
-  if (!order) return { status: "error", message: "That order is not yours." };
+    // Ownership, not just role.
+    const order = await getOrderForCustomer(parsed.data.orderId, user._id);
+    if (!order) return { status: "error", message: "That order is not yours." };
 
-  const confirmableStatuses = [
-    ORDER_STATUS.ACCEPTED,
-    ORDER_STATUS.PREPARING,
-    ORDER_STATUS.READY,
-    ORDER_STATUS.OUT_FOR_DELIVERY,
-    ORDER_STATUS.AT_GATE,
-  ];
+    const confirmableStatuses = [
+      ORDER_STATUS.ACCEPTED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.READY,
+      ORDER_STATUS.OUT_FOR_DELIVERY,
+      ORDER_STATUS.AT_GATE,
+    ];
 
-  if (!confirmableStatuses.includes(order.status as (typeof confirmableStatuses)[number])) {
-    return {
-      status: "error",
-      message: "This order cannot be confirmed right now.",
-    };
-  }
+    if (!confirmableStatuses.includes(order.status as (typeof confirmableStatuses)[number])) {
+      return {
+        status: "error",
+        message: "This order cannot be confirmed right now.",
+      };
+    }
 
-  if (!verifyGateCode(order.gateCode, parsed.data.enteredCode)) {
-    await writeAudit({
-      entity: "ORDER",
-      entityId: order._id,
+    if (!verifyGateCode(order.gateCode, parsed.data.enteredCode)) {
+      await writeAudit({
+        entity: "ORDER",
+        entityId: order._id,
+        orderId: order._id,
+        from: order.status,
+        to: order.status,
+        actorId: user._id,
+        actorRole: ACTOR.STUDENT,
+        reason: "Gate code mismatch on confirm attempt",
+      });
+      return {
+        status: "error",
+        message: "That code does not match the packet. Check the four digits again.",
+      };
+    }
+
+    const result = await transitionOrder({
       orderId: order._id,
-      from: order.status,
-      to: order.status,
+      to: ORDER_STATUS.DELIVERED,
+      actor: ACTOR.STUDENT,
       actorId: user._id,
-      actorRole: ACTOR.STUDENT,
-      reason: "Gate code mismatch on confirm attempt",
+      requireCustomerId: user._id,
+      reason: "Student confirmed receipt at the gate",
     });
+
+    if (!result.ok) return { status: "error", message: result.message };
+
+    revalidatePath(`/orders/${order._id}`);
+    revalidatePath("/orders");
+    return { status: "success" };
+  } catch (err) {
+    console.error("confirmReceived server action failed:", err);
     return {
       status: "error",
-      message: "That code does not match the packet. Check the four digits again.",
+      message:
+        err instanceof Error && !err.message.includes("Minified React error")
+          ? err.message
+          : "Unable to confirm order right now. Please try again.",
     };
   }
-
-  const result = await transitionOrder({
-    orderId: order._id,
-    to: ORDER_STATUS.DELIVERED,
-    actor: ACTOR.STUDENT,
-    actorId: user._id,
-    requireCustomerId: user._id,
-    reason: "Student confirmed receipt at the gate",
-  });
-
-  if (!result.ok) return { status: "error", message: result.message };
-
-  revalidatePath(`/orders/${order._id}`);
-  revalidatePath("/orders");
-  return { status: "success" };
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,78 +273,93 @@ export type FeedbackState =
  * restaurant's running rating and ratingCount atomically.
  */
 export async function submitOrderFeedback(input: unknown): Promise<FeedbackState> {
-  const parsed = feedbackSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: parsed.error.issues[0]?.message ?? "Please provide a valid rating.",
-    };
-  }
-
-  const { user } = await requireSession();
-
-  const order = await getOrderForCustomer(parsed.data.orderId, user._id);
-  if (!order) {
-    return { status: "error", message: "That order was not found or is not yours." };
-  }
-
-  if (order.status !== ORDER_STATUS.DELIVERED && order.status !== ORDER_STATUS.SETTLED) {
-    return {
-      status: "error",
-      message: "Feedback can only be shared after the food has been delivered to your gate.",
-    };
-  }
-
-  const createdAt = new Date();
-  const feedbackData = {
-    rating: parsed.data.rating,
-    comment: parsed.data.comment && parsed.data.comment.trim().length > 0 ? parsed.data.comment.trim() : null,
-    tags: parsed.data.tags ?? [],
-    createdAt,
-  };
-
-  // Update order document
-  await (await db.orders()).updateOne(
-    { _id: order._id },
-    { $set: { feedback: feedbackData } },
-  );
-
-  // Recalculate restaurant rating
-  const restaurant = await getRestaurantById(order.restaurantId);
-  if (restaurant) {
-    const currentCount = restaurant.ratingCount ?? 0;
-    const currentAvg = restaurant.rating ?? 0;
-    let newRating: number;
-    let newCount: number;
-
-    if (order.feedback) {
-      // User is updating their previously submitted rating
-      const oldRating = order.feedback.rating;
-      newCount = currentCount;
-      const newSum = currentAvg * currentCount - oldRating + parsed.data.rating;
-      newRating = newCount > 0 ? Math.floor(((newSum / newCount) * 10) + 0.5) / 10 : parsed.data.rating;
-    } else {
-      newCount = currentCount + 1;
-      const newSum = currentAvg * currentCount + parsed.data.rating;
-      newRating = Math.floor(((newSum / newCount) * 10) + 0.5) / 10;
+  try {
+    const parsed = feedbackSchema.safeParse(input);
+    if (!parsed.success) {
+      return {
+        status: "error",
+        message: parsed.error.issues[0]?.message ?? "Please provide a valid rating.",
+      };
     }
 
-    await (await db.restaurants()).updateOne(
-      { _id: restaurant._id },
-      { $set: { rating: newRating, ratingCount: newCount } },
+    const session = await getSession();
+    if (!session) {
+      return { status: "error", message: "You need to be signed in to submit feedback." };
+    }
+    const user = session.user;
+
+    const order = await getOrderForCustomer(parsed.data.orderId, user._id);
+    if (!order) {
+      return { status: "error", message: "That order was not found or is not yours." };
+    }
+
+    if (order.status !== ORDER_STATUS.DELIVERED && order.status !== ORDER_STATUS.SETTLED) {
+      return {
+        status: "error",
+        message: "Feedback can only be shared after the food has been delivered to your gate.",
+      };
+    }
+
+    const createdAt = new Date();
+    const feedbackData = {
+      rating: parsed.data.rating,
+      comment: parsed.data.comment && parsed.data.comment.trim().length > 0 ? parsed.data.comment.trim() : null,
+      tags: parsed.data.tags ?? [],
+      createdAt,
+    };
+
+    // Update order document
+    await (await db.orders()).updateOne(
+      { _id: order._id },
+      { $set: { feedback: feedbackData } },
     );
+
+    // Recalculate restaurant rating
+    const restaurant = await getRestaurantById(order.restaurantId);
+    if (restaurant) {
+      const currentCount = restaurant.ratingCount ?? 0;
+      const currentAvg = restaurant.rating ?? 0;
+      let newRating: number;
+      let newCount: number;
+
+      if (order.feedback) {
+        // User is updating their previously submitted rating
+        const oldRating = order.feedback.rating;
+        newCount = currentCount;
+        const newSum = currentAvg * currentCount - oldRating + parsed.data.rating;
+        newRating = newCount > 0 ? Math.floor(((newSum / newCount) * 10) + 0.5) / 10 : parsed.data.rating;
+      } else {
+        newCount = currentCount + 1;
+        const newSum = currentAvg * currentCount + parsed.data.rating;
+        newRating = Math.floor(((newSum / newCount) * 10) + 0.5) / 10;
+      }
+
+      await (await db.restaurants()).updateOne(
+        { _id: restaurant._id },
+        { $set: { rating: newRating, ratingCount: newCount } },
+      );
+    }
+
+    revalidatePath(`/orders/${order._id}`);
+    revalidatePath("/orders");
+
+    return {
+      status: "success",
+      feedback: {
+        rating: feedbackData.rating,
+        comment: feedbackData.comment,
+        tags: feedbackData.tags,
+        createdAt: createdAt.toISOString(),
+      },
+    };
+  } catch (err) {
+    console.error("submitOrderFeedback server action failed:", err);
+    return {
+      status: "error",
+      message:
+        err instanceof Error && !err.message.includes("Minified React error")
+          ? err.message
+          : "Unable to submit feedback right now. Please try again.",
+    };
   }
-
-  revalidatePath(`/orders/${order._id}`);
-  revalidatePath("/orders");
-
-  return {
-    status: "success",
-    feedback: {
-      rating: feedbackData.rating,
-      comment: feedbackData.comment,
-      tags: feedbackData.tags,
-      createdAt: createdAt.toISOString(),
-    },
-  };
 }

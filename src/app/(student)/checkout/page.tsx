@@ -24,6 +24,10 @@ export default async function CheckoutPage() {
   if (!campus) redirect("/");
 
   const session = await getSession();
+  if (!session) {
+    redirect("/signin?next=/checkout");
+  }
+
   const selectedZoneId = cookieStore.get(zoneCookieName(campusSlug))?.value ?? null;
 
   /**
