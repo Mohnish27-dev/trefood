@@ -1,4 +1,6 @@
 import * as db from "@/server/db/collections";
+import { isRestaurantServing } from "@/server/services/catalog";
+import { formatMinutes } from "@/server/services/curfew";
 import { rupeesToPaise } from "@/lib/money";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 
@@ -172,6 +174,32 @@ const ITEMS: MenuItem[] = [
 ];
 
 /**
+ * The canteen must be serving at every minute of the day, and this asserts it
+ * rather than trusting the two numbers above.
+ *
+ * `createOrder` refuses a restaurant that is not serving, so hours that close
+ * at 23:30 turn the whole integration suite red between 23:30 and 07:00 IST —
+ * and green again by morning, which is how it survived review the first time.
+ * A CI run at 01:54 IST failed nine tests with `false !== true` and
+ * "NIT Canteen is currently closed", none of which name the clock.
+ *
+ * Checking the real predicate (not just `opensMinutes === closesMinutes`) also
+ * catches the other way back into that hole: a change to how `isGateOpenAt`
+ * reads an equal open/close pair, or to `isApproved`. Failing here says which
+ * minute broke, once, instead of nine assertions in three files.
+ */
+function assertServesAllDay(restaurant: Restaurant): void {
+  for (let minute = 0; minute < 24 * 60; minute += 1) {
+    if (isRestaurantServing(restaurant, minute)) continue;
+    throw new Error(
+      `canteen-fixture: the test canteen is closed at ${formatMinutes(minute)}. ` +
+        "The integration suite must not depend on the hour it runs at: keep " +
+        "opensMinutes === closesMinutes (a full 24-hour window), isOpen and isApproved.",
+    );
+  }
+}
+
+/**
  * Creates the canteen, its categories and its menu. Idempotent: safe to call
  * from every file's `beforeAll`, and safe to re-run if a previous suite crashed
  * before its teardown. Serves every gate on the campus so any zone the tests
@@ -183,7 +211,10 @@ export async function setUpCanteenFixture(): Promise<void> {
     ? campus.zones.map((zone) => zone.id)
     : ["zone_main_gate", "zone_boys_hostel"];
 
-  await (await db.restaurants()).replaceOne({ _id: CANTEEN_ID }, canteen(servedZoneIds), {
+  const doc = canteen(servedZoneIds);
+  assertServesAllDay(doc);
+
+  await (await db.restaurants()).replaceOne({ _id: CANTEEN_ID }, doc, {
     upsert: true,
   });
 
