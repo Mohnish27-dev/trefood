@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getSession } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
+import { ORDER_STATUS, TERMINAL_STATUSES, type OrderStatus, type PaymentStatus } from "@/lib/constants";
 import { estimatedArrival, gateDeadline, getOrderForCustomer } from "@/server/services/orders";
 import { revealGateCode } from "@/server/services/gate-code";
-import { TERMINAL_STATUSES, type OrderStatus, type PaymentStatus } from "@/lib/constants";
+import { expireUnackedOrders } from "@/server/services/sweeps";
 
 /**
  * The student tracker poll. Every 8 seconds.
@@ -82,8 +83,20 @@ export async function GET(
   const { orderId } = await params;
 
   // Ownership, not just authentication.
-  const order = await getOrderForCustomer(orderId, session.user._id);
+  let order = await getOrderForCustomer(orderId, session.user._id);
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // F4 — the student staring at "Waiting for the restaurant to accept" is the
+  // person this deadline exists for, so their own poll enforces it rather than
+  // leaving them watching a dead screen until a scheduled job wakes up. Scoped
+  // to this one order and skipped entirely unless it is still unacknowledged.
+  if (order.status === ORDER_STATUS.PLACED) {
+    const report = await expireUnackedOrders(new Date(), { orderId: order._id });
+    if (report.acted > 0) {
+      const refreshed = await getOrderForCustomer(orderId, session.user._id);
+      if (refreshed) order = refreshed;
+    }
+  }
 
   const campus = await getCampusById(order.campusId);
   const transitMinutes = campus?.settings.transitMinutes ?? 8;
