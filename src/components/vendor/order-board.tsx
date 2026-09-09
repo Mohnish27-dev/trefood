@@ -7,22 +7,17 @@ import { Money } from "@/components/shared/money";
 import { ConnectionBanner, EmptyState, ErrorState } from "@/components/shared/states";
 import { NewOrderAlarm } from "./new-order-alarm";
 import { VendorOrderCard } from "./order-card";
-import { usePoll } from "@/hooks/use-poll";
-import { clientEnv } from "@/lib/env";
+import { useVendorAlarm } from "@/context/vendor-alarm-context";
 import { useVendorLanguage } from "@/context/vendor-language-context";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import type { VendorBoard } from "@/server/services/vendor";
 
 export function OrderBoard({ initial }: { initial: VendorBoard }) {
   const { t } = useVendorLanguage();
-  const { data, connectionLost, lastSyncedAt, error, refresh } = usePoll<VendorBoard>(
-    async () => {
-      const response = await fetch("/api/vendor/orders/poll", { cache: "no-store" });
-      if (!response.ok) throw new Error(`Board poll failed: ${response.status}`);
-      return (await response.json()) as VendorBoard;
-    },
-    { intervalMs: clientEnv.NEXT_PUBLIC_POLL_VENDOR_MS },
-  );
+
+  // The poll lives in the layout alongside the alarm, so it keeps running while
+  // the vendor is on any other tab. This page just renders what it finds there.
+  const { board: data, connectionLost, lastSyncedAt, error, refresh } = useVendorAlarm();
 
   const columns: { key: string; label: string; statuses: readonly OrderStatus[]; hint: string }[] = [
     {
@@ -46,7 +41,6 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
   ];
 
   const board = data ?? initial;
-  const newOrders = board.orders.filter((o) => o.status === ORDER_STATUS.PLACED);
 
   // Only a total failure with nothing on screen is worth an error state. A
   // failed poll on top of a known-good board is the connection banner's job —
@@ -66,10 +60,7 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
       <ConnectionBanner visible={connectionLost} lastSyncedAt={lastSyncedAt} />
 
       <div className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <NewOrderAlarm
-          newOrderCount={newOrders.length}
-          restaurantName={board.restaurant.name}
-        />
+        <NewOrderAlarm />
 
         <div className="ml-auto flex items-center gap-5 text-sm">
           <span className="text-muted">
