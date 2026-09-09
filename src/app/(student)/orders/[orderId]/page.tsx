@@ -67,6 +67,17 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
       lineTotalPaise: i.lineTotalPaise,
       addOns: i.addOns.map((a) => a.name),
     })),
+    feedback: order.feedback
+      ? {
+          rating: order.feedback.rating,
+          comment: order.feedback.comment ?? null,
+          tags: order.feedback.tags ?? [],
+          createdAt:
+            order.feedback.createdAt instanceof Date
+              ? order.feedback.createdAt.toISOString()
+              : new Date(order.feedback.createdAt).toISOString(),
+        }
+      : null,
   };
 
   return (

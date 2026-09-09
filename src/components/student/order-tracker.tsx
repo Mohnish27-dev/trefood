@@ -17,6 +17,7 @@ import { confirmReceived } from "@/server/actions/student";
 import { clientEnv } from "@/lib/env";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import type { OrderPollResponse } from "@/app/api/orders/[orderId]/poll/route";
+import { OrderFeedbackCard, OrderFeedbackDialog } from "./order-feedback-form";
 
 /**
  * Live Order Status.
@@ -90,6 +91,8 @@ function StatusScreen({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
   const isAccepted =
     order.status === ORDER_STATUS.ACCEPTED ||
@@ -105,6 +108,17 @@ function StatusScreen({
   const isDelivered =
     order.status === ORDER_STATUS.DELIVERED || order.status === ORDER_STATUS.SETTLED;
 
+  // Prompt for feedback automatically once delivery is complete
+  useEffect(() => {
+    if (isDelivered && !order.feedback && !feedbackDismissed) {
+      const timer = setTimeout(() => {
+        setShowFeedbackModal(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [isDelivered, order.feedback, feedbackDismissed]);
+
   const handleConfirmPickup = async (): Promise<void> => {
     if (!order.gateCode) return;
     setSubmitting(true);
@@ -119,6 +133,7 @@ function StatusScreen({
       setError(result.message);
       setSubmitting(false);
     } else {
+      setShowFeedbackModal(true);
       onConfirmed();
     }
   };
@@ -331,9 +346,33 @@ function StatusScreen({
       </Button>
 
       {isDelivered ? (
-        <p className="text-center text-xs text-mint font-medium">
-          Order completed. Thank you!
-        </p>
+        <div className="space-y-3 pt-1">
+          <OrderFeedbackCard
+            orderId={order.orderId}
+            orderNumber={order.orderNumber}
+            restaurantName={order.restaurantName}
+            existingFeedback={order.feedback}
+            onUpdateFeedback={onConfirmed}
+          />
+          <OrderFeedbackDialog
+            isOpen={showFeedbackModal}
+            onClose={() => {
+              setShowFeedbackModal(false);
+              setFeedbackDismissed(true);
+            }}
+            orderId={order.orderId}
+            orderNumber={order.orderNumber}
+            restaurantName={order.restaurantName}
+            existingFeedback={order.feedback}
+            onSuccess={() => {
+              setShowFeedbackModal(false);
+              onConfirmed();
+            }}
+          />
+          <p className="text-center text-xs text-mint font-medium">
+            Order completed. Thank you!
+          </p>
+        </div>
       ) : null}
     </div>
   );

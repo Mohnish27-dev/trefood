@@ -63,6 +63,13 @@ export interface OrderPollResponse {
   reroutedFrom: string | null;
 
   items: { name: string; isVeg: boolean; quantity: number; lineTotalPaise: number; addOns: string[] }[];
+
+  feedback: {
+    rating: number;
+    comment: string | null;
+    tags?: string[];
+    createdAt: string;
+  } | null;
 }
 
 export async function GET(
@@ -121,6 +128,18 @@ export async function GET(
       lineTotalPaise: i.lineTotalPaise,
       addOns: i.addOns.map((a) => a.name),
     })),
+
+    feedback: order.feedback
+      ? {
+          rating: order.feedback.rating,
+          comment: order.feedback.comment ?? null,
+          tags: order.feedback.tags ?? [],
+          createdAt:
+            order.feedback.createdAt instanceof Date
+              ? order.feedback.createdAt.toISOString()
+              : new Date(order.feedback.createdAt).toISOString(),
+        }
+      : null,
   };
 
   return NextResponse.json(body, {
