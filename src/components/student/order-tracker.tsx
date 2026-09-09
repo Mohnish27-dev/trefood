@@ -169,11 +169,16 @@ function StatusScreen({
           <p className="flex items-center gap-2 text-sm font-semibold text-chili">
             <AlertTriangle className="size-4" />
             {order.status === ORDER_STATUS.EXPIRED_NO_ACK
-              ? "The restaurant did not respond"
+              ? "The restaurant could not take this order"
               : "This order could not be completed"}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-bone/90">{statusBlurb(order.status)}</p>
-          {order.cancellationReason ? (
+          {/* The stored reason is an operational record written for admins and
+              disputes — for an auto-expiry it reads "X did not respond within 4
+              minutes", which restates the blurb in a tone aimed at the vendor.
+              A vendor's or admin's own reason for cancelling is genuinely new
+              information, so that one still shows. */}
+          {order.cancellationReason && order.status !== ORDER_STATUS.EXPIRED_NO_ACK ? (
             <p className="mt-2 text-xs text-muted">Reason: {order.cancellationReason}</p>
           ) : null}
           <p className="mt-3 text-sm text-bone">

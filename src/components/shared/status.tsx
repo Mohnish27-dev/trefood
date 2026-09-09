@@ -70,9 +70,16 @@ const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
     studentBlurb: "The restaurant could not take this order. Your refund is on its way.",
   },
   [ORDER_STATUS.EXPIRED_NO_ACK]: {
-    label: "No response",
+    label: "Not confirmed",
     tone: "danger",
-    studentBlurb: "The restaurant did not respond in time. Your refund is on its way.",
+    // Two things were wrong here. It promised a refund on an order where
+    // nothing had been charged, and it made the student the audience for a
+    // complaint about the vendor. The kitchen being swamped is both the honest
+    // reason and the one a student can act on: order again in a few minutes.
+    // The precise "did not respond within 4 minutes" wording still goes to the
+    // audit log, which is where an accountability record belongs.
+    studentBlurb:
+      "The restaurant is busier than usual and could not confirm your order in time. Nothing has been charged — please try again in a few minutes.",
   },
   [ORDER_STATUS.CANCELLED_BY_ADMIN]: {
     label: "Cancelled",

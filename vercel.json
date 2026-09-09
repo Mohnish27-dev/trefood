@@ -1,3 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/cron/expire-unacked", "schedule": "* * * * *" },
+    { "path": "/api/cron/close-stale-gates", "schedule": "* * * * *" },
+    { "path": "/api/cron/resolve-stockouts", "schedule": "* * * * *" }
+  ]
 }
