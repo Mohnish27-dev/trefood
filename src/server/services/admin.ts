@@ -125,6 +125,35 @@ export async function upsertZone(params: {
   return { ok: true, campus: updated };
 }
 
+/** Remove any gate, including a fallback. Existing orders retain their snapshots. */
+export async function deleteZone(params: {
+  campusId: string;
+  zoneId: string;
+  actorId: string;
+}): Promise<Campus | null> {
+  const updated = await (await db.campuses()).findOneAndUpdate(
+    { _id: params.campusId, "zones.id": params.zoneId },
+    { $pull: { zones: { id: params.zoneId } }, $set: { updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!updated) return null;
+
+  await (await db.restaurants()).updateMany(
+    { campusId: params.campusId, servedZoneIds: params.zoneId },
+    { $pull: { servedZoneIds: params.zoneId }, $set: { updatedAt: new Date() } },
+  );
+  await writeAudit({
+    entity: "CAMPUS",
+    entityId: params.campusId,
+    from: `zone:${params.zoneId}`,
+    to: "zone:deleted",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Gate ${params.zoneId} deleted`,
+  });
+  return updated;
+}
+
 /**
  * Deactivate a gate rather than delete it.
  *

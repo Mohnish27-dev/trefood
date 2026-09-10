@@ -9,6 +9,7 @@ import { requireAdmin } from "@/server/auth/session";
 import {
   createVendorDirectly,
   deleteVendor,
+  deleteZone,
   reviewKyc,
   setCommissionOverride,
   setRestaurantOpenAsAdmin,
@@ -41,7 +42,7 @@ import type { DeliveryZone } from "@/types/campus";
  */
 
 export type AdminActionState =
-  | { status: "ok"; message: string }
+  | { status: "ok"; message: string; zoneId?: string }
   | { status: "error"; message: string };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -149,7 +150,21 @@ export async function saveZone(input: unknown): Promise<AdminActionState> {
   if (!result.ok) return { status: "error", message: result.message };
 
   revalidatePath(`/admin/campuses/${data.campusId}/zones`);
-  return { status: "ok", message: `${zone.name} saved` };
+  return { status: "ok", message: `${zone.name} saved`, zoneId: zone.id };
+}
+
+export async function removeZone(input: unknown): Promise<AdminActionState> {
+  const { user } = await requireAdmin();
+  const parsed = z.object({ campusId: z.string().min(1), zoneId: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Invalid gate." };
+
+  const updated = await deleteZone({ ...parsed.data, actorId: user._id });
+  if (!updated) return { status: "error", message: "That gate no longer exists." };
+
+  revalidatePath(`/admin/campuses/${parsed.data.campusId}/zones`);
+  revalidatePath(`/c/${updated.slug}`, "layout");
+  revalidatePath("/vendor/settings");
+  return { status: "ok", message: "Gate deleted" };
 }
 
 export async function toggleZoneActive(input: unknown): Promise<AdminActionState> {

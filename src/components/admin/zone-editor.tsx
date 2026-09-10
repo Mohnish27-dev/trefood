@@ -12,7 +12,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { saveGeofence, saveZone, toggleZoneActive } from "@/server/actions/admin";
+import { removeZone, saveGeofence, saveZone, toggleZoneActive } from "@/server/actions/admin";
 import { ZONE_TYPE, type ZoneType } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -125,9 +125,33 @@ export function ZoneEditor({
     // already revalidated, and this keeps the map from flickering.
     setZones((prev) => {
       const next = prev.filter((zone) => zone.id !== editing.id);
-      return [...next, { ...editing, id: editing.id || `pending-${Date.now()}` }];
+      return [...next, { ...editing, id: result.zoneId ?? editing.id }];
     });
     setEditing(null);
+  };
+
+  const discardZone = async (): Promise<void> => {
+    if (!editing || saving) return;
+    if (!editing.id) {
+      setEditing(null);
+      return;
+    }
+    const zoneId = editing.id;
+    setSaving(true);
+    try {
+      const result = await removeZone({ campusId, zoneId });
+      if (result.status === "error") {
+        toast.error(result.message);
+        return;
+      }
+      setZones((prev) => prev.filter((zone) => zone.id !== zoneId));
+      setEditing(null);
+      toast.success(result.message);
+    } catch {
+      toast.error("Could not delete this gate. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleActive = async (zone: EditorZone): Promise<void> => {
@@ -257,6 +281,7 @@ export function ZoneEditor({
             saving={saving}
             onChange={setEditing}
             onCancel={() => setEditing(null)}
+            onDiscard={() => void discardZone()}
             onSave={() => void submitZone()}
           />
         ) : null}
@@ -312,12 +337,14 @@ function ZoneForm({
   saving,
   onChange,
   onCancel,
+  onDiscard,
   onSave,
 }: {
   zone: EditorZone;
   saving: boolean;
   onChange: (zone: EditorZone) => void;
   onCancel: () => void;
+  onDiscard: () => void;
   onSave: () => void;
 }) {
   const isTwentyFourSeven = zone.curfewMinutes === null;
@@ -446,10 +473,11 @@ function ZoneForm({
           {saving ? <Loader2 className="animate-spin" /> : <Save />}
           Save gate
         </Button>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" disabled={saving} onClick={onDiscard} aria-label={zone.id ? "Discard and delete gate" : "Discard new gate"}>
           <Trash2 />
           Discard
         </Button>
+        {zone.id ? <Button variant="ghost" disabled={saving} onClick={onCancel}>Cancel</Button> : null}
       </div>
     </Card>
   );
