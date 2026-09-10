@@ -24,6 +24,16 @@ interface StatusPresentation {
 }
 
 const PRESENTATION: Record<OrderStatus, StatusPresentation> = {
+  [ORDER_STATUS.PENDING_CONFIRMATION]: {
+    label: "Sending shortly",
+    tone: "warning",
+    studentBlurb: "You have 15 seconds after placing your order to cancel. The restaurant has not received it yet.",
+  },
+  [ORDER_STATUS.CANCELLED_BY_STUDENT]: {
+    label: "Cancelled by you",
+    tone: "neutral",
+    studentBlurb: "You cancelled before the order was sent. The restaurant never received it.",
+  },
   [ORDER_STATUS.PLACED]: {
     label: "Sent to restaurant",
     tone: "info",

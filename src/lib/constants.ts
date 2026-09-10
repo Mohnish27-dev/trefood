@@ -10,6 +10,8 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 export const ORDER_STATUS = {
+  PENDING_CONFIRMATION: "PENDING_CONFIRMATION",
+  CANCELLED_BY_STUDENT: "CANCELLED_BY_STUDENT",
   PLACED: "PLACED",
   ACCEPTED: "ACCEPTED",
   PREPARING: "PREPARING",
@@ -28,6 +30,7 @@ export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 
 /** Statuses from which nothing further can happen without an admin. */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
+  ORDER_STATUS.CANCELLED_BY_STUDENT,
   ORDER_STATUS.REJECTED_BY_VENDOR,
   ORDER_STATUS.EXPIRED_NO_ACK,
   ORDER_STATUS.CANCELLED_BY_ADMIN,
@@ -53,6 +56,8 @@ export const VENDOR_ACTIVE_STATUSES: readonly OrderStatus[] = [
  * reach belongs in their history.
  */
 export const CUSTOMER_VISIBLE_STATUSES: readonly OrderStatus[] = [
+  ORDER_STATUS.PENDING_CONFIRMATION,
+  ORDER_STATUS.CANCELLED_BY_STUDENT,
   ORDER_STATUS.PLACED,
   ORDER_STATUS.ACCEPTED,
   ORDER_STATUS.PREPARING,
@@ -75,7 +80,7 @@ export const STUDENT_STEPPER: readonly {
   label: string;
   statuses: readonly OrderStatus[];
 }[] = [
-  { key: "placed", label: "Placed", statuses: [ORDER_STATUS.PLACED] },
+  { key: "placed", label: "Placed", statuses: [ORDER_STATUS.PENDING_CONFIRMATION, ORDER_STATUS.PLACED] },
   {
     key: "accepted",
     label: "Preparing",
@@ -170,6 +175,7 @@ export type ZoneType = (typeof ZONE_TYPE)[keyof typeof ZONE_TYPE];
    ══════════════════════════════════════════════════════════════════════ */
 
 export const DEFAULTS = {
+  studentCancellationSeconds: 15,
   /** A5 — vendor must accept within 3 minutes. */
   vendorAckSeconds: 180,
   /** A5 — auto-expire with full refund at 4 minutes. */

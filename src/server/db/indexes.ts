@@ -64,7 +64,8 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { customerId: 1, status: 1, "timestamps.createdAt": -1 }, name: "customer_status_recent" },
     // The vendor board poll, every 5 seconds. This one has to be fast.
     { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
-    // The cron sweeps: expire-unacked and close-stale-gates.
+    // Pending cancellation holds and the scheduled sweeps.
+    { key: { status: 1, cancelUntil: 1 }, name: "status_cancelUntil" },
     { key: { status: 1, "timestamps.placedAt": 1 }, name: "status_placedAt" },
     { key: { status: 1, "timestamps.atGateAt": 1 }, name: "status_atGateAt" },
     { key: { status: 1, "timestamps.createdAt": 1 }, name: "status_createdAt" },

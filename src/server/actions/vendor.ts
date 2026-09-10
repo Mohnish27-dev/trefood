@@ -9,7 +9,7 @@ import { formatINR, rupeesToPaise } from "@/lib/money";
 import { newId } from "@/lib/ids";
 import { requireVendor } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
-import { getOrder, transitionOrder } from "@/server/services/orders";
+import { getOrder, transitionOrder, isHiddenFromVendor } from "@/server/services/orders";
 import { raiseStockout } from "@/server/services/stockout";
 import { recordStrike } from "@/server/services/students";
 import { notifyOrderEvent } from "@/server/services/push";
@@ -886,5 +886,5 @@ export async function updateVendorSettings(input: unknown): Promise<VendorAction
 /** Ownership-scoped read. Never `getOrder` by id alone in this file. */
 async function scopedOrder(orderId: string, restaurantId: string): Promise<Order | null> {
   const order = await getOrder(orderId);
-  return order && order.restaurantId === restaurantId ? order : null;
+  return order && order.restaurantId === restaurantId && !isHiddenFromVendor(order) ? order : null;
 }

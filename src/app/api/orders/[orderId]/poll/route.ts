@@ -28,6 +28,8 @@ export interface OrderPollResponse {
   orderId: string;
   orderNumber: string;
   status: OrderStatus;
+  serverTime: string;
+  cancelUntil: string | null;
   isTerminal: boolean;
 
   restaurantName: string;
@@ -108,6 +110,8 @@ export async function GET(
     orderId: order._id,
     orderNumber: order.orderNumber,
     status: order.status,
+    serverTime: new Date().toISOString(),
+    cancelUntil: order.cancelUntil?.toISOString() ?? null,
     isTerminal: TERMINAL_STATUSES.includes(order.status),
 
     restaurantName: order.restaurantSnapshot.name,

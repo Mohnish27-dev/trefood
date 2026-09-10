@@ -3,6 +3,9 @@
 import { AlertTriangle, Phone, Truck, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { toast } from "sonner";
+import { cancelPendingOrder } from "@/server/actions/student";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GateCodeDisplay } from "@/components/shared/gate-code-display";
@@ -130,6 +133,10 @@ function StatusScreen({
         <StatusBadge status={order.status} />
       </div>
 
+      {order.status === ORDER_STATUS.PENDING_CONFIRMATION && order.cancelUntil ? (
+        <CancellationWindow key={`${order.orderId}:${order.serverTime}`} order={order} onChanged={onConfirmed} />
+      ) : null}
+
       {/* ── Collection point changed alert ────────────────────── */}
       {order.reroutedFrom !== null && !order.isTerminal ? (
         <Card className="border-amber/40 bg-amber-wash p-4">
@@ -168,7 +175,9 @@ function StatusScreen({
         <Card className="border-chili/30 bg-chili-wash p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-chili">
             <AlertTriangle className="size-4" />
-            {order.status === ORDER_STATUS.EXPIRED_NO_ACK
+            {order.status === ORDER_STATUS.CANCELLED_BY_STUDENT
+              ? "Order cancelled"
+              : order.status === ORDER_STATUS.EXPIRED_NO_ACK
               ? "The restaurant could not take this order"
               : "This order could not be completed"}
           </p>
@@ -275,9 +284,9 @@ function StatusScreen({
             <MoneyRow label="Paid in cash" paise={order.cashDuePaise} emphasis />
           ) : (
             <MoneyRow
-              label="Cash at the gate"
-              paise={order.cashDuePaise}
-              hint="Exact amount, please"
+              label={isFailure(order.status) ? "Nothing to pay" : "Cash at the gate"}
+              paise={isFailure(order.status) ? 0 : order.cashDuePaise}
+              hint={isFailure(order.status) ? "Order closed" : "Exact amount, please"}
               emphasis
             />
           )}
@@ -325,11 +334,69 @@ function StatusScreen({
   );
 }
 
+function CancellationWindow({ order, onChanged }: {
+  order: OrderPollResponse;
+  onChanged: () => void;
+}) {
+  const initialRemaining = Math.max(0, new Date(order.cancelUntil ?? order.serverTime).getTime() - new Date(order.serverTime).getTime());
+  const [remaining, setRemaining] = useState(initialRemaining);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+
+  useEffect(() => {
+    const started = performance.now();
+    const timer = setInterval(() => {
+      const left = Math.max(0, initialRemaining - (performance.now() - started));
+      setRemaining(left);
+      if (left === 0) {
+        clearInterval(timer);
+        onChanged();
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [initialRemaining, onChanged]);
+
+  async function cancel(): Promise<void> {
+    setCancelling(true);
+    try {
+      const result = await cancelPendingOrder({ orderId: order.orderId });
+      if (result.status === "error") toast.error(result.message);
+      else {
+        setCancelled(true);
+        toast.success("Order cancelled. It was not sent to the restaurant.");
+      }
+      onChanged();
+    } catch {
+      toast.error("Could not confirm cancellation. Please try again.");
+      onChanged();
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  return (
+    <Card className="border-amber/40 bg-amber-wash p-4 space-y-3">
+      <p className="font-semibold text-bone">
+        {cancelled ? "Order cancelled" : remaining > 0 ? `Sending to the restaurant in ${Math.ceil(remaining / 1_000)} seconds` : "Sending your order to the restaurant…"}
+      </p>
+      <p className="text-sm text-muted">
+        {cancelled ? "The restaurant never received this order." : "Changed your mind? Cancel before the countdown ends."}
+      </p>
+      {!cancelled ? (
+        <Button block variant="outline" disabled={remaining <= 0 || cancelling} onClick={() => void cancel()}>
+          {cancelling ? "Cancelling…" : "Cancel order"}
+        </Button>
+      ) : null}
+    </Card>
+  );
+}
+
 function isFailure(status: OrderStatus): boolean {
   return (
     status === ORDER_STATUS.REJECTED_BY_VENDOR ||
     status === ORDER_STATUS.EXPIRED_NO_ACK ||
     status === ORDER_STATUS.CANCELLED_BY_ADMIN ||
+    status === ORDER_STATUS.CANCELLED_BY_STUDENT ||
     status === ORDER_STATUS.NO_SHOW
   );
 }

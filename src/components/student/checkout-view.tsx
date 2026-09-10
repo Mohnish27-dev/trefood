@@ -361,6 +361,9 @@ export function CheckoutView({
           </>
         )}
       </Button>
+      <p className="mt-2 text-center text-xs text-muted">
+        You can cancel within 15 seconds, before the restaurant receives your order.
+      </p>
 
       <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-faint">
         <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />

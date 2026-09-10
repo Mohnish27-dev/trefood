@@ -33,12 +33,21 @@ export interface TransitionRule {
 const S = ORDER_STATUS;
 const A = ACTOR;
 
-/**
- * PLACED is the FIRST state. There is no payment step in front of it: the
- * student owes nothing until the food is in their hands, so an order is real
- * from the moment it is submitted.
- */
+/** New orders wait for the student cancellation deadline before vendor acknowledgement. */
 export const TRANSITIONS: readonly TransitionRule[] = [
+  {
+    from: S.PENDING_CONFIRMATION,
+    to: S.PLACED,
+    actors: [A.SYSTEM],
+    why: "The 15-second cancellation window elapsed.",
+  },
+  {
+    from: S.PENDING_CONFIRMATION,
+    to: S.CANCELLED_BY_STUDENT,
+    actors: [A.STUDENT],
+    why: "Student cancelled before the restaurant received the order.",
+    requiresReason: true,
+  },
   /* ── Vendor acknowledgement ───────────────────────────────────── */
   {
     from: S.PLACED,

@@ -2,7 +2,7 @@ import "server-only";
 
 import * as db from "@/server/db/collections";
 import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
-import { transitionOrder } from "./orders";
+import { transitionOrder, releasePendingOrders } from "./orders";
 import { recordStrike } from "./students";
 import { autoResolveExpiredStockouts } from "./stockout";
 import { notifyOrderEvent } from "./push";
@@ -67,6 +67,7 @@ export async function expireUnackedOrders(
    */
   scope: { restaurantId?: string; orderId?: string } = {},
 ): Promise<SweepReport> {
+  await releasePendingOrders(scope);
   const report: SweepReport = { job: "expire-unacked", scanned: 0, acted: 0, errors: [] };
 
   const filter: Record<string, unknown> = { status: ORDER_STATUS.PLACED };
