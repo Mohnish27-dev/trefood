@@ -23,21 +23,88 @@ import {
   generatePinSalt,
   hashPin,
   isBiometricsAvailable,
+  isVendorRole,
   registerBiometrics,
   setStoredQuickUnlockProfile,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
+import type { Role } from "@/lib/constants";
 import { saveQuickUnlockSettings } from "@/server/actions/session";
+
+/**
+ * Every word this dialog can say.
+ *
+ * The vendor console is bilingual — the whole point of that dictionary is that
+ * canteen staff who do not read English can still run their own shift — so the
+ * one screen standing between a vendor and their dashboard cannot be the one
+ * screen that is English-only. Callers pass translated strings; the defaults
+ * below cover the student app, which is English today.
+ */
+export interface QuickUnlockModalCopy {
+  setTitle: string;
+  confirmTitle: string;
+  biometricsTitle: string;
+  successTitle: string;
+  setDescription: string;
+  confirmDescription: string;
+  biometricsDescription: string;
+  successDescription: string;
+  biometricsHeadline: string;
+  biometricsBody: string;
+  enableBiometrics: string;
+  pinOnly: string;
+  skip: string;
+  successHeadline: string;
+  mismatch: string;
+  failed: string;
+}
 
 interface QuickUnlockModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Overrides any of the defaults. Anything omitted keeps the English text. */
+  copy?: Partial<QuickUnlockModalCopy>;
   user: {
     _id: string;
     name: string;
     email: string;
+    /**
+     * Drives the wording only. A vendor is setting up a counter tablet, not
+     * locking a personal phone, and "1-tap checkout" is not a thing they do.
+     */
+    role?: Role | null;
   };
   onComplete?: () => void;
+}
+
+/** The English wording, in the two flavours the app ships today. */
+function defaultCopy(forVendor: boolean): QuickUnlockModalCopy {
+  return {
+    setTitle: "Set a 4-Digit Quick PIN",
+    confirmTitle: "Confirm your 4-Digit PIN",
+    biometricsTitle: "Enable Biometric Unlock",
+    successTitle: "Quick Unlock Enabled!",
+    setDescription: forVendor
+      ? "Choose a 4-digit code. From now on this device opens the dashboard with the PIN instead of an email and password."
+      : "Choose a 4-digit code so you can quickly unlock TREFOOD on this phone without passwords.",
+    confirmDescription: "Re-enter the same 4-digit code to verify.",
+    biometricsDescription: forVendor
+      ? "Use the fingerprint sensor or Face ID to open the dashboard without typing anything at all."
+      : "Use your device Fingerprint, Face ID, or Touch ID for instant 1-tap ordering.",
+    successDescription: forVendor
+      ? "Next time, enter your PIN and you are straight on the dashboard."
+      : "Next time you open TREFOOD, you can unlock immediately.",
+    biometricsHeadline: forVendor ? "1-Tap Dashboard Access" : "1-Tap Biometric Checkout",
+    biometricsBody: forVendor
+      ? "Enable Fingerprint or Face ID to reach the orders board in under a second."
+      : "Enable Fingerprint or Face ID to open TREFOOD and confirm orders in under a second.",
+    enableBiometrics: "Enable Biometrics & Finish",
+    pinOnly: "Use 4-Digit PIN Only",
+    skip: "Skip for now",
+    successHeadline: "Quick Unlock Ready!",
+    mismatch: "PINs do not match. Please try again.",
+    failed: "Failed to configure quick unlock.",
+  };
 }
 
 export function QuickUnlockModal({
@@ -45,6 +112,7 @@ export function QuickUnlockModal({
   onOpenChange,
   user,
   onComplete,
+  copy: copyOverrides,
 }: QuickUnlockModalProps) {
   const [step, setStep] = useState<"enter_pin" | "confirm_pin" | "biometrics" | "success">(
     "enter_pin",
@@ -55,6 +123,9 @@ export function QuickUnlockModal({
   const [loading, setLoading] = useState(false);
   const [biometricsSupported, setBiometricsSupported] = useState(false);
   const [enableBiometric, setEnableBiometric] = useState(true);
+
+  const forVendor = isVendorRole(user.role);
+  const copy: QuickUnlockModalCopy = { ...defaultCopy(forVendor), ...copyOverrides };
 
   // Check hardware biometric capability
   useEffect(() => {
@@ -93,7 +164,7 @@ export function QuickUnlockModal({
         setConfirmPin(next);
         if (next.length === 4) {
           if (next !== pin) {
-            setError("PINs do not match. Please try again.");
+            setError(copy.mismatch);
             setTimeout(() => {
               setConfirmPin("");
             }, 600);
@@ -149,6 +220,7 @@ export function QuickUnlockModal({
         biometricEnabled: biometricRegistered,
         credentialId,
         requireOnOpen: true,
+        role: user.role ?? null,
         updatedAt: Date.now(),
       };
 
@@ -170,7 +242,7 @@ export function QuickUnlockModal({
         if (onComplete) onComplete();
       }, 1500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to configure quick unlock.");
+      setError(err instanceof Error ? err.message : copy.failed);
     } finally {
       setLoading(false);
     }
@@ -194,22 +266,22 @@ export function QuickUnlockModal({
 
           <DialogTitle className="font-display text-lg font-bold text-bone">
             {step === "enter_pin"
-              ? "Set a 4-Digit Quick PIN"
+              ? copy.setTitle
               : step === "confirm_pin"
-                ? "Confirm your 4-Digit PIN"
+                ? copy.confirmTitle
                 : step === "biometrics"
-                  ? "Enable Biometric Unlock"
-                  : "Quick Unlock Enabled!"}
+                  ? copy.biometricsTitle
+                  : copy.successTitle}
           </DialogTitle>
 
           <DialogDescription className="text-xs text-muted">
             {step === "enter_pin"
-              ? "Choose a 4-digit code so you can quickly unlock TREFOOD on this phone without passwords."
+              ? copy.setDescription
               : step === "confirm_pin"
-                ? "Re-enter the same 4-digit code to verify."
+                ? copy.confirmDescription
                 : step === "biometrics"
-                  ? "Use your device Fingerprint, Face ID, or Touch ID for instant 1-tap ordering."
-                  : "Your phone is now set up for rapid 1-tap access."}
+                  ? copy.biometricsDescription
+                  : copy.successDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -279,7 +351,7 @@ export function QuickUnlockModal({
               onClick={handleClose}
               className="mt-5 text-xs text-muted hover:text-bone"
             >
-              Skip for now
+              {copy.skip}
             </Button>
           </div>
         )}
@@ -290,11 +362,9 @@ export function QuickUnlockModal({
             <div className="rounded-2xl border border-line bg-surface-raised/40 p-4 text-xs leading-relaxed text-muted space-y-2">
               <p className="font-semibold text-bone flex items-center gap-1.5">
                 <Sparkles className="size-4 text-saffron" />
-                1-Tap Biometric Checkout
+                {copy.biometricsHeadline}
               </p>
-              <p>
-                Enable Fingerprint or Face ID to open TREFOOD and confirm orders in under a second.
-              </p>
+              <p>{copy.biometricsBody}</p>
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -311,7 +381,7 @@ export function QuickUnlockModal({
                 ) : (
                   <Fingerprint className="size-5" />
                 )}
-                <span>Enable Biometrics & Finish</span>
+                <span>{copy.enableBiometrics}</span>
               </Button>
 
               <Button
@@ -323,7 +393,7 @@ export function QuickUnlockModal({
                 onClick={() => void finalizeSetup(false)}
                 className="text-xs text-muted hover:text-bone"
               >
-                Use 4-Digit PIN Only
+                {copy.pinOnly}
               </Button>
             </div>
           </div>
@@ -335,10 +405,8 @@ export function QuickUnlockModal({
             <div className="flex size-16 items-center justify-center rounded-full bg-mint-wash text-mint border border-mint/30 animate-bounce">
               <CheckCircle2 className="size-8" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-bone">Quick Unlock Ready!</p>
-            <p className="mt-1 text-xs text-muted">
-              Next time you open TREFOOD, you can unlock immediately.
-            </p>
+            <p className="mt-3 text-sm font-semibold text-bone">{copy.successHeadline}</p>
+            <p className="mt-1 text-xs text-muted">{copy.successDescription}</p>
           </div>
         )}
       </DialogContent>

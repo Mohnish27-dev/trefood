@@ -8,6 +8,7 @@ import { getQuickUnlockDeviceState } from "@/server/auth/quick-unlock-cookies";
 import { getRestaurantById } from "@/server/services/catalog";
 import { serverEnv } from "@/lib/env";
 import { landingForRole, resolveLandingPath } from "@/lib/routes";
+import { isVendorRole } from "@/lib/quick-unlock";
 
 export const metadata: Metadata = { title: "Sign in · TREFOOD" };
 export const dynamic = "force-dynamic";
@@ -49,7 +50,23 @@ export default async function SignInPage({
     }
   }
 
-  const initialType = reason === "vendor" || tab === "vendor" ? "vendor" : "student";
+  /**
+   * Which tab opens first.
+   *
+   * An explicit `?tab=` or a role complaint wins, because both are somebody
+   * saying where they meant to go. Otherwise a device that already holds a
+   * vendor PIN opens on the vendor tab: that device is a tablet behind a
+   * counter, it is never used to order lunch, and making its owner switch tabs
+   * before reaching the PIN pad is the friction the PIN exists to remove.
+   */
+  const initialType =
+    reason === "vendor" || tab === "vendor"
+      ? "vendor"
+      : tab === "student"
+        ? "student"
+        : isVendorRole(quickUnlockDevice.role)
+          ? "vendor"
+          : "student";
 
   return (
     <main className="min-h-dvh bg-ink text-bone">

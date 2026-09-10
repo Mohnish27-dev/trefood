@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -36,6 +36,7 @@ import { QuickUnlockScreen } from "@/components/student/quick-unlock-screen";
 import {
   clearStoredQuickUnlockProfile,
   getStoredQuickUnlockProfile,
+  isVendorRole,
   type QuickUnlockDeviceState,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
@@ -94,6 +95,15 @@ export function StudentAuthForm({
   const [staleProfile, setStaleProfile] = useState(false);
 
   const deviceTrusted = Boolean(quickUnlockDevice?.trusted);
+  /** This device's PIN opens the vendor console, not the campus list. */
+  const deviceIsVendor = deviceTrusted && isVendorRole(quickUnlockDevice?.role);
+
+  /**
+   * Set once somebody leaves the PIN pad on purpose ("switch account"), so the
+   * auto-open below does not drop them straight back onto it and trap them on
+   * a screen they just walked away from.
+   */
+  const quickUnlockDismissedRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -107,12 +117,18 @@ export function StudentAuthForm({
         return;
       }
 
-      if (profile?.pinHash) {
-        setStoredProfile(profile);
-        return;
-      }
+      // The server's role always wins over whatever the last write to
+      // localStorage happened to say. The cookie was verified this request;
+      // the stored copy could be from before this device changed hands.
+      const role = quickUnlockDevice?.role ?? null;
 
-      if (quickUnlockDevice?.userId) {
+      // The stored copy is only this device's cached label for the account the
+      // cookie names. If it describes somebody else — a tablet that changed
+      // hands, a phone a friend borrowed — it would put the wrong name over
+      // the keypad, so the server's identity is used instead.
+      if (profile?.pinHash && profile.userId === quickUnlockDevice?.userId) {
+        setStoredProfile({ ...profile, role });
+      } else if (quickUnlockDevice?.userId) {
         setStoredProfile({
           userId: quickUnlockDevice.userId,
           name: quickUnlockDevice.name ?? "",
@@ -122,13 +138,31 @@ export function StudentAuthForm({
           biometricEnabled: quickUnlockDevice.biometricEnabled,
           credentialId: null,
           requireOnOpen: true,
+          role,
           updatedAt: Date.now(),
         });
+      } else {
+        return;
+      }
+
+      // A vendor tablet goes straight to the keypad. There is one account on
+      // that device and it has already been vouched for by the device cookie,
+      // so showing an email field first is a form nobody is going to fill in.
+      // Students keep the banner-then-tap flow: a phone is shared, browsed
+      // signed-out, and reached from links that are not "let me in".
+      //
+      // Never when `reason` is set. A reason means something upstream refused
+      // this account — most often a vendor whose restaurant link is gone — and
+      // opening the keypad would both bury the explanation and unlock straight
+      // back into the redirect that sent them here. The PIN is still one tap
+      // away on the banner; it just cannot be the thing that happens by itself.
+      if (isVendorRole(role) && !reason && !quickUnlockDismissedRef.current) {
+        setShowQuickUnlock(true);
       }
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [deviceTrusted, quickUnlockDevice]);
+  }, [deviceTrusted, quickUnlockDevice, reason]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -355,7 +389,10 @@ export function StudentAuthForm({
         <QuickUnlockScreen
           profile={storedProfile}
           redirectTo={redirectTo}
-          onSwitchAccount={() => setShowQuickUnlock(false)}
+          onSwitchAccount={() => {
+            quickUnlockDismissedRef.current = true;
+            setShowQuickUnlock(false);
+          }}
         />
       </div>
     );
@@ -488,7 +525,7 @@ export function StudentAuthForm({
           ) : null}
 
           {/* Stale Profile Alert */}
-          {staleProfile && userType === "student" ? (
+          {staleProfile ? (
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber-wash/90 p-3 text-xs text-amber shadow-sm">
               <KeyRound className="size-4 shrink-0 mt-0.5" />
               <span>
@@ -498,12 +535,12 @@ export function StudentAuthForm({
           ) : null}
 
           {/* Quick PIN Banner */}
-          {storedProfile && userType === "student" ? (
+          {storedProfile && (deviceIsVendor ? userType === "vendor" : userType === "student") ? (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-saffron/40 bg-saffron-wash/90 backdrop-blur-md p-3.5 text-xs shadow-md">
               <div className="flex items-center gap-2.5 min-w-0">
                 <KeyRound className="size-4 shrink-0 text-saffron" />
                 <span className="truncate text-bone">
-                  Quick PIN is ready for{" "}
+                  {deviceIsVendor ? "Unlock the dashboard for " : "Quick PIN is ready for "}
                   <strong className="text-saffron">
                     {storedProfile.name || storedProfile.email}
                   </strong>
@@ -516,7 +553,7 @@ export function StudentAuthForm({
                 onClick={() => setShowQuickUnlock(true)}
                 className="shrink-0 text-xs border-saffron/50 font-semibold bg-surface hover:bg-surface-raised cursor-pointer"
               >
-                Use PIN
+                {deviceIsVendor ? "Enter PIN" : "Use PIN"}
               </Button>
             </div>
           ) : null}

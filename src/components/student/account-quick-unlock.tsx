@@ -22,9 +22,11 @@ import {
   setStoredQuickUnlockProfile,
   clearStoredQuickUnlockProfile,
   isBiometricsAvailable,
+  isVendorRole,
   registerBiometrics,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
+import type { Role } from "@/lib/constants";
 import { QuickUnlockModal } from "@/components/student/quick-unlock-modal";
 import { saveQuickUnlockSettings, resetQuickUnlockSettings } from "@/server/actions/session";
 
@@ -33,6 +35,8 @@ interface AccountQuickUnlockProps {
     _id: string;
     name: string;
     email: string;
+    /** Chooses the wording, and is stamped on the stored profile. */
+    role?: Role | null;
     quickUnlock?: {
       pinHash?: string | null;
       pinSalt?: string | null;
@@ -51,6 +55,8 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
   const [loadingToggle, setLoadingToggle] = useState(false);
   const [resetting, setResetting] = useState(false);
 
+  const forVendor = isVendorRole(user.role);
+
   useEffect(() => {
     const stored = getStoredQuickUnlockProfile();
     if (stored) {
@@ -66,6 +72,7 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
         biometricEnabled: Boolean(user.quickUnlock.biometricEnabled),
         credentialId: user.quickUnlock.credentialId ?? null,
         requireOnOpen: user.quickUnlock.requireOnOpen ?? true,
+        role: user.role ?? null,
         updatedAt: Date.now(),
       };
       setStoredQuickUnlockProfile(synced);
@@ -123,7 +130,9 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
     // session up, in which case turning it off signs them out here and now.
     if (
       !confirm(
-        "Turn off Quick PIN & Biometric unlock on this device? You will need your password or Google account to sign in next time.",
+        forVendor
+          ? "Turn off PIN unlock on this device? Signing in will need the vendor email and password again."
+          : "Turn off Quick PIN & Biometric unlock on this device? You will need your password or Google account to sign in next time.",
       )
     ) {
       return;
@@ -163,9 +172,13 @@ export function AccountQuickUnlock({ user }: AccountQuickUnlockProps) {
             </div>
 
             <p className="mt-1 text-xs leading-relaxed text-muted">
-              {hasPin
-                ? "Unlock TREFOOD on this phone instantly with your 4-digit PIN or device biometrics."
-                : "Set up a 4-digit PIN to bypass typing your password or logging in with Google every time."}
+              {forVendor
+                ? hasPin
+                  ? "This device opens the dashboard with your 4-digit PIN. Your email and password still work anywhere else."
+                  : "Set a 4-digit PIN so opening the dashboard on this device is four taps instead of an email and a password."
+                : hasPin
+                  ? "Unlock TREFOOD on this phone instantly with your 4-digit PIN or device biometrics."
+                  : "Set up a 4-digit PIN to bypass typing your password or logging in with Google every time."}
             </p>
 
             <div className="mt-4 space-y-3 border-t border-line pt-3">
