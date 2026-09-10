@@ -97,10 +97,18 @@ trefood/
 │   │   ├── db/
 │   │   │   ├── client.ts                # cached global Mongo client, maxPoolSize 10
 │   │   │   ├── collections.ts           # typed collection accessors
-│   │   │   └── indexes.ts               # every index, created on boot
+│   │   │   └── indexes.ts               # every index; run `npm run db:indexes`
 │   │   ├── auth/
 │   │   │   ├── session.ts               # getSession, requireRole, requireOwnership
-│   │   │   └── providers.ts             # Google now; OTP slots in here later (D7)
+│   │   │   ├── session-store.ts         # sessions collection + the opaque cookie
+│   │   │   ├── passwords.ts             # scrypt hash + verify
+│   │   │   ├── otp.ts                   # 6-digit email codes, rate limits
+│   │   │   ├── google.ts                # OAuth2 + PKCE, spoken to Google directly
+│   │   │   ├── accounts.ts              # provisioning and Google account linking
+│   │   │   └── quick-unlock*.ts         # 4-digit PIN, server half
+│   │   ├── mail/
+│   │   │   ├── mailer.ts                # pooled SMTP over the Zoho mailbox
+│   │   │   └── templates.ts             # code, welcome, password-changed
 │   │   ├── services/
 │   │   │   ├── pricing.ts               # ★ THE ONLY PLACE MONEY IS COMPUTED
 │   │   │   ├── orders.ts                # createOrder, guarded transitions
@@ -121,7 +129,7 @@ trefood/
 │   ├── lib/
 │   │   ├── money.ts                     # paise arithmetic, ceilToRupee, formatINR
 │   │   ├── phonepe.ts                  # signed REST calls + webhook verification
-│   │   ├── supabase/                    # browser + server clients
+│   │   ├── quick-unlock.ts              # 4-digit PIN, browser half
 │   │   ├── validation/                  # Zod schemas per boundary
 │   │   └── constants.ts                 # enums, status lists, timers
 │   │
@@ -275,9 +283,9 @@ Test in this order. The first two are non-negotiable before touching PhonePe.
 npx create-next-app@latest trefood --typescript --tailwind --app --src-dir
 cd trefood
 npx shadcn@latest init
-npm i mongodb @supabase/supabase-js @supabase/ssr zod web-push \
+npm i mongodb zod web-push nodemailer \
       leaflet react-leaflet date-fns
-npm i -D @types/leaflet @types/web-push vitest
+npm i -D @types/leaflet @types/web-push @types/nodemailer vitest
 
 mkdir -p docs && mv *.md docs/ 2>/dev/null   # keep planning docs together
 cp .env.local.example .env.local             # then fill it in
