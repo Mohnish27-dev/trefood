@@ -5,8 +5,9 @@
 #    docker compose --profile tools up   ... plus mongo-express on :8081
 #
 #  This is the reproducibility contract: a machine with Docker and no
-#  Atlas account, no Supabase project and no Razorpay keys can still run
-#  the full prototype demo.
+#  Atlas account, no mailbox and no payment keys can still run the full
+#  prototype demo: AUTH_PROVIDER=stub and MAIL_TRANSPORT=console need no
+#  third party at all.
 # ══════════════════════════════════════════════════════════════════════
 
 services:
