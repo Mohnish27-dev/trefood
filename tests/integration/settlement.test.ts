@@ -1,3 +1,4 @@
+import { elapseOrderHold } from "./order-hold-fixture";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as db from "@/server/db/collections";
@@ -143,6 +144,7 @@ async function deliveredOrderOn(statementDate: string): Promise<Order> {
   });
   if (!created.ok) throw new Error(created.message);
   createdOrderIds.push(created.order._id);
+  await elapseOrderHold(created.order._id);
 
   const orders = await db.orders();
 
@@ -224,6 +226,7 @@ describe("the nightly commission run", () => {
     });
     if (!created.ok) throw new Error(created.message);
     createdOrderIds.push(created.order._id);
+  await elapseOrderHold(created.order._id);
 
     const rejected = await transitionOrder({
       orderId: created.order._id,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR } from "@/lib/constants";
+import { ACTOR, ORDER_STATUS } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { ceilRupeeOfBps, type Paise } from "@/lib/money";
 import type { Coupon } from "@/types/finance";
@@ -151,6 +151,7 @@ export async function listEligibleCouponsForCart(params: {
     if (params.studentId && coupon.perStudentLimit > 0) {
       const ordersColl = await db.orders();
       const userRedemptions = await ordersColl.countDocuments({
+        status: { $ne: ORDER_STATUS.CANCELLED_BY_STUDENT },
         customerId: params.studentId,
         couponCode: coupon.code,
       });
@@ -243,6 +244,7 @@ export async function validateCouponForOrder(params: {
   if (params.studentId && coupon.perStudentLimit > 0) {
     const ordersColl = await db.orders();
     const userRedemptions = await ordersColl.countDocuments({
+      status: { $ne: ORDER_STATUS.CANCELLED_BY_STUDENT },
       customerId: params.studentId,
       couponCode: coupon.code,
     });

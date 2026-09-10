@@ -1,5 +1,13 @@
 # TREFOOD — System Architecture & End-to-End Flows
 
+> **2026-09-11 update — D9:** The current COD checkout first saves
+> `PENDING_CONFIRMATION` with a 15-second `cancelUntil` deadline. The owner can
+> cancel to `CANCELLED_BY_STUDENT` before that deadline. Held and student-cancelled
+> orders never appear on the vendor board. After expiry, polls/sweeps release the
+> order to `PLACED` and start the vendor acknowledgement timer. This supersedes
+> the immediate handoff/payment-pending entry described in the older flow below.
+
+
 > Governed by [DECISIONS.md](DECISIONS.md). Money rules live in
 > [MONEY_AND_SETTLEMENT.md](MONEY_AND_SETTLEMENT.md). Failure handling lives in
 > [FAILURES_AND_EDGE_CASES.md](FAILURES_AND_EDGE_CASES.md).

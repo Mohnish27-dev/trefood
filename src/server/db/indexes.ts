@@ -71,9 +71,12 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     // Student history, newest first.
     { key: { customerId: 1, "timestamps.createdAt": -1 }, name: "customer_recent" },
     { key: { customerId: 1, status: 1, "timestamps.createdAt": -1 }, name: "customer_status_recent" },
+    // Paginated vendor history, with a stable tie-break for equal timestamps.
+    { key: { restaurantId: 1, "timestamps.createdAt": -1, _id: -1 }, name: "restaurant_history" },
     // The vendor board poll, every 5 seconds. This one has to be fast.
     { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
-    // The cron sweeps: expire-unacked and close-stale-gates.
+    // Pending cancellation holds and the scheduled sweeps.
+    { key: { status: 1, cancelUntil: 1 }, name: "status_cancelUntil" },
     { key: { status: 1, "timestamps.placedAt": 1 }, name: "status_placedAt" },
     { key: { status: 1, "timestamps.atGateAt": 1 }, name: "status_atGateAt" },
     { key: { status: 1, "timestamps.createdAt": 1 }, name: "status_createdAt" },

@@ -106,7 +106,7 @@ export interface OrderTimestamps {
 
 export interface OrderCancellation {
   reason: string;
-  by: "VENDOR" | "ADMIN" | "SYSTEM";
+  by: "VENDOR" | "ADMIN" | "SYSTEM" | "STUDENT";
   at: Date;
 }
 
@@ -142,6 +142,8 @@ export interface Order {
   payment: OrderPayment;
 
   status: OrderStatus;
+  /** Absent on orders created before the cancellation window was introduced. */
+  cancelUntil?: Date;
 
   /**
    * Server-generated, unrelated to the order number, and released to the

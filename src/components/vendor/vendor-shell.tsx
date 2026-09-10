@@ -1,6 +1,6 @@
 "use client";
 
-import { BanknoteArrowUp, ClipboardList, LogOut, Settings, UtensilsCrossed } from "lucide-react";
+import { BanknoteArrowUp, ClipboardList, History, LogOut, Settings, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -74,6 +74,7 @@ function VendorShellContent({
     { href: "/vendor/menu", label: t("navMenu"), icon: UtensilsCrossed },
     { href: "/vendor/earnings", label: t("navEarnings"), icon: BanknoteArrowUp },
     { href: "/vendor/settings", label: t("navSettings"), icon: Settings },
+    { href: "/vendor/past-orders", label: t("navPastOrders"), icon: History },
   ];
 
   // The KOT is a print surface. It gets the whole page, with no navigation to

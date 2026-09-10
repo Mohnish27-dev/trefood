@@ -1,3 +1,4 @@
+import { elapseOrderHold } from "./order-hold-fixture";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as db from "@/server/db/collections";
@@ -137,8 +138,9 @@ describe("prepaid order, cart to DELIVERED", () => {
       return result;
     };
 
-    // No payment hop: the order is PLACED the moment it is created.
-    expect(order.status).toBe(ORDER_STATUS.PLACED);
+    // The order is private to the student until the cancellation hold elapses.
+    expect(order.status).toBe(ORDER_STATUS.PENDING_CONFIRMATION);
+    await elapseOrderHold(order._id);
     await step(ORDER_STATUS.ACCEPTED, ACTOR.VENDOR, { prepMinutes: 20 });
     await step(ORDER_STATUS.PREPARING, ACTOR.SYSTEM);
 
@@ -168,9 +170,10 @@ describe("prepaid order, cart to DELIVERED", () => {
     /* ── Audit trail ────────────────────────────────────────── */
 
     const timeline = await getOrderTimeline(order._id);
-    // creation + 6 transitions
-    expect(timeline.length).toBe(7);
+    // creation, release, and 6 fulfilment transitions
+    expect(timeline.length).toBe(8);
     expect(timeline.map((t) => t.to)).toEqual([
+      ORDER_STATUS.PENDING_CONFIRMATION,
       ORDER_STATUS.PLACED,
       ORDER_STATUS.ACCEPTED,
       ORDER_STATUS.PREPARING,

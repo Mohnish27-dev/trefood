@@ -10,7 +10,7 @@ import {
 import { campusDateString, campusDayRange } from "@/lib/campus-time";
 import type { Paise } from "@/lib/money";
 import { revealGateCode } from "./gate-code";
-import { ackDeadline, estimatedArrival, gateDeadline } from "./orders";
+import { ackDeadline, estimatedArrival, gateDeadline, releasePendingOrders } from "./orders";
 import { listLedgerEntries } from "./ledger";
 import { listStatements } from "./settlement";
 import type { Campus } from "@/types/campus";
@@ -105,6 +105,8 @@ export async function getVendorBoard(params: {
 
   const campus = await (await db.campuses()).findOne({ _id: restaurant.campusId });
   if (!campus) return null;
+
+  await releasePendingOrders({ restaurantId: params.restaurantId });
 
   const orders = await (await db.orders())
     .find({ restaurantId: restaurant._id, status: { $in: [...VENDOR_ACTIVE_STATUSES] } })

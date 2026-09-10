@@ -4,7 +4,7 @@
 > If any other document in this repo contradicts this file, **this file wins** and
 > the other document is a bug. Update this file first, then propagate.
 >
-> Last updated: 2026-09-02
+> Last updated: 2026-09-11
 
 ---
 
@@ -20,6 +20,8 @@
 | D6 | **Commission base** | 10% is charged on **food subtotal + packaging fee + delivery fee**. | `commissionBase` is an explicit stored field. Delivery fee is *not* commission-exempt. |
 | D7 | **Student login** | **Google sign-in now**, phone captured at first checkout. Phone OTP added later once TRAI DLT registration clears. | Auth layer must be written behind an interface so the OTP provider drops in without touching call sites. |
 | D8 | **Payment gateway** | **PhonePe merchant business account** — dynamic QR + UPI; money credits **directly to the business bank account**. Razorpay is superseded and its SDK removed. Udyam registration is done; PhonePe merchant onboarding is pending the live website URL. | The `PaymentProvider` seam is unchanged: `PAYMENT_PROVIDER=stub` keeps instant capture until the merchant credentials (Merchant ID, Merchant Secret, Webhook Salt) land in env. Then `PhonePeProvider` + a signed webhook route arrive behind the identical interface, sharing one idempotent code path with the reconciliation cron. Order fields are provider-agnostic (`providerOrderId`, `providerPaymentId`, `providerRefundId`). |
+
+| D9 | **Student cancellation window** | After checkout, hold every new order for **15 seconds**. The owner can cancel during that window, before the vendor receives it. | Persist `PENDING_CONFIRMATION` and `cancelUntil`. At expiry release to `PLACED`; cancellation becomes `CANCELLED_BY_STUDENT` and never reaches the vendor. The current COD implementation collects nothing at checkout. |
 
 ---
 
@@ -80,3 +82,22 @@ so none of them block the build — but review them before go-live.
 - Student wallet balance (D1 chose real refunds instead).
 - Ratings-driven ranking algorithms (collect ratings; do not rank on them yet).
 - Anything that renders a moving vehicle on a map.
+
+
+## 6. Student cancellation window (D9, 2026-09-11)
+
+This replaces the immediate vendor handoff described in the older flows. Existing
+orders keep their status; only new orders start in `PENDING_CONFIRMATION`.
+
+- The tracker shows a countdown and **Cancel order**. The deadline is stored once
+  on the server and does not restart on refresh or duplicate checkout submissions.
+- The owner may cancel strictly before `cancelUntil`. MongoDB checks the deadline
+  at the write, together with ownership and status, so cancellation and release
+  cannot both succeed. Cancelled records remain in student history and the audit log.
+- Vendor board reads, student reads and the existing expiry sweep release eligible
+  holds through the guarded transition service. The vendor sees the released order
+  on its next normal poll (normally every 5 seconds), even if the student closes the app.
+- `placedAt` is set on release, starting the vendor's full acknowledgement window.
+  Pending and student-cancelled orders are also hidden from vendor kitchen tickets.
+- Nothing is paid for a cancelled COD order, no strike is recorded, and its coupon
+  reservation is returned. After 15 seconds, the existing accept/reject flow applies.

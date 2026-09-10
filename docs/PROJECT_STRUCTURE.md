@@ -285,3 +285,18 @@ cp .env.local.example .env.local             # then fill it in
 
 Then work Phase 0 → Phase 10 in order, per
 [MASTER_PROMPT_PRD.md Part 5](MASTER_PROMPT_PRD.md).
+
+
+## Vendor order history (2026-09-11)
+
+`/vendor/past-orders` appears beside Settings in the vendor navigation. The page
+calls `requireVendor()` and passes the session restaurant ID to
+`src/server/services/vendor-history.ts`; URL parameters control only the filter
+and page. The history includes all orders received by that restaurant, newest
+first, with 20 per page. Accepted includes completed orders that were accepted;
+Rejected and Completed have their own filters. Expandable cards show items,
+add-ons, totals, cash collected, acceptance time, and cancellation/rejection reason.
+
+Pending cancellation holds and student-cancelled orders are excluded server-side,
+including from counts. Gate codes are not sent to the history component. The live
+Orders tab continues to handle acceptance, rejection and fulfilment.

@@ -49,11 +49,9 @@ export type PlaceOrderState =
  *   1. authenticate
  *   2. capture the phone (D7 — collected at first checkout, reused forever)
  *   3. re-run the CURFEW GUARD against this restaurant's real prep time
- *   4. create the order, already PLACED
+ *   4. create the order with a 15-second cancellation window
  *
- * There is no step five. Every order is cash on delivery, so nothing is
- * charged here and there is no gateway to wait on — the vendor's tablet lights
- * up the moment this returns.
+ * Nothing is charged here. The server releases the order to the vendor after 15 seconds.
  */
 export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
   try {
@@ -136,6 +134,26 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
           : "Unable to process order right now. Please try again.",
     };
   }
+}
+
+/** Only the signed-in owner can cancel, and the database enforces the deadline. */
+export async function cancelPendingOrder(input: unknown): Promise<ConfirmState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Sign in to cancel your order." };
+  const parsed = z.object({ orderId: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Invalid order." };
+  const result = await transitionOrder({
+    orderId: parsed.data.orderId,
+    to: ORDER_STATUS.CANCELLED_BY_STUDENT,
+    actor: ACTOR.STUDENT,
+    actorId: session.user._id,
+    requireCustomerId: session.user._id,
+    reason: "Cancelled by you before being sent to the restaurant",
+  });
+  if (!result.ok) return { status: "error", message: "The cancellation window has ended or this order is already closed." };
+  revalidatePath(`/orders/${parsed.data.orderId}`);
+  revalidatePath("/orders");
+  return { status: "success" };
 }
 
 /* ------------------------------------------------------------------ */

@@ -202,7 +202,7 @@ describe("machine shape", () => {
   it("every status except the entry point is reachable", () => {
     const reachable = new Set(TRANSITIONS.map((r) => r.to));
     for (const status of Object.values(S)) {
-      if (status === S.PLACED) continue; // the entry point
+      if (status === S.PENDING_CONFIRMATION) continue; // the entry point
       expect(reachable.has(status)).toBe(true);
     }
   });

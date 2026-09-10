@@ -5,6 +5,7 @@ import { newId, newOrderNumber } from "@/lib/ids";
 import {
   ACTOR,
   CUSTOMER_VISIBLE_STATUSES,
+  DEFAULTS,
   ORDER_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
@@ -327,6 +328,7 @@ export async function createOrder(params: {
   }
 
   const orderNumber = await nextOrderNumber(preview.campus);
+  const submittedAt = new Date();
 
   const order: Order = {
     _id: newId(),
@@ -357,9 +359,9 @@ export async function createOrder(params: {
       collectedAt: null,
     },
 
-    // PLACED immediately. Nothing stands between submitting an order and the
-    // vendor's tablet lighting up, because the student owes nothing yet.
-    status: ORDER_STATUS.PLACED,
+    // Persist the hold so closing the browser cannot skip the cancellation window.
+    status: ORDER_STATUS.PENDING_CONFIRMATION,
+    cancelUntil: new Date(submittedAt.getTime() + DEFAULTS.studentCancellationSeconds * 1_000),
 
     // Generated at creation but never exposed until READY (vendor) / AT_GATE
     // (student). See gate-code.ts.
@@ -368,8 +370,8 @@ export async function createOrder(params: {
     idempotencyKey: params.idempotencyKey,
 
     timestamps: {
-      createdAt: now,
-      placedAt: now,
+      createdAt: submittedAt,
+      placedAt: null,
       acceptedAt: null,
       readyAt: null,
       dispatchedAt: null,
@@ -410,10 +412,10 @@ export async function createOrder(params: {
     entityId: order._id,
     orderId: order._id,
     from: null,
-    to: ORDER_STATUS.PLACED,
+    to: ORDER_STATUS.PENDING_CONFIRMATION,
     actorId: params.customer._id,
     actorRole: ACTOR.STUDENT,
-    reason: "Order placed, cash on delivery",
+    reason: "Order held for 15 seconds before sending to restaurant",
   });
 
   return { ok: true, order, reused: false };
@@ -509,6 +511,20 @@ export async function transitionOrder(options: TransitionOptions): Promise<Trans
     return { ok: false, code, message };
   }
 
+  // Mongo evaluates the deadline at the actual write, so a slow request cannot
+  // cancel after expiry or race a release into both outcomes.
+  if (order.status === ORDER_STATUS.PENDING_CONFIRMATION) {
+    if (!order.cancelUntil) {
+      return { ok: false, code: "INVALID_DEADLINE", message: "This order has no cancellation deadline." };
+    }
+    scope.$expr = options.to === ORDER_STATUS.CANCELLED_BY_STUDENT
+      ? { $gt: ["$cancelUntil", "$$NOW"] }
+      : { $lte: ["$cancelUntil", "$$NOW"] };
+    if (options.to === ORDER_STATUS.CANCELLED_BY_STUDENT && !options.requireCustomerId) {
+      return { ok: false, code: "OWNERSHIP_REQUIRED", message: "Sign in to cancel your order." };
+    }
+  }
+
   const now = new Date();
   const set: Record<string, unknown> = { status: options.to };
 
@@ -522,7 +538,7 @@ export async function transitionOrder(options: TransitionOptions): Promise<Trans
   if (CANCELLED_STATUSES.has(options.to)) {
     set.cancellation = {
       reason: plan.reason ?? "No reason given",
-      by: options.actor === ACTOR.VENDOR ? "VENDOR" : options.actor === ACTOR.ADMIN ? "ADMIN" : "SYSTEM",
+      by: options.actor,
       at: now,
     };
   }
@@ -561,6 +577,13 @@ export async function transitionOrder(options: TransitionOptions): Promise<Trans
     };
   }
 
+  if (options.to === ORDER_STATUS.CANCELLED_BY_STUDENT && order.couponId) {
+    await (await db.coupons()).updateOne(
+      { _id: order.couponId, usedCount: { $gt: 0 } },
+      { $inc: { usedCount: -1 } },
+    );
+  }
+
   await writeAudit({
     entity: "ORDER",
     entityId: order._id,
@@ -589,6 +612,7 @@ const CANCELLED_STATUSES = new Set<OrderStatus>([
   ORDER_STATUS.REJECTED_BY_VENDOR,
   ORDER_STATUS.EXPIRED_NO_ACK,
   ORDER_STATUS.CANCELLED_BY_ADMIN,
+  ORDER_STATUS.CANCELLED_BY_STUDENT,
   ORDER_STATUS.NO_SHOW,
 ]);
 
@@ -599,11 +623,39 @@ const UNCOLLECTED_STATUSES = CANCELLED_STATUSES;
    Reads
    ══════════════════════════════════════════════════════════════════════ */
 
+/** Polls and cron release persisted holds; no browser timer or process-local job is required. */
+export async function releasePendingOrders(scope: {
+  restaurantId?: string;
+  customerId?: string;
+  orderId?: string;
+} = {}): Promise<void> {
+  const pending = await (await db.orders()).find({
+    status: ORDER_STATUS.PENDING_CONFIRMATION,
+    cancelUntil: { $lte: new Date() },
+    ...(scope.restaurantId ? { restaurantId: scope.restaurantId } : {}),
+    ...(scope.customerId ? { customerId: scope.customerId } : {}),
+    ...(scope.orderId ? { _id: scope.orderId } : {}),
+  }).limit(200).toArray();
+  for (const order of pending) {
+    await transitionOrder({
+      orderId: order._id,
+      to: ORDER_STATUS.PLACED,
+      actor: ACTOR.SYSTEM,
+      reason: "Cancellation window elapsed; sent to restaurant",
+    });
+  }
+}
+
+export function isHiddenFromVendor(order: Order): boolean {
+  return order.status === ORDER_STATUS.PENDING_CONFIRMATION || order.status === ORDER_STATUS.CANCELLED_BY_STUDENT;
+}
+
 export async function getOrder(orderId: string): Promise<Order | null> {
   return (await db.orders()).findOne({ _id: orderId });
 }
 
 export async function getOrderForCustomer(orderId: string, customerId: string): Promise<Order | null> {
+  await releasePendingOrders({ orderId, customerId });
   return (await db.orders()).findOne({ _id: orderId, customerId });
 }
 
@@ -612,6 +664,7 @@ export async function listOrdersForCustomer(
   limit = 30,
   statuses: readonly OrderStatus[] = CUSTOMER_VISIBLE_STATUSES,
 ): Promise<Order[]> {
+  await releasePendingOrders({ customerId });
   return (await db.orders())
     .find({
       customerId,
@@ -624,6 +677,7 @@ export async function listOrdersForCustomer(
 
 /** The vendor board query. Runs every 5 seconds, so it must hit `restaurant_status`. */
 export async function listActiveOrdersForRestaurant(restaurantId: string): Promise<Order[]> {
+  await releasePendingOrders({ restaurantId });
   return (await db.orders())
     .find({ restaurantId, status: { $in: [...VENDOR_ACTIVE_STATUSES] } })
     .sort({ "timestamps.placedAt": 1 })

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { KotTicket } from "@/components/vendor/kot-ticket";
 import { requireVendor } from "@/server/auth/session";
-import { getOrder } from "@/server/services/orders";
+import { getOrder, isHiddenFromVendor } from "@/server/services/orders";
 import { getCampusById } from "@/server/services/catalog";
 import { revealGateCode } from "@/server/services/gate-code";
 import { campusClock } from "@/lib/campus-time";
@@ -34,7 +34,7 @@ export default async function KotPage({
   const order = await getOrder(orderId);
   // Ownership, not just role: a vendor must not be able to print another
   // restaurant's ticket by guessing an id.
-  if (!order || order.restaurantId !== restaurantId) notFound();
+  if (!order || order.restaurantId !== restaurantId || isHiddenFromVendor(order)) notFound();
 
   const campus = await getCampusById(order.campusId);
   const timezone = campus?.timezone ?? "Asia/Kolkata";
