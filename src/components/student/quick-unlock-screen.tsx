@@ -17,6 +17,7 @@ import {
   setAppLockState,
   authenticateWithBiometrics,
   isBiometricsAvailable,
+  isVendorRole,
   type StoredQuickUnlockProfile,
 } from "@/lib/quick-unlock";
 import { forgetQuickUnlockDevice, unlockWithQuickUnlock } from "@/server/actions/session";
@@ -231,6 +232,10 @@ export function QuickUnlockScreen({
   const nameInitial = (profile.name || profile.email || "U").charAt(0).toUpperCase();
   const disabled = verifying || blocked;
 
+  // A vendor never signs in with Google and is not "unlocking the app" — they
+  // are opening the board their shift runs on. Same keypad, honest words.
+  const forVendor = isVendorRole(profile.role);
+
   return (
     <div className="flex flex-col items-center justify-between min-h-[520px] w-full max-w-sm mx-auto px-4 py-6">
       {/* ── Profile Header ─────────────────────────────────────────── */}
@@ -253,7 +258,9 @@ export function QuickUnlockScreen({
 
         <p className="text-xs font-medium text-faint flex items-center gap-1.5 pt-1">
           <KeyRound className="size-3.5 text-saffron" />
-          Enter your 4-digit PIN to unlock
+          {forVendor
+            ? "Enter your 4-digit PIN to open the dashboard"
+            : "Enter your 4-digit PIN to unlock"}
         </p>
       </div>
 
@@ -369,7 +376,9 @@ export function QuickUnlockScreen({
             className="text-xs text-muted hover:text-bone flex items-center gap-2"
           >
             <ArrowRightLeft className="size-3.5" />
-            Switch account / Sign in with password or Google
+            {forVendor
+              ? "Use a different account / sign in with email"
+              : "Switch account / Sign in with password or Google"}
           </Button>
         ) : null}
       </div>

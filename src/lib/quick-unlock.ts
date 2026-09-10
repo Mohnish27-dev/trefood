@@ -7,6 +7,8 @@
  * 3. LocalStorage persistence for quick unlock profile and lock state
  */
 
+import { ROLE, type Role } from "@/lib/constants";
+
 export interface StoredQuickUnlockProfile {
   userId: string;
   name: string;
@@ -16,6 +18,13 @@ export interface StoredQuickUnlockProfile {
   biometricEnabled: boolean;
   credentialId?: string | null;
   requireOnOpen?: boolean;
+  /**
+   * The account's role, so the lock screen can name where the PIN leads —
+   * "your dashboard" for a vendor, the campus list for a student. Only ever a
+   * label: what the PIN actually opens is decided on the server by
+   * `resolveLandingPath`, from the role on the user document.
+   */
+  role?: Role | null;
   updatedAt: number;
 }
 
@@ -31,9 +40,23 @@ export interface QuickUnlockDeviceState {
   userId: string | null;
   name: string | null;
   email: string | null;
+  /**
+   * Which console this device's PIN belongs to.
+   *
+   * The sign-in screen has two tabs and only one of them is the right one to
+   * open on. Without the role it defaulted to the student tab and a vendor had
+   * to find their own PIN pad behind a tab switch, which is most of the
+   * friction the PIN was meant to remove.
+   */
+  role: Role | null;
   biometricEnabled: boolean;
   /** Set while a lockout from repeated wrong PINs is still running. */
   lockedUntilMs: number | null;
+}
+
+/** True when this device's PIN opens the vendor console rather than the student app. */
+export function isVendorRole(role: Role | string | null | undefined): boolean {
+  return role === ROLE.VENDOR_OWNER || role === ROLE.VENDOR_STAFF;
 }
 
 const STORAGE_KEY = "trefood_quick_unlock_v1";

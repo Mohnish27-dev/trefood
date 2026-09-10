@@ -354,6 +354,72 @@ export const VENDOR_STRINGS = {
     hi: "समय, शुल्क और वो गेट जहां आप डिलीवरी करते हैं। यहां की हर जानकारी छात्रों को दिखती है।",
   },
 
+  // ── App Lock (4-digit PIN sign-in) ──────────────────────────────
+  appLockSection: { en: "PIN sign-in", hi: "PIN से लॉगिन" },
+  appLockCardTitle: { en: "4-digit PIN & fingerprint", hi: "4 अंकों का PIN और फिंगरप्रिंट" },
+  appLockActive: { en: "On", hi: "चालू है" },
+  appLockInactive: { en: "Not set up", hi: "अभी सेट नहीं है" },
+  appLockDescOn: {
+    en: "This device opens the dashboard with your 4-digit PIN. Your email and password still work everywhere else.",
+    hi: "इस डिवाइस पर अब 4 अंकों का PIN डालते ही डैशबोर्ड खुल जाएगा। बाकी जगह ईमेल और पासवर्ड पहले जैसे ही चलेंगे।",
+  },
+  appLockDescOff: {
+    en: "Set a 4-digit PIN so opening the dashboard on this device is four taps instead of an email and a password.",
+    hi: "4 अंकों का PIN सेट करें, ताकि हर बार ईमेल-पासवर्ड टाइप करने की जगह सिर्फ 4 नंबर दबाकर डैशबोर्ड खुल जाए।",
+  },
+  appLockPinRow: { en: "4-digit PIN", hi: "4 अंकों का PIN" },
+  appLockSetPin: { en: "Set PIN", hi: "PIN सेट करें" },
+  appLockChangePin: { en: "Change PIN", hi: "PIN बदलें" },
+  appLockBiometricRow: { en: "Fingerprint / Face unlock", hi: "फिंगरप्रिंट / फेस अनलॉक" },
+  appLockTurnOff: { en: "Turn off PIN sign-in", hi: "PIN लॉगिन बंद करें" },
+  appLockTurnOffConfirm: {
+    en: "Turn off PIN sign-in on this device? Signing in will need the vendor email and password again.",
+    hi: "क्या इस डिवाइस पर PIN लॉगिन बंद करना है? इसके बाद लॉगिन के लिए दोबारा ईमेल और पासवर्ड डालना पड़ेगा।",
+  },
+  appLockDeviceOnly: {
+    en: "The PIN works on this device only. It never replaces your password, and an admin can still reset the account.",
+    hi: "यह PIN सिर्फ इसी डिवाइस पर काम करता है। यह आपके पासवर्ड की जगह नहीं लेता, और एडमिन अकाउंट कभी भी रीसेट कर सकता है।",
+  },
+
+  // ── App Lock: the PIN setup dialog ──────────────────────────────
+  appLockSetTitle: { en: "Set a 4-digit PIN", hi: "4 अंकों का PIN बनाएं" },
+  appLockConfirmTitle: { en: "Enter the PIN again", hi: "PIN दोबारा डालें" },
+  appLockBiometricsTitle: { en: "Turn on fingerprint unlock", hi: "फिंगरप्रिंट अनलॉक चालू करें" },
+  appLockSuccessTitle: { en: "PIN sign-in is on", hi: "PIN लॉगिन चालू हो गया" },
+  appLockSetDesc: {
+    en: "Pick 4 numbers. From now on this device opens the dashboard with the PIN instead of an email and password.",
+    hi: "कोई भी 4 नंबर चुनें। अब से इस डिवाइस पर ईमेल-पासवर्ड की जगह यही PIN डालकर डैशबोर्ड खुलेगा।",
+  },
+  appLockConfirmDesc: {
+    en: "Type the same 4 numbers once more so we know it was not a slip.",
+    hi: "वही 4 नंबर एक बार और डालें, ताकि गलती से कुछ और सेट न हो जाए।",
+  },
+  appLockBiometricsDesc: {
+    en: "Use the fingerprint sensor or face unlock to open the dashboard without typing anything.",
+    hi: "फिंगरप्रिंट या फेस अनलॉक से बिना कुछ टाइप किए डैशबोर्ड खोलें।",
+  },
+  appLockSuccessDesc: {
+    en: "Next time, enter your PIN and you are straight on the orders board.",
+    hi: "अगली बार PIN डालते ही सीधे ऑर्डर बोर्ड खुल जाएगा।",
+  },
+  appLockBiometricsHeadline: { en: "Open with one touch", hi: "एक टच में खोलें" },
+  appLockBiometricsBody: {
+    en: "Turn on fingerprint or face unlock to reach the orders board in under a second.",
+    hi: "फिंगरप्रिंट या फेस अनलॉक चालू करें, ऑर्डर बोर्ड एक सेकंड से भी कम में खुलेगा।",
+  },
+  appLockEnableBiometrics: { en: "Turn on & finish", hi: "चालू करें और पूरा करें" },
+  appLockPinOnly: { en: "Use the PIN only", hi: "सिर्फ PIN इस्तेमाल करें" },
+  appLockSkip: { en: "Not now", hi: "अभी नहीं" },
+  appLockSuccessHeadline: { en: "All set", hi: "हो गया" },
+  appLockMismatch: {
+    en: "Those 4 numbers did not match. Try again.",
+    hi: "दोनों बार के नंबर अलग हैं। दोबारा कोशिश करें।",
+  },
+  appLockFailed: {
+    en: "Could not save the PIN. Check your connection and try again.",
+    hi: "PIN सेव नहीं हो पाया। इंटरनेट जांचकर दोबारा कोशिश करें।",
+  },
+
   // ── Language Toggle Labels ───────────────────────────────────────
   languageToggleLabel: { en: "Language", hi: "भाषा" },
   english: { en: "English", hi: "English" },

@@ -121,6 +121,7 @@ export async function getQuickUnlockDeviceState(): Promise<QuickUnlockDeviceStat
     userId: null,
     name: null,
     email: null,
+    role: null,
     biometricEnabled: false,
     lockedUntilMs: null,
   };
@@ -140,6 +141,10 @@ export async function getQuickUnlockDeviceState(): Promise<QuickUnlockDeviceStat
     userId: user._id,
     name: user.name,
     email: user.email,
+    // Read from the user document, never from anything the browser sent. The
+    // sign-in screen only uses it to pick a tab, but a role that came from the
+    // client would be a role worth lying about.
+    role: user.role,
     biometricEnabled: Boolean(user.quickUnlock.biometricEnabled),
     lockedUntilMs: lockedUntil && lockedUntil > Date.now() ? lockedUntil : null,
   };
