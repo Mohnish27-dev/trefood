@@ -1,8 +1,7 @@
 "use client";
 
-import { Bell, BellOff, BellRing, Volume2 } from "lucide-react";
+import { Bell, BellRing } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { useVendorAlarm } from "@/context/vendor-alarm-context";
 
 /**
@@ -14,33 +13,21 @@ import { useVendorAlarm } from "@/context/vendor-alarm-context";
  * lives in the vendor layout so it survives navigation between tabs. This
  * component is only the badge that reports what that engine is doing.
  *
- * **There is no silence control, by design.** The alarm rings for as long as an
- * order sits unanswered in the New column and stops only when the order leaves
- * it — accepted, rejected, or auto-expired. A mute button is a button a vendor
- * presses at 23:40 during a rush and forgets, and the next four orders die in
- * silence. Closing the shop does not silence it either: an order that is already
- * placed still owes the student an answer inside the acknowledgement window.
+ * **There is no silence control and no enable control, by design.** The alarm
+ * rings for as long as an order sits unanswered in the New column and stops only
+ * when the order leaves it — accepted, rejected, or auto-expired. A mute button
+ * is a button a vendor presses at 23:40 during a rush and forgets, and the next
+ * four orders die in silence. Closing the shop does not silence it either: an
+ * order that is already placed still owes the student an answer inside the
+ * acknowledgement window.
+ *
+ * An enable button is the same trap wearing a different hat. It turns a
+ * browser's autoplay delay into a setting the vendor believes they own, and a
+ * reload into a decision. The provider re-arms itself on every gesture instead,
+ * so this badge only ever has two things to say: armed, or ringing.
  */
 export function NewOrderAlarm() {
-  const { newOrderCount, soundReady, unlockSound } = useVendorAlarm();
-
-  // Not a mute state — the browser is holding playback back until it sees a
-  // gesture. Say so plainly, because a vendor who thinks they are covered and
-  // is not is the worst of the three states.
-  if (!soundReady) {
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-amber/30 bg-amber-wash px-3 py-2">
-        <BellOff className="size-4 shrink-0 text-amber" />
-        <p className="text-xs leading-tight text-amber">
-          Your browser is blocking sound. New orders will not chime until you tap.
-        </p>
-        <Button size="sm" variant="secondary" className="ml-1" onClick={unlockSound}>
-          <Volume2 />
-          Enable sound
-        </Button>
-      </div>
-    );
-  }
+  const { newOrderCount } = useVendorAlarm();
 
   if (newOrderCount === 0) {
     return (
