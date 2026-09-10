@@ -10,7 +10,7 @@
  *
  * Re-runnable: every document is upserted on its deterministic _id and every
  * cleanup delete simply matches nothing on an already-clean database. Real
- * vendors come from /admin/vendors; real students from Supabase sign-in.
+ * vendors come from /admin/vendors; real students sign themselves up.
  */
 
 import { ensureIndexes } from "@/server/db/indexes";
@@ -171,7 +171,7 @@ async function main(): Promise<void> {
   console.log("  accounts...");
   const users = await db.users();
   for (const u of USERS) {
-    // The admin email may already exist as a Supabase-provisioned student
+    // The admin email may already exist as a self-provisioned student
     // (users.email_unique). Promote that account in place instead of colliding
     // — keeping its authId so Google sign-in lands on the admin seat.
     const existing = await users.findOne({ email: u.email });

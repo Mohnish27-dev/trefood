@@ -91,6 +91,25 @@ export async function ensureQuickUnlockDeviceCookie(user: User | null): Promise<
 }
 
 /**
+ * The device-cookie decision, without touching the cookie store.
+ *
+ * The Google callback returns its own `NextResponse.redirect(...)`, and a
+ * cookie written through the `cookies()` store does not reliably survive that
+ * construction — so the route needs the value and sets it on the response
+ * itself. Returns null when the cookie should be cleared instead of set.
+ */
+export function quickUnlockDeviceCookieFor(
+  user: User | null,
+): { name: string; value: string; maxAge: number } | null {
+  if (!user?.quickUnlock?.pinHash) return null;
+  return {
+    name: QUICK_UNLOCK_DEVICE_COOKIE,
+    value: createQuickUnlockToken("device", user._id),
+    maxAge: QUICK_UNLOCK_DEVICE_MAX_AGE,
+  };
+}
+
+/**
  * What the sign-in page needs in order to decide whether the PIN pad can
  * actually work. Rendering it when this says `trusted: false` is exactly the
  * loop that was reported: a PIN that verifies in the browser, then lands on a

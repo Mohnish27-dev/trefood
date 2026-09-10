@@ -36,8 +36,7 @@ COPY . .
 # to empty, which `optionalString` reads as "not configured" - the clean
 # switch-off, not a half-wired placeholder.
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
-ARG NEXT_PUBLIC_SUPABASE_URL=
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=
+ARG NEXT_PUBLIC_GOOGLE_ENABLED=false
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 ARG NEXT_PUBLIC_SENTRY_DSN=
 ARG NEXT_PUBLIC_POSTHOG_KEY=

@@ -44,7 +44,7 @@ const profileSchema = z.object({
 /**
  * Name and phone only.
  *
- * Email is the identity Supabase issued and is not editable here — changing it
+ * Email is the account's identity and is not editable here — changing it
  * would orphan the auth record. Campus is not editable either: it decides
  * which restaurants exist, and switching it mid-cart is a support ticket, not
  * a text field.

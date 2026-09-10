@@ -44,6 +44,11 @@ jobs:
       AUTH_PROVIDER: stub
       PAYMENT_PROVIDER: stub
       CRON_SECRET: ci-only-not-a-real-secret
+      # No mailbox on a runner, and nothing here should ever send a real
+      # message. `console` prints instead of sending; without it env.ts
+      # rightly demands SMTP credentials and the seed step cannot boot.
+      # vitest forces the same value, but `npm run seed` is its own process.
+      MAIL_TRANSPORT: console
 
     steps:
       - uses: actions/checkout@v4

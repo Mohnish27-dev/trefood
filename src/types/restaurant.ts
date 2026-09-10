@@ -27,7 +27,7 @@ export interface MenuItem {
   description: string;
   isVeg: boolean;
   pricePaise: Paise;
-  /** Supabase Storage URL. Mongo stores the string only (DECISIONS section 3). */
+  /** Remote image URL. Mongo stores the string only (DECISIONS section 3). */
   imageUrl: string | null;
 
   /**

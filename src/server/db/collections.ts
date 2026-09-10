@@ -5,11 +5,13 @@ import type { Collection } from "mongodb";
 import { getDb } from "./client";
 import type {
   AuditLog,
+  AuthSession,
   Campus,
   CommissionStatement,
   Coupon,
   Counter,
   DeliveryPartner,
+  EmailOtp,
   LedgerEntry,
   MenuCategory,
   MenuItem,
@@ -44,6 +46,8 @@ export const COLLECTION = {
   pushSubscriptions: "pushSubscriptions",
   counters: "counters",
   deliveryPartners: "deliveryPartners",
+  sessions: "sessions",
+  emailOtps: "emailOtps",
 } as const;
 
 export type CollectionName = (typeof COLLECTION)[keyof typeof COLLECTION];
@@ -53,6 +57,14 @@ export const campuses = async (): Promise<Collection<Campus>> =>
 
 export const users = async (): Promise<Collection<User>> =>
   (await getDb()).collection<User>(COLLECTION.users);
+
+/** One document per signed-in browser. See `@/server/auth/session-store`. */
+export const sessions = async (): Promise<Collection<AuthSession>> =>
+  (await getDb()).collection<AuthSession>(COLLECTION.sessions);
+
+/** Pending six-digit codes, and the signups waiting on them. */
+export const emailOtps = async (): Promise<Collection<EmailOtp>> =>
+  (await getDb()).collection<EmailOtp>(COLLECTION.emailOtps);
 
 export const restaurants = async (): Promise<Collection<Restaurant>> =>
   (await getDb()).collection<Restaurant>(COLLECTION.restaurants);

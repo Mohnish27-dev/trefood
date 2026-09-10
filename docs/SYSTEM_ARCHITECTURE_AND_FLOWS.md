@@ -34,10 +34,11 @@
           ┌───────────────────┘      │      │    └──────────────────┐
           │                          │      │                       │
    ┌──────▼───────┐  ┌───────────────▼──┐ ┌─▼──────────────┐ ┌──────▼───────┐
-   │ MONGODB      │  │ SUPABASE         │ │ PhonePe       │ │ SENTRY +     │
-   │ ATLAS        │  │ · Auth (Google)  │ │ · Orders API   │ │ POSTHOG      │
-   │ all domain   │  │ · Storage (imgs) │ │ · Refunds API  │ │              │
-   │ data         │  │                  │ │ · Webhooks     │ │              │
+   │ MONGODB      │  │ ZOHO MAIL + Google│ │ PhonePe       │ │ SENTRY +     │
+   │ ATLAS        │  │ · SMTP (our own  │ │ · Orders API   │ │ POSTHOG      │
+   │ all domain   │  │   domain) codes  │ │ · Refunds API  │ │              │
+   │ data, incl.  │  │ · Google OAuth   │ │ · Webhooks     │ │              │
+   │ sessions     │  │   (identity only)│ │                │ │              │
    └──────────────┘  └──────────────────┘ └────────────────┘ └──────────────┘
 
    NO rider app.  NO rider GPS.  NO Google Maps.  (see DECISIONS.md §2)
@@ -47,9 +48,9 @@
 
 | Concern | Home | Reason |
 | :-- | :-- | :-- |
-| Identity | Supabase Auth | Google OAuth for free, JWT that Next.js middleware can verify cheaply. |
+| Identity | Owned in-app | Email + password, Google OAuth, and email codes over our own Zoho mailbox. Sessions are MongoDB rows, so they revoke instantly. See `docs/AUTHENTICATION.md`. |
 | Domain data | MongoDB Atlas | Flexible menus, embedded price snapshots, GeoJSON zones in one document. |
-| Images | Supabase Storage | Keeps the 512 MB Mongo tier for documents only. Mongo stores the URL string. |
+| Images | Remote URLs | Keeps the 512 MB Mongo tier for documents only. Mongo stores the URL string. |
 | Business rules | `src/server/services/**` | Server Actions and Route Handlers are thin adapters. Rules are testable without HTTP. |
 | Money math | `src/server/services/pricing.ts` | Exactly one function computes a price. Cart preview and order creation call the *same* function. |
 
@@ -267,7 +268,7 @@ releases the order before they hold the food.
 | Collection | Purpose | Key indexes |
 | :-- | :-- | :-- |
 | `campuses` | Campus, geofence polygon, delivery zones, all pricing settings | `slug` unique |
-| `users` | Profile mirror of Supabase auth: role, phone, campus, `codBlocked` | `authId` unique, `phone` |
+| `users` | The account: role, phone, campus, password hash, `ordersBlocked` | `email` unique, `googleId` unique (partial), `phone` |
 | `restaurants` | Vendor, KYC, bank details, served zones, prep time, fees | `campusId + isOpen`, `slug` unique |
 | `menuCategories` | Ordered sections | `restaurantId + sortOrder` |
 | `menuItems` | Items, add-on groups, `isAvailable` 86-flag | `restaurantId + isAvailable` |
@@ -356,7 +357,7 @@ zone, or user document still existing or still holding the same values.
 
 ### Realtime → interval polling, deliberately
 
-Supabase Realtime watches Postgres rows; the orders live in MongoDB, so it would emit
+Realtime subscriptions watch Postgres rows; the orders live in MongoDB, so they would emit
 nothing. Websockets on serverless die at the function timeout. Polling is therefore
 not a compromise here, it is the correct answer at this scale:
 

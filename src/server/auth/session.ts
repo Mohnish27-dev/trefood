@@ -5,27 +5,30 @@ import { cookies } from "next/headers";
 import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
 import { ROLE, type Role } from "@/lib/constants";
-import { newId } from "@/lib/ids";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@/types/user";
 
 /**
  * Session and authorisation.
  *
- * D7 — Google sign-in now, phone captured at first checkout, phone OTP added
- * later once TRAI DLT registration clears. That is only cheap if the auth
- * layer sits behind an interface, so the OTP provider drops in without
- * touching a single call site. This file IS that interface.
+ * TREFOOD authenticates its own users. Email and password, Google sign-in, and
+ * a six-digit code over our own mailbox all resolve to one thing: a row in the
+ * `sessions` collection, keyed by an opaque cookie. Nothing above this file
+ * knows which credential opened it.
  *
- * Two implementations:
+ * That was not always true. Authentication used to be delegated to a hosted
+ * provider, which meant a second copy of every account, a JWT that could not be
+ * revoked early, and a shared email quota that rate-limited real students at
+ * dinner time. All three problems were the same problem: the identity did not
+ * live here. Now it does.
  *
- *   stub      — resolves the seeded demo account named by a cookie. Lets the
- *               whole prototype run, and lets a demo switch between a normal
- *               student and a COD-blocked one to show the F9 screen.
- *   supabase  — Phase 8. Reads the Supabase JWT and maps it to the mirrored
- *               `users` document by authId.
+ * Two implementations remain:
  *
- * Selected by AUTH_PROVIDER. Nothing above this file knows which is active.
+ *   stub     — resolves the seeded demo account named by a cookie. Lets the
+ *              whole prototype run with no credentials at all, and is refused
+ *              outright in production.
+ *   trefood  — the real one. Reads the session cookie, checks the row.
+ *
+ * Selected by AUTH_PROVIDER.
  */
 
 import { VENDOR_SESSION_COOKIE, verifyVendorSessionToken } from "@/server/auth/passwords";
@@ -33,6 +36,7 @@ import {
   QUICK_UNLOCK_SESSION_COOKIE,
   verifyQuickUnlockToken,
 } from "@/server/auth/quick-unlock";
+import { resolveSessionFromCookie } from "@/server/auth/session-store";
 
 export const DEMO_USER_COOKIE = "trefood_demo_user";
 
@@ -46,19 +50,25 @@ export interface Session {
 /* ------------------------------------------------------------------ */
 
 export async function getSession(): Promise<Session | null> {
-  // 1. Direct vendor session (bypasses Supabase)
-  const vendorUser = await resolveVendorUser();
-  if (vendorUser) {
-    return { user: vendorUser, role: vendorUser.role };
+  // 1. The real session cookie. Password, Google and emailed-code sign-ins
+  //    all land here, so this is the common case and it comes first.
+  const resolved = await resolveSessionFromCookie();
+  if (resolved) return { user: resolved.user, role: resolved.user.role };
+
+  // 2. Legacy vendor cookie, from before vendor and student auth were unified.
+  //    Kept so a vendor mid-shift is not signed out by a deploy. Safe to delete
+  //    once the longest of these has aged past its one-year cookie.
+  const vendorUser = await resolveLegacyVendorUser();
+  if (vendorUser) return { user: vendorUser, role: vendorUser.role };
+
+  // 3. Stub accounts, development only.
+  if (serverEnv().AUTH_PROVIDER === "stub") {
+    const stubUser = await resolveStubUser();
+    if (stubUser) return { user: stubUser, role: stubUser.role };
   }
 
-  // 2. Supabase or Stub session
-  const provider = serverEnv().AUTH_PROVIDER;
-  const user = provider === "supabase" ? await resolveSupabaseUser() : await resolveStubUser();
-  if (user) return { user, role: user.role };
-
-  // 3. Quick unlock (4-digit PIN / biometrics). Deliberately LAST: a real
-  // password or OAuth session always wins, so a stale quick-unlock cookie can
+  // 4. Quick unlock (4-digit PIN / biometrics). Deliberately LAST: a real
+  // password or Google session always wins, so a stale quick-unlock cookie can
   // never shadow the account somebody has just signed into on this device.
   const quickUser = await resolveQuickUnlockUser();
   return quickUser ? { user: quickUser, role: quickUser.role } : null;
@@ -126,10 +136,12 @@ export class AuthError extends Error {
 /* ------------------------------------------------------------------ */
 
 /**
- * Direct vendor provider.
- * Reads and verifies the signed vendor session cookie.
+ * Legacy vendor provider.
+ *
+ * Reads the signed cookie that direct vendor sign-in used to mint. Nothing
+ * writes one any more; vendors now get an ordinary session like everybody else.
  */
-async function resolveVendorUser(): Promise<User | null> {
+async function resolveLegacyVendorUser(): Promise<User | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(VENDOR_SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -167,14 +179,14 @@ async function resolveQuickUnlockUser(): Promise<User | null> {
  *
  * Reads a seeded user id from a cookie set by the sign-in screen. This is NOT
  * authentication and never pretends to be: it exists so the whole ordering
- * flow is demonstrable before Supabase is wired, and it is refused outright in
- * production.
+ * flow is demonstrable without a mailbox or a Google client, and it is refused
+ * outright in production.
  */
 async function resolveStubUser(): Promise<User | null> {
   if (serverEnv().NODE_ENV === "production") {
     throw new AuthError(
       "UNAUTHENTICATED",
-      "AUTH_PROVIDER=stub cannot be used in production. Set AUTH_PROVIDER=supabase.",
+      "AUTH_PROVIDER=stub cannot be used in production. Set AUTH_PROVIDER=trefood.",
     );
   }
 
@@ -190,68 +202,6 @@ async function resolveStubUser(): Promise<User | null> {
   return (await db.users()).findOne({ _id: userId });
 }
 
-/**
- * Phase 8. The Supabase JWT identifies the auth user; the `users` collection
- * mirrors it with the role, phone and standing flags that the domain needs.
- * If a student signs in for the first time, auto-provisions their MongoDB record.
- */
-async function resolveSupabaseUser(): Promise<User | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user: authUser },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !authUser) return null;
-
-  const usersCollection = await db.users();
-
-  // 1. Look up by authId (Supabase user UUID)
-  let mongoUser = await usersCollection.findOne({ authId: authUser.id });
-
-  if (!mongoUser && authUser.email) {
-    // 2. Look up by email (in case an existing record was seeded/created without authId)
-    mongoUser = await usersCollection.findOne({ email: authUser.email });
-    if (mongoUser) {
-      await usersCollection.updateOne(
-        { _id: mongoUser._id },
-        { $set: { authId: authUser.id, updatedAt: new Date() } },
-      );
-      mongoUser.authId = authUser.id;
-    }
-  }
-
-  if (!mongoUser) {
-    // 3. Auto-provision new student record in MongoDB
-    const metaName =
-      (typeof authUser.user_metadata?.full_name === "string" && authUser.user_metadata.full_name) ||
-      (typeof authUser.user_metadata?.name === "string" && authUser.user_metadata.name) ||
-      authUser.email?.split("@")[0] ||
-      "Student";
-
-    const newStudent: User = {
-      _id: newId("usr"),
-      authId: authUser.id,
-      role: ROLE.STUDENT,
-      name: metaName,
-      email: authUser.email ?? "",
-      phone: authUser.phone ?? null,
-      campusId: "campus_nitp",
-      restaurantId: null,
-      ordersBlocked: false,
-      ordersBlockedReason: null,
-      strikes: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await usersCollection.insertOne(newStudent);
-    mongoUser = newStudent;
-  }
-
-  return mongoUser;
-}
-
 /* ------------------------------------------------------------------ */
 /* Stub-mode account switching                                         */
 /* ------------------------------------------------------------------ */
@@ -259,7 +209,7 @@ async function resolveSupabaseUser(): Promise<User | null> {
 /**
  * Every account, for the stub-auth sign-in picker (AUTH_PROVIDER=stub only).
  * Stub mode has no credential check, so this is how a developer signs in as a
- * vendor or admin locally. Real deployments run Supabase and never render it.
+ * vendor or admin locally. Real deployments never render it.
  */
 export async function listDemoUsers(): Promise<User[]> {
   return (await db.users()).find({}).sort({ role: 1, name: 1 }).toArray();

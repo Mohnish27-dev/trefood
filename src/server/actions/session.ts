@@ -7,15 +7,26 @@ import { z } from "zod";
 import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
 import { COOKIE_MAX_AGE_SECONDS } from "@/lib/cookies";
-import { DEMO_USER_COOKIE } from "@/server/auth/session";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  createVendorSessionToken,
-  VENDOR_SESSION_COOKIE,
-  verifyPassword,
-} from "@/server/auth/passwords";
-import { ROLE } from "@/lib/constants";
+import { DEMO_USER_COOKIE, getSession } from "@/server/auth/session";
+import { hashPassword, verifyPassword, VENDOR_SESSION_COOKIE } from "@/server/auth/passwords";
 import { resolveLandingPath } from "@/lib/routes";
+import { buildStudent, needsPasswordSetup } from "@/server/auth/accounts";
+import {
+  normaliseEmail,
+  sendOtp,
+  verifyOtp,
+  OTP_RESEND_COOLDOWN_MS,
+  OTP_TTL_MINUTES,
+} from "@/server/auth/otp";
+import {
+  AUTH_METHOD,
+  createSession,
+  destroyAllSessions,
+  destroyCurrentSession,
+} from "@/server/auth/session-store";
+import { sendMail } from "@/server/mail/mailer";
+import { passwordChangedMessage, welcomeMessage } from "@/server/mail/templates";
+import { OTP_PURPOSE } from "@/types/auth";
 import {
   credentialIdMatches,
   QUICK_UNLOCK_LOCKOUT_MS,
@@ -31,10 +42,53 @@ import {
   trustedDeviceUserId,
 } from "@/server/auth/quick-unlock-cookies";
 
+/**
+ * Every credential the sign-in screen can present.
+ *
+ * The shape is a discriminated union rather than a bare success/error pair
+ * because sign-up is no longer one step. "We emailed you a code" is a real
+ * outcome that moves the screen to a different form, and squeezing it into a
+ * success message would leave the client parsing English to decide what to render.
+ */
 export type AuthActionState =
   | { status: "idle" }
   | { status: "success"; message?: string }
+  /** A code is in flight. The screen switches to the six-box code form. */
+  | { status: "otp_sent"; email: string; purpose: "SIGNUP" | "PASSWORD_RESET"; message: string; cooldownMs: number }
+  /**
+   * The account is real but has no password here — it predates TREFOOD owning
+   * its authentication, or it has only ever used Google. A code is already on
+   * its way, and the screen collects a new password.
+   */
+  | { status: "needs_password_setup"; email: string; message: string; cooldownMs: number }
   | { status: "error"; message: string };
+
+/** Six characters was the old provider's floor. Eight, with a letter and a digit, is ours. */
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be under 128 characters")
+  .regex(/[a-zA-Z]/, "Password must contain at least one letter")
+  .regex(/[0-9]/, "Password must contain at least one number");
+
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Enter a valid email address")
+  .max(254, "That email address is too long");
+
+/** Five wrong passwords, then the account rests for fifteen minutes. */
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+
+function cooldownSeconds(ms: number): number {
+  return Math.max(1, Math.ceil(ms / 1000));
+}
+
+/* ------------------------------------------------------------------ */
+/* Stub mode                                                           */
+/* ------------------------------------------------------------------ */
 
 const demoSignInSchema = z.object({
   userId: z.string().min(1),
@@ -48,7 +102,7 @@ export async function signInAsDemoUser(input: unknown): Promise<AuthActionState>
   if (serverEnv().AUTH_PROVIDER !== "stub") {
     return {
       status: "error",
-      message: "Demo accounts are disabled. Sign in with Google or Email instead.",
+      message: "Demo accounts are disabled. Sign in with Google or your email instead.",
     };
   }
 
@@ -67,151 +121,374 @@ export async function signInAsDemoUser(input: unknown): Promise<AuthActionState>
   redirect(resolveLandingPath(parsed.data.redirectTo, user.role));
 }
 
-const emailPasswordSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  redirectTo: z.string().optional(),
-});
-
-export async function signInWithEmail(input: unknown): Promise<AuthActionState> {
-  const parsed = emailPasswordSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid credentials" };
-  }
-
-  const email = parsed.data.email.toLowerCase().trim();
-  const password = parsed.data.password;
-  const target = parsed.data.redirectTo;
-
-  // 1. Check for direct vendor login in MongoDB (vendors only, bypasses Supabase)
-  const usersCollection = await db.users();
-  const dbUser = await usersCollection.findOne({ email });
-
-  const isVendor = dbUser?.role === ROLE.VENDOR_OWNER || dbUser?.role === ROLE.VENDOR_STAFF;
-  if (dbUser && dbUser.passwordHash && isVendor) {
-    const isValid = verifyPassword(password, dbUser.passwordHash);
-    if (!isValid) {
-      return { status: "error", message: "Invalid email or password." };
-    }
-
-    const token = createVendorSessionToken(dbUser._id);
-    const store = await cookies();
-    store.set(VENDOR_SESSION_COOKIE, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: COOKIE_MAX_AGE_SECONDS,
-      secure: serverEnv().NODE_ENV === "production",
-    });
-
-    await ensureQuickUnlockDeviceCookie(dbUser);
-    redirect(resolveLandingPath(target, dbUser.role));
-  }
-
-  // 2. Fall back to Supabase auth (for students / OAuth accounts)
-  if (serverEnv().AUTH_PROVIDER === "supabase") {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      return { status: "error", message: error.message };
-    }
-
-    // Determine landing page based on user role. A student with no mirrored
-    // Mongo document yet still belongs on the campus feed, never on "/".
-    let role: string | null = null;
-    if (data.user) {
-      const authEmail = data.user.email;
-      const mongoUser = await usersCollection.findOne(
-        authEmail
-          ? { $or: [{ authId: data.user.id }, { email: authEmail }] }
-          : { authId: data.user.id },
-      );
-      role = mongoUser?.role ?? null;
-      await ensureQuickUnlockDeviceCookie(mongoUser);
-    }
-
-    redirect(resolveLandingPath(target, role));
-  }
-
-  return { status: "error", message: "Invalid email or password." };
-}
+/* ------------------------------------------------------------------ */
+/* Sign up — email, password, and a six-digit code                     */
+/* ------------------------------------------------------------------ */
 
 const signUpSchema = z.object({
-  name: z.string().min(2, "Enter your full name"),
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().trim().min(2, "Enter your full name").max(80, "That name is too long"),
+  email: emailSchema,
+  password: passwordSchema,
   redirectTo: z.string().optional(),
 });
 
+/**
+ * Step one of two: validates, then emails a code.
+ *
+ * No user document is written here. The name and the password hash are parked
+ * on the pending code instead, so an address nobody ever verifies never lands
+ * in the users collection — which keeps the unique email index meaningful and
+ * makes it impossible to squat somebody else's address by starting a sign-up
+ * you never finish.
+ */
 export async function signUpWithEmail(input: unknown): Promise<AuthActionState> {
   const parsed = signUpSchema.safeParse(input);
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the form and try again." };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: {
-        full_name: parsed.data.name,
-        name: parsed.data.name,
-      },
-    },
+  const email = normaliseEmail(parsed.data.email);
+  const existing = await (await db.users()).findOne({ email });
+
+  if (existing) {
+    // A real account already owns this address. Say so plainly: the alternative
+    // is emailing a code that can never work, and a person staring at an inbox.
+    return {
+      status: "error",
+      message: existing.googleId
+        ? "That email already has an account. Use Continue with Google, or reset your password."
+        : "That email already has an account. Sign in instead, or reset your password.",
+    };
+  }
+
+  const passwordHash = hashPassword(parsed.data.password);
+  const outcome = await sendOtp(email, OTP_PURPOSE.SIGNUP, {
+    name: parsed.data.name,
+    passwordHash,
   });
 
-  if (error) {
-    return { status: "error", message: error.message };
-  }
-
-  // If email confirmation is disabled or session is created immediately:
-  if (data.session) {
-    redirect(resolveLandingPath(parsed.data.redirectTo, ROLE.STUDENT));
-  }
-
-  return {
-    status: "success",
-    message: "Account created! Please check your email to confirm your account.",
-  };
+  return otpSendOutcomeToState(outcome, email, "SIGNUP");
 }
 
-const otpSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
+const verifySignupSchema = z.object({
+  email: emailSchema,
+  code: z.string().trim().regex(/^[0-9]{6}$/, "Enter the 6-digit code from your email"),
   redirectTo: z.string().optional(),
 });
 
-export async function sendMagicLink(input: unknown): Promise<AuthActionState> {
-  const parsed = otpSchema.safeParse(input);
+/**
+ * Step two of two: redeems the code and creates the account.
+ *
+ * The pending signup rides on the code record, so verifying the code and
+ * knowing which account to create are the same read. There is no window in
+ * which one is true and the other is not.
+ */
+export async function verifySignupCode(input: unknown): Promise<AuthActionState> {
+  const parsed = verifySignupSchema.safeParse(input);
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid email" };
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Enter the 6-digit code." };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const redirectUrl = resolveLandingPath(parsed.data.redirectTo, ROLE.STUDENT);
+  const email = normaliseEmail(parsed.data.email);
+  const result = await verifyOtp(email, OTP_PURPOSE.SIGNUP, parsed.data.code);
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data.email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/callback?next=${encodeURIComponent(redirectUrl)}`,
-    },
+  if (!result.ok) return { status: "error", message: otpFailureMessage(result.reason, result.attemptsLeft) };
+
+  const pending = result.record.pendingSignup;
+  if (!pending) {
+    return { status: "error", message: "That sign-up has expired. Start again." };
+  }
+
+  const users = await db.users();
+
+  // Between the code being sent and being typed, the same address could have
+  // been claimed — by Google sign-in, most likely. Adopt that account rather
+  // than colliding on the unique index and showing a database error.
+  const existing = await users.findOne({ email });
+  if (existing) {
+    await users.updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          emailVerified: true,
+          passwordHash: pending.passwordHash,
+          passwordChangedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+    await createSession(existing._id, AUTH_METHOD.OTP);
+    await ensureQuickUnlockDeviceCookie(existing);
+    redirect(resolveLandingPath(parsed.data.redirectTo, existing.role));
+  }
+
+  const student = buildStudent({
+    email,
+    name: pending.name,
+    emailVerified: true,
+    passwordHash: pending.passwordHash,
   });
 
-  if (error) {
-    return { status: "error", message: error.message };
-  }
+  await users.insertOne(student);
+  await createSession(student._id, AUTH_METHOD.OTP);
+  await ensureQuickUnlockDeviceCookie(student);
 
-  return {
-    status: "success",
-    message: "Magic login link sent to your email! Check your inbox.",
-  };
+  // Best effort, and deliberately not awaited into the failure path: a welcome
+  // mail that bounces must not undo an account that was created correctly.
+  const welcome = welcomeMessage(student.name);
+  void sendMail({ to: student.email, subject: welcome.subject, html: welcome.html, text: welcome.text });
+
+  redirect(resolveLandingPath(parsed.data.redirectTo, student.role));
 }
 
+const resendSchema = z.object({
+  email: emailSchema,
+  purpose: z.enum(["SIGNUP", "PASSWORD_RESET"]),
+});
+
+/** "Didn't get it?" Rate limits live in `sendOtp`, not here. */
+export async function resendCode(input: unknown): Promise<AuthActionState> {
+  const parsed = resendSchema.safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Could not resend the code." };
+
+  const email = normaliseEmail(parsed.data.email);
+  const purpose = parsed.data.purpose === "SIGNUP" ? OTP_PURPOSE.SIGNUP : OTP_PURPOSE.PASSWORD_RESET;
+
+  if (purpose === OTP_PURPOSE.SIGNUP) {
+    // Resending a sign-up code needs the pending signup that the previous code
+    // carried. Read it back rather than asking the browser to hold a password hash.
+    const previous = await (await db.emailOtps()).findOne(
+      { email, purpose: OTP_PURPOSE.SIGNUP },
+      { sort: { createdAt: -1 } },
+    );
+    const pending = previous?.pendingSignup ?? null;
+    if (!pending) {
+      return { status: "error", message: "That sign-up has expired. Start again." };
+    }
+    return otpSendOutcomeToState(await sendOtp(email, purpose, pending), email, "SIGNUP");
+  }
+
+  const user = await (await db.users()).findOne({ email });
+  if (!user) {
+    // Same answer as a real send. A resend endpoint that distinguishes is an
+    // account-existence oracle with a convenient retry button.
+    return {
+      status: "otp_sent",
+      email,
+      purpose: "PASSWORD_RESET",
+      message: `If that address has an account, a new code is on its way. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      cooldownMs: OTP_RESEND_COOLDOWN_MS,
+    };
+  }
+
+  return otpSendOutcomeToState(await sendOtp(email, purpose), email, "PASSWORD_RESET");
+}
+
+/* ------------------------------------------------------------------ */
+/* Sign in — email and password                                        */
+/* ------------------------------------------------------------------ */
+
+const signInSchema = z.object({
+  email: emailSchema,
+  // Deliberately NOT `passwordSchema`: an existing password set under the old
+  // eight-character rule must still be typeable. Strength is enforced where a
+  // password is chosen, never where one is checked.
+  password: z.string().min(1, "Enter your password"),
+  redirectTo: z.string().optional(),
+});
+
+/**
+ * One sign-in for everybody.
+ *
+ * Students, vendors and admins used to take different paths — vendors against
+ * a hash in Mongo, everybody else against the hosted provider — which is why
+ * a vendor could be signed in and a student not, on the same screen, for the
+ * same reason. There is one credential check now and one kind of session.
+ */
+export async function signInWithEmail(input: unknown): Promise<AuthActionState> {
+  const parsed = signInSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Enter your email and password." };
+  }
+
+  const email = normaliseEmail(parsed.data.email);
+  const users = await db.users();
+  const user = await users.findOne({ email });
+
+  // Same message for "no such account" and "wrong password". Anything else
+  // turns the sign-in form into a list of who has an account here.
+  const invalid: AuthActionState = { status: "error", message: "Invalid email or password." };
+  if (!user) return invalid;
+
+  const lockedUntil = user.loginLock?.lockedUntil ? new Date(user.loginLock.lockedUntil).getTime() : 0;
+  if (lockedUntil > Date.now()) {
+    const minutes = Math.max(1, Math.ceil((lockedUntil - Date.now()) / 60_000));
+    return {
+      status: "error",
+      message: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
+    };
+  }
+
+  if (needsPasswordSetup(user)) {
+    // A real account with no password here. Either it came from the old hosted
+    // provider, or it has only ever used Google. Both are fixed the same way:
+    // one emailed code, then a password this system actually owns.
+    const outcome = await sendOtp(email, OTP_PURPOSE.PASSWORD_RESET);
+    if (!outcome.ok) return otpSendOutcomeToState(outcome, email, "PASSWORD_RESET");
+
+    return {
+      status: "needs_password_setup",
+      email,
+      message: user.googleId
+        ? `That account uses Google sign-in. To add a password, enter the code we just emailed you.`
+        : `Your account needs a password on our new sign-in. We emailed you a 6-digit code.`,
+      cooldownMs: outcome.cooldownMs,
+    };
+  }
+
+  if (!verifyPassword(parsed.data.password, user.passwordHash ?? "")) {
+    const attempts = (user.loginLock?.failedAttempts ?? 0) + 1;
+    const shouldLock = attempts >= LOGIN_MAX_ATTEMPTS;
+
+    await users.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          loginLock: {
+            failedAttempts: shouldLock ? 0 : attempts,
+            lockedUntil: shouldLock ? new Date(Date.now() + LOGIN_LOCKOUT_MS) : null,
+          },
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    if (shouldLock) {
+      return {
+        status: "error",
+        message: "Too many failed attempts. Sign-in is paused for 15 minutes, or reset your password.",
+      };
+    }
+    return invalid;
+  }
+
+  await users.updateOne(
+    { _id: user._id },
+    { $set: { loginLock: null, updatedAt: new Date() } },
+  );
+
+  await createSession(user._id, AUTH_METHOD.PASSWORD);
+  await ensureQuickUnlockDeviceCookie(user);
+
+  redirect(resolveLandingPath(parsed.data.redirectTo, user.role));
+}
+
+/* ------------------------------------------------------------------ */
+/* Forgot password, and the pre-migration password setup               */
+/* ------------------------------------------------------------------ */
+
+const forgotSchema = z.object({ email: emailSchema });
+
+/**
+ * Sends a reset code.
+ *
+ * Always reports success, whether or not the address has an account. A "no
+ * such user" here would let anybody test an address against our user list from
+ * an unauthenticated form.
+ */
+export async function requestPasswordReset(input: unknown): Promise<AuthActionState> {
+  const parsed = forgotSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Enter a valid email address." };
+  }
+
+  const email = normaliseEmail(parsed.data.email);
+  const user = await (await db.users()).findOne({ email });
+
+  const pretend: AuthActionState = {
+    status: "otp_sent",
+    email,
+    purpose: "PASSWORD_RESET",
+    message: `If that address has an account, a 6-digit code is on its way. It expires in ${OTP_TTL_MINUTES} minutes.`,
+    cooldownMs: OTP_RESEND_COOLDOWN_MS,
+  };
+
+  if (!user) {
+    // Burn roughly the time a real send takes, so the response clock does not
+    // answer the question the response body refuses to.
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    return pretend;
+  }
+
+  const outcome = await sendOtp(email, OTP_PURPOSE.PASSWORD_RESET);
+  if (!outcome.ok && outcome.reason !== "SEND_FAILED") {
+    return otpSendOutcomeToState(outcome, email, "PASSWORD_RESET");
+  }
+  return pretend;
+}
+
+const resetSchema = z.object({
+  email: emailSchema,
+  code: z.string().trim().regex(/^[0-9]{6}$/, "Enter the 6-digit code from your email"),
+  password: passwordSchema,
+  redirectTo: z.string().optional(),
+});
+
+/**
+ * Redeems a reset code and sets the new password.
+ *
+ * Every other session for the account dies here. A reset that leaves whoever
+ * prompted it still signed in elsewhere has not actually taken the account back.
+ */
+export async function resetPasswordWithCode(input: unknown): Promise<AuthActionState> {
+  const parsed = resetSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the form and try again." };
+  }
+
+  const email = normaliseEmail(parsed.data.email);
+  const result = await verifyOtp(email, OTP_PURPOSE.PASSWORD_RESET, parsed.data.code);
+  if (!result.ok) {
+    return { status: "error", message: otpFailureMessage(result.reason, result.attemptsLeft) };
+  }
+
+  const users = await db.users();
+  const user = await users.findOne({ email });
+  if (!user) return { status: "error", message: "That account no longer exists." };
+
+  const now = new Date();
+  await users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        passwordHash: hashPassword(parsed.data.password),
+        passwordChangedAt: now,
+        emailVerified: true,
+        loginLock: null,
+        updatedAt: now,
+      },
+    },
+  );
+
+  // Order matters: revoke first, then open the new session, or the one we are
+  // about to create is caught by our own sweep.
+  await destroyAllSessions(user._id);
+  await createSession(user._id, AUTH_METHOD.OTP);
+  await ensureQuickUnlockDeviceCookie(user);
+
+  const notice = passwordChangedMessage(user.name, now);
+  void sendMail({ to: user.email, subject: notice.subject, html: notice.html, text: notice.text });
+
+  redirect(resolveLandingPath(parsed.data.redirectTo, user.role));
+}
+
+/* ------------------------------------------------------------------ */
+/* Sign out                                                            */
+/* ------------------------------------------------------------------ */
+
 export async function signOut(): Promise<void> {
+  await destroyCurrentSession();
+
   const store = await cookies();
   store.delete(DEMO_USER_COOKIE);
   store.delete(VENDOR_SESSION_COOKIE);
@@ -221,18 +498,79 @@ export async function signOut(): Promise<void> {
   // "Use a different account" (forgetQuickUnlockDevice) is what forgets.
   store.delete(QUICK_UNLOCK_SESSION_COOKIE);
 
-  if (serverEnv().AUTH_PROVIDER === "supabase") {
-    try {
-      const supabase = await createSupabaseServerClient();
-      await supabase.auth.signOut();
-    } catch {
-      // Best-effort sign-out from Supabase
-    }
-  }
-
   redirect("/signin");
 }
 
+/** Account screen: drop every other browser, keep this one. */
+export async function signOutOtherDevices(): Promise<AuthActionState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "You need to be signed in to do that." };
+
+  const removed = await destroyAllSessions(session.user._id, { exceptCurrent: true });
+  return {
+    status: "success",
+    message:
+      removed === 0
+        ? "This is the only device signed in."
+        : `Signed out of ${removed} other device${removed === 1 ? "" : "s"}.`,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared translation of OTP outcomes into screen state                */
+/* ------------------------------------------------------------------ */
+
+function otpSendOutcomeToState(
+  outcome: Awaited<ReturnType<typeof sendOtp>>,
+  email: string,
+  purpose: "SIGNUP" | "PASSWORD_RESET",
+): AuthActionState {
+  if (outcome.ok) {
+    return {
+      status: "otp_sent",
+      email,
+      purpose,
+      message: `We emailed a 6-digit code to ${email}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      cooldownMs: outcome.cooldownMs,
+    };
+  }
+
+  if (outcome.reason === "COOLDOWN") {
+    return {
+      status: "error",
+      message: `Wait ${cooldownSeconds(outcome.retryAfterMs)} seconds before asking for another code.`,
+    };
+  }
+
+  if (outcome.reason === "HOURLY_LIMIT") {
+    const minutes = Math.max(1, Math.ceil(outcome.retryAfterMs / 60_000));
+    return {
+      status: "error",
+      message: `Too many codes requested for this address. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+    };
+  }
+
+  return {
+    status: "error",
+    message: "We could not send the email just now. Check the address and try again in a moment.",
+  };
+}
+
+function otpFailureMessage(
+  reason: "NO_CODE" | "EXPIRED" | "BURNT" | "WRONG",
+  attemptsLeft: number,
+): string {
+  switch (reason) {
+    case "NO_CODE":
+      return "That code is no longer valid. Ask for a new one.";
+    case "EXPIRED":
+      return `That code has expired. Codes last ${OTP_TTL_MINUTES} minutes — ask for a new one.`;
+    case "BURNT":
+      return "Too many wrong attempts on that code. Ask for a new one.";
+    case "WRONG":
+      return `Incorrect code. ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} left.`;
+  }
+}
 /* ------------------------------------------------------------------ */
 /* Quick Unlock (4-Digit PIN & Biometrics)                             */
 /* ------------------------------------------------------------------ */

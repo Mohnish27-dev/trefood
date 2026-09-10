@@ -32,7 +32,8 @@
     "db:local": "tsx scripts/local-mongo.ts",
     "generate:qr": "tsx scripts/generate-qr.ts",
     "generate:vendor-qrs": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/generate-all-vendor-qrs.ts",
-    "seed:delivery": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-delivery-partner.ts"
+    "seed:delivery": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-delivery-partner.ts",
+    "mail:verify": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/verify-smtp.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
@@ -44,8 +45,7 @@
     "@radix-ui/react-slot": "^1.3.3",
     "@radix-ui/react-switch": "^1.3.7",
     "@radix-ui/react-tabs": "^1.1.21",
-    "@supabase/ssr": "^0.12.5",
-    "@supabase/supabase-js": "^2.112.4",
+    "@types/nodemailer": "^8.0.1",
     "@types/qrcode": "^1.5.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -54,6 +54,7 @@
     "lucide-react": "^1.39.0",
     "mongodb": "^7.6.0",
     "next": "16.3.4",
+    "nodemailer": "^10.0.3",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
