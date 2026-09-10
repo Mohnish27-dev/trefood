@@ -14,6 +14,7 @@ import { signOut } from "@/server/actions/session";
 import { setRestaurantOpen } from "@/server/actions/vendor";
 import { cn } from "@/lib/utils";
 
+import { VendorAlarmProvider } from "@/context/vendor-alarm-context";
 import { VendorLanguageProvider, useVendorLanguage } from "@/context/vendor-language-context";
 import { VendorLanguageToggle } from "./vendor-language-toggle";
 
@@ -33,9 +34,16 @@ export function VendorShell(props: {
   autoClosed: boolean;
   adminClosed?: boolean;
 }) {
+  // The alarm provider sits outside the routes on purpose: App Router keeps
+  // this layout mounted while the vendor moves between Orders, Menu, Earnings
+  // and Settings, so the audio element and the browser's audio unlock survive
+  // navigation. Inside a page they did not, and a waiting order fell silent the
+  // moment someone opened the menu.
   return (
     <VendorLanguageProvider>
-      <VendorShellContent {...props} />
+      <VendorAlarmProvider restaurantName={props.restaurantName}>
+        <VendorShellContent {...props} />
+      </VendorAlarmProvider>
     </VendorLanguageProvider>
   );
 }

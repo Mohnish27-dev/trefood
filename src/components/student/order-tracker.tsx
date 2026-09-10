@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Loader2, Phone, Truck, Wallet } from "lucide-react";
+import { AlertTriangle, Phone, Truck, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import { ConnectionBanner } from "@/components/shared/states";
 import { markInstallPromptEarned } from "@/components/shared/pwa";
 import { StockoutScreen } from "./stockout-screen";
 import { usePoll } from "@/hooks/use-poll";
-import { confirmReceived } from "@/server/actions/student";
 import { clientEnv } from "@/lib/env";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import type { OrderPollResponse } from "@/app/api/orders/[orderId]/poll/route";
@@ -89,8 +88,6 @@ function StatusScreen({
   order: OrderPollResponse;
   onConfirmed: () => void;
 }) {
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackDismissed, setFeedbackDismissed] = useState(false);
 
@@ -118,25 +115,6 @@ function StatusScreen({
     }
     return undefined;
   }, [isDelivered, order.feedback, feedbackDismissed]);
-
-  const handleConfirmPickup = async (): Promise<void> => {
-    if (!order.gateCode) return;
-    setSubmitting(true);
-    setError(null);
-
-    const result = await confirmReceived({
-      orderId: order.orderId,
-      enteredCode: order.gateCode,
-    });
-
-    if (result.status === "error") {
-      setError(result.message);
-      setSubmitting(false);
-    } else {
-      setShowFeedbackModal(true);
-      onConfirmed();
-    }
-  };
 
   return (
     <div className="p-4 space-y-4">
@@ -191,11 +169,16 @@ function StatusScreen({
           <p className="flex items-center gap-2 text-sm font-semibold text-chili">
             <AlertTriangle className="size-4" />
             {order.status === ORDER_STATUS.EXPIRED_NO_ACK
-              ? "The restaurant did not respond"
+              ? "The restaurant could not take this order"
               : "This order could not be completed"}
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-bone/90">{statusBlurb(order.status)}</p>
-          {order.cancellationReason ? (
+          {/* The stored reason is an operational record written for admins and
+              disputes — for an auto-expiry it reads "X did not respond within 4
+              minutes", which restates the blurb in a tone aimed at the vendor.
+              A vendor's or admin's own reason for cancelling is genuinely new
+              information, so that one still shows. */}
+          {order.cancellationReason && order.status !== ORDER_STATUS.EXPIRED_NO_ACK ? (
             <p className="mt-2 text-xs text-muted">Reason: {order.cancellationReason}</p>
           ) : null}
           <p className="mt-3 text-sm text-bone">
@@ -239,42 +222,6 @@ function StatusScreen({
               </div>
             </div>
           ) : null}
-
-          {/* Confirm Received Action */}
-          {error ? (
-            <div
-              role="alert"
-              className="mt-4 flex gap-2.5 rounded-xl border border-chili/30 bg-chili-wash px-3.5 py-2.5 text-xs text-chili text-left"
-            >
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          ) : null}
-
-          <div className="mt-5 space-y-2">
-            <Button
-              block
-              size="hero"
-              variant="success"
-              disabled={submitting}
-              onClick={() => void handleConfirmPickup()}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Confirming pickup…
-                </>
-              ) : (
-                <>
-                  <Check />
-                  Confirm Order Picked Up
-                </>
-              )}
-            </Button>
-            <p className="text-[11px] text-faint">
-              Tap once you have received your food packet from the rider.
-            </p>
-          </div>
         </Card>
       ) : null}
 

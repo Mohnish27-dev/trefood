@@ -48,14 +48,33 @@ export interface SweepReport {
  * taking orders — every further order it swallows is another student who
  * stops trusting the app.
  */
-export async function expireUnackedOrders(now: Date = new Date()): Promise<SweepReport> {
+export async function expireUnackedOrders(
+  now: Date = new Date(),
+  /**
+   * Narrows the sweep to one restaurant or one order.
+   *
+   * The cron runs it unscoped across every campus. The poll endpoints run it
+   * scoped, because a scheduled job alone cannot be the mechanism here: the
+   * deadline is four minutes and the cheapest cron tier fires once a day, so an
+   * order would sit in New long after its countdown hit zero. The two poll
+   * routes are already talking to the server every few seconds on behalf of the
+   * exact two people waiting on this decision, so they settle it themselves and
+   * the cron becomes the backstop for orders nobody has open.
+   *
+   * Safe to run from anywhere and from several places at once: the status guard
+   * inside `transitionOrder` is a compare-and-swap, so whoever gets there first
+   * performs the transition and the rest see a no-op.
+   */
+  scope: { restaurantId?: string; orderId?: string } = {},
+): Promise<SweepReport> {
   const report: SweepReport = { job: "expire-unacked", scanned: 0, acted: 0, errors: [] };
 
+  const filter: Record<string, unknown> = { status: ORDER_STATUS.PLACED };
+  if (scope.orderId) filter._id = scope.orderId;
+  if (scope.restaurantId) filter.restaurantId = scope.restaurantId;
+
   const campuses = await campusMap();
-  const orders = await (await db.orders())
-    .find({ status: ORDER_STATUS.PLACED })
-    .limit(200)
-    .toArray();
+  const orders = await (await db.orders()).find(filter).limit(200).toArray();
 
   for (const order of orders) {
     const campus = campuses.get(order.campusId);
@@ -83,8 +102,8 @@ export async function expireUnackedOrders(now: Date = new Date()): Promise<Sweep
     await countExpiryAgainstRestaurant(order, now);
     await notifyOrderEvent({
       order: transition.order,
-      title: "Your order could not be started",
-      body: `${order.restaurantSnapshot.name} did not respond. You have not been charged anything.`,
+      title: "Your order could not be confirmed",
+      body: `${order.restaurantSnapshot.name} is busier than usual and could not confirm it in time. Nothing has been charged — please try again shortly.`,
     });
 
     report.acted += 1;

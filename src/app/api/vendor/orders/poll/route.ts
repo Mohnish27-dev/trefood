@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireVendor, AuthError } from "@/server/auth/session";
 import { getVendorBoard, type VendorBoard } from "@/server/services/vendor";
+import { expireUnackedOrders } from "@/server/services/sweeps";
 
 /**
  * The vendor board poll. Every 5 seconds, all night.
@@ -26,6 +27,13 @@ export async function GET(): Promise<NextResponse> {
     // The restaurant id comes from the SESSION. There is no query parameter to
     // tamper with, so one vendor cannot poll another's board.
     const { restaurantId } = await requireVendor();
+
+    // F4 — enforce the acknowledgement deadline before reading the board, so a
+    // card whose countdown has hit zero is gone by the time it renders rather
+    // than sitting at 0:00 waiting for a cron that runs on its own schedule.
+    // Scoped to this restaurant, and a no-op on every poll where nothing is
+    // overdue, which is almost all of them.
+    await expireUnackedOrders(new Date(), { restaurantId });
 
     const board = await getVendorBoard({ restaurantId });
     if (!board) return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
