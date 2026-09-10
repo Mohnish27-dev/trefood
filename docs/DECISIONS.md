@@ -51,6 +51,7 @@ Say "Live Order Status", never "Live Rider Tracking", in all UI copy.
 | **Google Maps / Mapbox** | Billing account required; unnecessary once live tracking is gone (§2). | **Leaflet + OpenStreetMap raster tiles.** No API key, no billing. Used only for admin geofence drawing and a static gate pin. |
 | **Supabase Realtime** | Realtime is bound to Supabase **Postgres** row changes. The order data lives in **MongoDB**, so it emits nothing. | **Interval polling** (5 s vendor board, 8 s student tracker) + **Web Push** for state transitions. Serverless-safe, free, and survives sleeping phones. |
 | **"Rider dashboard"** | Contradicts D4. | Deferred to v2 behind a `riderMagicLink` feature flag, for the minority of riders who do have a phone. |
+| **Hosted auth provider (Supabase Auth)** | Three costs, all from the identity living somewhere else. Its transactional email runs on a shared quota counted across every project on the platform, so a busy evening rate-limited real students mid sign-up with no dial to turn. Its sessions are signed tokens, so a password change could not sign anybody out until they expired. And every account existed twice, kept in step by code on every sign-in. | **Own the whole flow.** Email + password (scrypt), Google OAuth spoken directly to Google with PKCE, and six-digit codes over a Zoho mailbox on `trefood.in` — a quota we control and can raise. Sessions are rows in `sessions`, keyed by an opaque cookie, so revocation is a delete. One account record. See `docs/AUTHENTICATION.md`. |
 
 ---
 

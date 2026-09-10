@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Visibility-aware interval polling.
  *
  * ARCH section 8 — polling is not a compromise here, it is the correct answer.
- * Supabase Realtime watches Postgres rows and the orders live in MongoDB, so
+ * Realtime subscriptions watch Postgres rows and the orders live in MongoDB, so
  * it would emit nothing. Websockets on serverless die at the function timeout.
  * Polling survives phone sleep, tunnel wifi and cold starts, all of which kill
  * a socket.

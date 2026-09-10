@@ -28,20 +28,25 @@ export default async function SignInPage({
   const quickUnlockDevice = await getQuickUnlockDeviceState();
 
   const isStub = serverEnv().AUTH_PROVIDER === "stub";
-  const users = await listDemoUsers();
 
+  // Only stub mode renders the picker, so only stub mode pays for it. This
+  // used to load every user in the database — and one restaurant lookup per
+  // vendor — on every render of the sign-in page, including in production
+  // where the list is never shown.
   const accounts: SignInAccount[] = [];
-  for (const user of users) {
-    const restaurant = user.restaurantId ? await getRestaurantById(user.restaurantId) : null;
-    accounts.push({
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      restaurantName: restaurant?.name ?? null,
-      strikes: user.strikes,
-      lands: landingForRole(user.role),
-    });
+  if (isStub) {
+    for (const user of await listDemoUsers()) {
+      const restaurant = user.restaurantId ? await getRestaurantById(user.restaurantId) : null;
+      accounts.push({
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        restaurantName: restaurant?.name ?? null,
+        strikes: user.strikes,
+        lands: landingForRole(user.role),
+      });
+    }
   }
 
   const initialType = reason === "vendor" || tab === "vendor" ? "vendor" : "student";

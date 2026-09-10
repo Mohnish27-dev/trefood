@@ -26,13 +26,22 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     // PARTIAL, not sparse. A sparse index only skips documents where the field
     // is MISSING; a document with an explicit `authId: null` is still indexed,
     // so the second unauthenticated user collides on null. Every user carries
-    // `authId: null` until Supabase fills it in (D7), so this must filter on
-    // type instead.
+    // `authId: null` from the days of the hosted auth provider, so this must
+    // filter on type instead.
     {
       key: { authId: 1 },
       unique: true,
       partialFilterExpression: { authId: { $type: "string" } },
       name: "authId_unique",
+    },
+    // Same partial-filter reasoning as authId above, for the same reason:
+    // every password account carries `googleId: null` until the day its owner
+    // links Google, and a plain unique index would let exactly one of them exist.
+    {
+      key: { googleId: 1 },
+      unique: true,
+      partialFilterExpression: { googleId: { $type: "string" } },
+      name: "googleId_unique",
     },
     { key: { email: 1 }, unique: true, name: "email_unique" },
     { key: { phone: 1 }, sparse: true, name: "phone" },
@@ -109,6 +118,22 @@ const INDEXES: Record<CollectionName, IndexDescription[]> = {
     { key: { badgeId: 1 }, unique: true, name: "badgeId_unique" },
     { key: { restaurantId: 1, status: 1 }, name: "restaurant_status" },
     { key: { campusId: 1, status: 1 }, name: "campus_status" },
+  ],
+
+  [COLLECTION.sessions]: [
+    // Read on every guarded request, so this one has to be fast.
+    { key: { userId: 1, expiresAt: -1 }, name: "user_expiry" },
+    // Mongo reaps expired sessions on its own. The read path still checks
+    // `expiresAt` itself: the TTL monitor runs about once a minute, and a
+    // session that outlives its expiry by a minute is still expired.
+    { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "expiresAt_ttl" },
+  ],
+
+  [COLLECTION.emailOtps]: [
+    // The verify lookup: newest live code for this address and purpose.
+    { key: { email: 1, purpose: 1, createdAt: -1 }, name: "email_purpose_recent" },
+    // A consumed or burnt code is worth nothing; let Mongo clear it out.
+    { key: { expiresAt: 1 }, expireAfterSeconds: 0, name: "expiresAt_ttl" },
   ],
 };
 

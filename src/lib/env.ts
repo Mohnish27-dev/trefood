@@ -32,15 +32,6 @@ const optionalString = z
   .optional()
   .transform((v) => (v === "" ? undefined : v?.trim()));
 
-const optionalUrl = z
-  .string()
-  .optional()
-  .transform((v) => {
-    if (v === undefined || v === null) return undefined;
-    const cleaned = v.trim().replace(/^=+/, "").trim();
-    return cleaned === "" ? undefined : cleaned;
-  });
-
 /* ------------------------------------------------------------------ */
 /* Server                                                              */
 /* ------------------------------------------------------------------ */
@@ -53,9 +44,31 @@ const serverSchema = z
     MONGODB_DB: z.string().min(1).default("trefood"),
     MONGODB_MAX_POOL_SIZE: intFromString(10),
 
-    AUTH_PROVIDER: z.enum(["stub", "supabase"]).default("stub"),
+    AUTH_PROVIDER: z.enum(["stub", "trefood"]).default("trefood"),
 
-    SUPABASE_SERVICE_ROLE_KEY: optionalString,
+    /* ── Google sign-in (Google Cloud console, Web application client) ── */
+    GOOGLE_CLIENT_ID: optionalString,
+    GOOGLE_CLIENT_SECRET: optionalString,
+
+    /* ── Outbound mail: the Zoho mailbox on the trefood.in domain ──────── */
+    SMTP_HOST: z.string().default("smtp.zoho.in"),
+    SMTP_PORT: intFromString(465),
+    /** 465 is implicit TLS; 587 is STARTTLS. Derived, never guessed. */
+    SMTP_SECURE: z
+      .string()
+      .optional()
+      .transform((v) => (v === undefined || v === "" ? undefined : v === "true" || v === "1")),
+    SMTP_USER: optionalString,
+    SMTP_PASSWORD: optionalString,
+    /** The From address. Zoho refuses to send as an address the mailbox does not own. */
+    MAIL_FROM: z.string().default("TREFOOD <no-reply@trefood.in>"),
+
+    /**
+     * Development escape hatch. With no SMTP credentials configured, codes are
+     * printed to the server log instead of emailed, so the whole flow is
+     * walkable on a laptop. Refused in production by the check below.
+     */
+    MAIL_TRANSPORT: z.enum(["smtp", "console"]).default("smtp"),
 
     // No payment-gateway configuration: TREFOOD is cash on delivery end to
     // end, and nothing in the order flow talks to a gateway. If online payment
@@ -75,11 +88,44 @@ const serverSchema = z
   // This is what lets the prototype run with zero third-party credentials while
   // still refusing to boot a production config that is half-wired.
   .superRefine((env, ctx) => {
-    if (env.AUTH_PROVIDER === "supabase" && !env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Mail is not optional once TREFOOD owns its own authentication: without a
+    // working mailbox nobody can verify an address or reset a password, and a
+    // sign-up screen that silently drops its codes is worse than one that is
+    // switched off. So the credentials are demanded the moment the console
+    // fallback is not in play.
+    if (env.MAIL_TRANSPORT === "smtp") {
+      if (!env.SMTP_USER) {
+        ctx.addIssue({ code: "custom", path: ["SMTP_USER"], message: "required when MAIL_TRANSPORT=smtp" });
+      }
+      if (!env.SMTP_PASSWORD) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["SMTP_PASSWORD"],
+          message: "required when MAIL_TRANSPORT=smtp (use a Zoho app-specific password)",
+        });
+      }
+    }
+    if (env.NODE_ENV === "production" && env.MAIL_TRANSPORT === "console") {
       ctx.addIssue({
         code: "custom",
-        path: ["SUPABASE_SERVICE_ROLE_KEY"],
-        message: "required when AUTH_PROVIDER=supabase",
+        path: ["MAIL_TRANSPORT"],
+        message: "console mail prints verification codes to the log; it cannot reach production",
+      });
+    }
+    // Google sign-in is a button on the sign-in screen, so a half-configured
+    // client would render an option that dead-ends on Google's error page.
+    if ((env.GOOGLE_CLIENT_ID && !env.GOOGLE_CLIENT_SECRET) || (!env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GOOGLE_CLIENT_SECRET"],
+        message: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together",
+      });
+    }
+    if (env.NODE_ENV === "production" && env.AUTH_PROVIDER === "stub") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_PROVIDER"],
+        message: "stub auth performs no credential check; set AUTH_PROVIDER=trefood",
       });
     }
     if (env.NODE_ENV === "production" && env.CRON_SECRET === "dev-only-change-me") {
@@ -120,8 +166,11 @@ export function serverEnv(): ServerEnv {
 
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000").transform((v) => v.trim().replace(/^=+/, "").trim()),
-  NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: optionalString,
+  /** Present when Google sign-in is configured, so the button can be hidden if not. */
+  NEXT_PUBLIC_GOOGLE_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "1"),
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: optionalString,
   NEXT_PUBLIC_SENTRY_DSN: optionalString,
   NEXT_PUBLIC_POSTHOG_KEY: optionalString,
@@ -141,8 +190,7 @@ const clientSchema = z.object({
 // Literal references: Next inlines these at build time.
 const rawClientEnv = {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_GOOGLE_ENABLED: process.env.NEXT_PUBLIC_GOOGLE_ENABLED,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,

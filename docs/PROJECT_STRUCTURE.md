@@ -72,7 +72,7 @@ trefood/
 │   │   │   ├── students/page.tsx        #   strikes, COD blocks
 │   │   │   └── audit/page.tsx
 │   │   │
-│   │   ├── auth/callback/route.ts       # Supabase OAuth callback
+│   │   ├── api/auth/google/             # start + callback for Google sign-in
 │   │   │
 │   │   └── api/
 │   │       ├── webhooks/phonepe/route.ts    # signature + idempotency
@@ -180,10 +180,18 @@ trefood/
 MONGODB_URI=
 MONGODB_DB=trefood
 
-# ── Supabase: auth + image storage ────────────────────
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=          # server only, never NEXT_PUBLIC
+# ── Google sign-in ────────────────────────────────────
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=               # server only, never NEXT_PUBLIC
+NEXT_PUBLIC_GOOGLE_ENABLED=false
+
+# ── Outbound mail: the Zoho mailbox on trefood.in ─────
+SMTP_HOST=smtp.zoho.in
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASSWORD=                      # app-specific password, not the login one
+MAIL_FROM=TREFOOD <no-reply@trefood.in>
+MAIL_TRANSPORT=smtp                 # `console` prints codes to the log, dev only
 
 # ── PhonePe ──────────────────────────────────────────
 PHONEPE_MERCHANT_ID=

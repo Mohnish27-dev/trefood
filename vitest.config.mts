@@ -47,6 +47,12 @@ export default defineConfig({
     env: {
       ...loadEnvLocal(),
       PAYMENT_PROVIDER: "stub",
+      // Forced, never inherited from .env.local. The auth suite mints real
+      // verification codes for addresses like `otp-suite@trefood.test`, and a
+      // real SMTP transport would fire those at a domain that does not exist —
+      // bouncing off our own Zoho mailbox and burning its sending reputation.
+      // `console` also prints the code, which is how the OTP tests read it.
+      MAIL_TRANSPORT: "console",
     },
     // Integration tests share one database, so they must not race each other.
     fileParallelism: false,

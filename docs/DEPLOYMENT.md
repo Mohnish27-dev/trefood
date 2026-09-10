@@ -99,8 +99,7 @@ error to tell you:
 
 | Variable | Needed for |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase auth, when `AUTH_PROVIDER=supabase` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | as above |
+| `NEXT_PUBLIC_GOOGLE_ENABLED` | Renders the Continue with Google button. See `docs/AUTHENTICATION.md` |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | web push (must pair with `VAPID_PRIVATE_KEY` in `app.env`) |
 | `NEXT_PUBLIC_SUPPORT_WHATSAPP` | the WhatsApp row on `/account/support` |
 | `NEXT_PUBLIC_SUPPORT_PHONE` | the tap-to-call row |
@@ -414,6 +413,65 @@ cd /opt/trefood && docker compose up -d
 Update the repository Variable, then re-run the deploy workflow. The value is
 inlined at build time, so it needs a new image — editing `app.env` will not
 do it.
+
+---
+
+## One-time: the self-hosted authentication release
+
+The release that removed the hosted auth provider needs four things done once.
+Skip any of them and the symptom is not an error, it is a sign-in screen that
+half works.
+
+**1. New runtime secrets in `/opt/trefood/app.env`**
+
+```bash
+AUTH_PROVIDER=trefood
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+SMTP_HOST=smtp.zoho.com          # or smtp.zoho.in — match the Zoho region
+SMTP_PORT=465
+SMTP_USER=no-reply@trefood.in
+SMTP_PASSWORD=...                # app-specific password, not the login one
+MAIL_FROM=TREFOOD <no-reply@trefood.in>
+MAIL_TRANSPORT=smtp
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` can go. Nothing reads it.
+
+**2. `NEXT_PUBLIC_GOOGLE_ENABLED=true` as a repository Variable**
+
+Build-time, so it needs a new image. Setting it in `app.env` does nothing and
+the Google button silently never renders.
+
+**3. The Google console redirect URI must carry the `www`**
+
+```
+https://www.trefood.in/api/auth/google/callback
+```
+
+It is derived from `NEXT_PUBLIC_APP_URL`, which is `https://www.trefood.in`
+here. The bare apex form produces `redirect_uri_mismatch`.
+
+**4. Create the new indexes**
+
+Nothing creates indexes at boot — `ensureIndexes` only runs from the script.
+The `sessions` and `emailOtps` collections are new, and two of their indexes
+are TTL indexes that reap expired rows. Without them, sessions and spent codes
+accumulate forever and every code lookup is a collection scan.
+
+Run once, from a machine whose `MONGODB_URI` points at production:
+
+```bash
+npm run db:indexes
+```
+
+Expect `sessions: 2 index(es)` and `emailOtps: 2 index(es)` in the output.
+
+**Then prove the mailbox works from the server's own network:**
+
+```bash
+npm run mail:verify you@gmail.com
+```
 
 ---
 

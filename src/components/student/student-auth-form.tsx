@@ -15,13 +15,23 @@ import {
   Loader2,
   Lock,
   Mail,
+  MailCheck,
+  RotateCcw,
   User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { createClient } from "@/lib/supabase/client";
-import { signInWithEmail, signUpWithEmail, sendMagicLink } from "@/server/actions/session";
+import {
+  requestPasswordReset,
+  resendCode,
+  resetPasswordWithCode,
+  signInWithEmail,
+  signUpWithEmail,
+  verifySignupCode,
+} from "@/server/actions/session";
+import { OtpCodeInput } from "@/components/student/otp-code-input";
+import { clientEnv } from "@/lib/env";
 import { QuickUnlockScreen } from "@/components/student/quick-unlock-screen";
 import {
   clearStoredQuickUnlockProfile,
@@ -42,12 +52,30 @@ interface StudentAuthFormProps {
 }
 
 type UserType = "student" | "vendor";
-type StudentAuthMode = "signin" | "signup" | "magic";
+type StudentAuthMode = "signin" | "signup" | "forgot";
+
+/**
+ * The code screen, when one is showing.
+ *
+ * `signup` finishes creating the account; `reset` also collects a new
+ * password, and covers both "forgot password" and an account that predates
+ * TREFOOD owning its own sign-in.
+ */
+interface CodeStep {
+  kind: "signup" | "reset";
+  email: string;
+  /** Epoch ms before which the resend button stays disabled. */
+  resendAt: number;
+}
 
 const REASONS: Record<string, string> = {
   vendor: "That account is not linked to a restaurant. Pick a vendor account below.",
   admin: "That page needs an admin account.",
   auth_failed: "Authentication could not be completed. Please try signing in again.",
+  auth_expired: "That sign-in attempt took too long. Try again.",
+  google_cancelled: "Google sign-in was cancelled.",
+  google_unavailable: "Google sign-in is not configured on this deployment. Use your email and password.",
+  google_unverified: "Google has not verified that email address, so it cannot be used to sign in.",
 };
 
 export function StudentAuthForm({
@@ -103,7 +131,6 @@ export function StudentAuthForm({
   }, [deviceTrusted, quickUnlockDevice]);
 
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -116,33 +143,81 @@ export function StudentAuthForm({
   const [vendorEmail, setVendorEmail] = useState("");
   const [vendorPassword, setVendorPassword] = useState("");
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setGoogleLoading(true);
-    try {
-      const supabase = createClient();
-      const origin = window.location.origin;
-      const explicitNext =
-        redirectTo && redirectTo !== "/" && /^\/(?!\/)/.test(redirectTo) ? redirectTo : null;
-      const redirectCallback = explicitNext
-        ? `${origin}/auth/callback?next=${encodeURIComponent(explicitNext)}`
-        : `${origin}/auth/callback`;
+  // The six-digit code screen, and the new password it collects on a reset.
+  const [codeStep, setCodeStep] = useState<CodeStep | null>(null);
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resendIn, setResendIn] = useState(0);
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: redirectCallback,
-        },
-      });
+  /**
+   * Counts the resend cooldown down once a second.
+   *
+   * The server enforces the real limit; this only stops somebody hammering a
+   * button that is going to be refused, and tells them how long to wait.
+   */
+  useEffect(() => {
+    if (!codeStep) return;
 
-      if (oauthError) {
-        setError(oauthError.message);
-        setGoogleLoading(false);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to initialize Google login.");
-      setGoogleLoading(false);
+    const tick = () => {
+      setResendIn(Math.max(0, Math.ceil((codeStep.resendAt - Date.now()) / 1000)));
+    };
+    tick();
+
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [codeStep]);
+
+  const explicitNext =
+    redirectTo && redirectTo !== "/" && /^\/(?!\/)/.test(redirectTo) ? redirectTo : null;
+
+  /**
+   * Google sign-in is a plain link, not a click handler.
+   *
+   * The flow is a top-level navigation to Google and back, so a link is what
+   * it actually is — and it keeps working before React has hydrated, which the
+   * old JavaScript-only button did not.
+   */
+  const googleEnabled = clientEnv.NEXT_PUBLIC_GOOGLE_ENABLED;
+
+  const googleHref = explicitNext
+    ? `/api/auth/google/start?next=${encodeURIComponent(explicitNext)}`
+    : "/api/auth/google/start";
+
+  /** Every action returns the same union; this is the one place it is read. */
+  const applyState = (
+    state: Awaited<ReturnType<typeof signInWithEmail>>,
+    fallbackKind: "signup" | "reset",
+  ): void => {
+    if (state.status === "error") {
+      setError(state.message);
+      return;
     }
+
+    if (state.status === "otp_sent") {
+      setCodeStep({
+        kind: state.purpose === "SIGNUP" ? "signup" : "reset",
+        email: state.email,
+        resendAt: Date.now() + state.cooldownMs,
+      });
+      setCode("");
+      setSuccessMessage(state.message);
+      return;
+    }
+
+    if (state.status === "needs_password_setup") {
+      setCodeStep({ kind: "reset", email: state.email, resendAt: Date.now() + state.cooldownMs });
+      setCode("");
+      setSuccessMessage(state.message);
+      return;
+    }
+
+    if (state.status === "success") {
+      setSuccessMessage(state.message ?? "Done.");
+      return;
+    }
+
+    // "idle" only reaches here if an action returns before doing anything.
+    setCodeStep((current) => current ?? { kind: fallbackKind, email: studentEmail, resendAt: 0 });
   };
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
@@ -153,44 +228,102 @@ export function StudentAuthForm({
 
     try {
       if (studentMode === "signin") {
-        const res = await signInWithEmail({
-          email: studentEmail,
-          password: studentPassword,
-          ...(redirectTo ? { redirectTo } : {}),
-        });
-        if (res.status === "error") {
-          setError(res.message);
-          setLoading(false);
-        }
+        // A successful sign-in redirects from the server and never returns.
+        applyState(
+          await signInWithEmail({
+            email: studentEmail,
+            password: studentPassword,
+            ...(redirectTo ? { redirectTo } : {}),
+          }),
+          "reset",
+        );
       } else if (studentMode === "signup") {
-        const res = await signUpWithEmail({
-          name,
-          email: studentEmail,
-          password: studentPassword,
-          ...(redirectTo ? { redirectTo } : {}),
-        });
-        if (res.status === "error") {
-          setError(res.message);
-        } else if (res.status === "success") {
-          setSuccessMessage(res.message ?? "Account created successfully!");
-        }
-        setLoading(false);
-      } else if (studentMode === "magic") {
-        const res = await sendMagicLink({
-          email: studentEmail,
-          ...(redirectTo ? { redirectTo } : {}),
-        });
-        if (res.status === "error") {
-          setError(res.message);
-        } else if (res.status === "success") {
-          setSuccessMessage(res.message ?? "Check your email for the magic login link!");
-        }
-        setLoading(false);
+        applyState(
+          await signUpWithEmail({
+            name,
+            email: studentEmail,
+            password: studentPassword,
+            ...(redirectTo ? { redirectTo } : {}),
+          }),
+          "signup",
+        );
+      } else {
+        applyState(await requestPasswordReset({ email: studentEmail }), "reset");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication request failed.");
+    } finally {
       setLoading(false);
     }
+  };
+
+  /** Redeems the code. On success the server redirects, so nothing returns. */
+  const submitCode = async (value: string) => {
+    if (!codeStep || loading) return;
+
+    setError(null);
+    setSuccessMessage(null);
+    setLoading(true);
+
+    try {
+      const state =
+        codeStep.kind === "signup"
+          ? await verifySignupCode({
+              email: codeStep.email,
+              code: value,
+              ...(redirectTo ? { redirectTo } : {}),
+            })
+          : await resetPasswordWithCode({
+              email: codeStep.email,
+              code: value,
+              password: newPassword,
+              ...(redirectTo ? { redirectTo } : {}),
+            });
+
+      if (state.status === "error") {
+        setError(state.message);
+        setCode("");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not verify that code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!codeStep || resendIn > 0 || loading) return;
+
+    setError(null);
+    setSuccessMessage(null);
+    setLoading(true);
+
+    try {
+      const state = await resendCode({
+        email: codeStep.email,
+        purpose: codeStep.kind === "signup" ? "SIGNUP" : "PASSWORD_RESET",
+      });
+
+      if (state.status === "error") {
+        setError(state.message);
+      } else if (state.status === "otp_sent") {
+        setCodeStep({ ...codeStep, resendAt: Date.now() + state.cooldownMs });
+        setCode("");
+        setSuccessMessage(state.message);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not resend the code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const leaveCodeStep = () => {
+    setCodeStep(null);
+    setCode("");
+    setNewPassword("");
+    setError(null);
+    setSuccessMessage(null);
   };
 
   const handleVendorSubmit = async (e: React.FormEvent) => {
@@ -388,37 +521,142 @@ export function StudentAuthForm({
             </div>
           ) : null}
 
-          {/* Student Auth: Google OAuth */}
-          {userType === "student" ? (
-            <>
-              <button
-                type="button"
-                disabled={googleLoading || loading}
-                onClick={() => void handleGoogleSignIn()}
-                className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-white text-zinc-900 font-semibold text-sm shadow-md hover:bg-zinc-100 active:scale-[0.99] transition-all border border-zinc-200 cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  {googleLoading ? (
-                    <Loader2 className="size-5 animate-spin text-zinc-900" />
-                  ) : (
-                    <GoogleIcon className="size-5 shrink-0" />
-                  )}
-                  <span className="font-semibold text-zinc-900 text-[14px]">
-                    Continue with Google
-                  </span>
+          {/* ── Code step: shown instead of the whole student form ── */}
+          {userType === "student" && codeStep ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 rounded-2xl border border-saffron/30 bg-saffron-wash/80 backdrop-blur-md p-3.5">
+                <MailCheck className="size-5 shrink-0 text-saffron mt-0.5" />
+                <div className="min-w-0 text-xs leading-relaxed">
+                  <p className="font-semibold text-bone">Check your email</p>
+                  <p className="text-muted">
+                    We sent a 6-digit code to{" "}
+                    <strong className="text-bone break-all">{codeStep.email}</strong>.
+                  </p>
                 </div>
-                <ArrowRight className="size-4 text-zinc-700" />
-              </button>
-
-              {/* OR Divider */}
-              <div className="relative flex items-center justify-center my-3">
-                <div className="w-full border-t border-line/60" />
-                <span className="absolute bg-ink px-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
-                  OR
-                </span>
               </div>
 
-              {/* Sign in / Sign up / Magic link tabs */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submitCode(code);
+                }}
+                className="space-y-3.5"
+              >
+                <OtpCodeInput
+                  value={code}
+                  onChange={setCode}
+                  disabled={loading}
+                  // A reset needs a password too, so completing the code must
+                  // not fire the request before that field has been filled in.
+                  onComplete={codeStep.kind === "signup" ? (v) => void submitCode(v) : undefined}
+                />
+
+                {codeStep.kind === "reset" ? (
+                  <div className="space-y-1.5">
+                    <div className="relative flex items-center">
+                      <Lock className="absolute left-4 size-4 text-muted pointer-events-none" />
+                      <input
+                        id="new-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Choose a new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        disabled={loading}
+                        className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-11 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute right-3.5 text-muted hover:text-bone focus:outline-none p-1 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                    <p className="pl-2 text-[11px] text-muted/70">
+                      At least 8 characters, with a letter and a number.
+                    </p>
+                  </div>
+                ) : null}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  block
+                  size="lg"
+                  disabled={loading || code.length !== 6}
+                  className="rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-saffron/20 active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  {loading ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <>
+                      <span>
+                        {codeStep.kind === "signup" ? "Verify and continue" : "Set password and sign in"}
+                      </span>
+                      <ArrowRight className="size-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => void handleResend()}
+                  disabled={resendIn > 0 || loading}
+                  className="inline-flex items-center gap-1.5 font-semibold text-saffron hover:underline disabled:text-muted disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>{resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={leaveCodeStep}
+                  className="font-medium text-muted hover:text-bone cursor-pointer"
+                >
+                  Use a different email
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Student Auth: Google OAuth */}
+          {userType === "student" && !codeStep ? (
+            <>
+              {/* Rendered only when a Google client is actually configured.
+                  A button that always shows and sometimes dead-ends on
+                  Google's own error page is worse than no button. */}
+              {googleEnabled ? (
+                <>
+                  <a
+                    href={googleHref}
+                    className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-white text-zinc-900 font-semibold text-sm shadow-md hover:bg-zinc-100 active:scale-[0.99] transition-all border border-zinc-200 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <GoogleIcon className="size-5 shrink-0" />
+                      <span className="font-semibold text-zinc-900 text-[14px]">
+                        Continue with Google
+                      </span>
+                    </div>
+                    <ArrowRight className="size-4 text-zinc-700" />
+                  </a>
+
+                  {/* OR Divider */}
+                  <div className="relative flex items-center justify-center my-3">
+                    <div className="w-full border-t border-line/60" />
+                    <span className="absolute bg-ink px-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
+                      OR
+                    </span>
+                  </div>
+                </>
+              ) : null}
+
+              {/* Sign in / Sign up / Reset tabs */}
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface/80 backdrop-blur-md p-1 border border-line">
                 <button
                   type="button"
@@ -455,18 +693,18 @@ export function StudentAuthForm({
                 <button
                   type="button"
                   onClick={() => {
-                    setStudentMode("magic");
+                    setStudentMode("forgot");
                     setError(null);
                     setSuccessMessage(null);
                   }}
                   className={cn(
                     "rounded-lg py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer",
-                    studentMode === "magic"
+                    studentMode === "forgot"
                       ? "bg-surface-raised text-bone shadow-sm"
                       : "text-muted hover:text-bone",
                   )}
                 >
-                  Magic link
+                  Reset
                 </button>
               </div>
 
@@ -482,7 +720,7 @@ export function StudentAuthForm({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      disabled={loading || googleLoading}
+                      disabled={loading}
                       className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
                     />
                   </div>
@@ -500,7 +738,7 @@ export function StudentAuthForm({
                       value={studentEmail}
                       onChange={(e) => setStudentEmail(e.target.value)}
                       required
-                      disabled={loading || googleLoading}
+                      disabled={loading}
                       className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
                     />
                   </div>
@@ -511,19 +749,24 @@ export function StudentAuthForm({
                   )}
                 </div>
 
-                {studentMode !== "magic" ? (
+                {studentMode !== "forgot" ? (
                   <div className="space-y-1.5">
                     <div className="relative flex items-center">
                       <Lock className="absolute left-4 size-4 text-muted pointer-events-none" />
                       <input
                         id="student-password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
+                        placeholder={
+                          studentMode === "signup" ? "Create a password" : "Enter your password"
+                        }
                         value={studentPassword}
                         onChange={(e) => setStudentPassword(e.target.value)}
                         required
-                        minLength={6}
-                        disabled={loading || googleLoading}
+                        minLength={studentMode === "signup" ? 8 : 1}
+                        autoComplete={
+                          studentMode === "signup" ? "new-password" : "current-password"
+                        }
+                        disabled={loading}
                         className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-11 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
                       />
                       <button
@@ -536,12 +779,18 @@ export function StudentAuthForm({
                       </button>
                     </div>
 
+                    {studentMode === "signup" ? (
+                      <p className="pl-2 text-[11px] text-muted/70">
+                        At least 8 characters, with a letter and a number.
+                      </p>
+                    ) : null}
+
                     {studentMode === "signin" ? (
                       <div className="flex justify-end pr-1">
                         <button
                           type="button"
                           onClick={() => {
-                            setStudentMode("magic");
+                            setStudentMode("forgot");
                             setError(null);
                           }}
                           className="text-xs font-medium text-saffron hover:underline cursor-pointer"
@@ -558,7 +807,7 @@ export function StudentAuthForm({
                   variant="primary"
                   block
                   size="lg"
-                  disabled={loading || googleLoading}
+                  disabled={loading}
                   className="rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-saffron/20 active:scale-[0.99] transition-all mt-1 cursor-pointer"
                 >
                   {loading ? (
@@ -570,7 +819,7 @@ export function StudentAuthForm({
                           ? (isAdminRedirect ? "Sign in to Admin Console" : "Sign in")
                           : studentMode === "signup"
                             ? "Create account"
-                            : "Send Magic link"}
+                            : "Email me a reset code"}
                       </span>
                       <ArrowRight className="size-4" />
                     </>
@@ -625,7 +874,7 @@ export function StudentAuthForm({
                 )}
               </div>
             </>
-          ) : (
+          ) : userType === "vendor" ? (
             /* ── Vendor View ── */
             <div className="space-y-4">
               <div className="rounded-xl border border-line bg-surface/80 backdrop-blur p-3.5 text-xs text-muted leading-relaxed">
@@ -695,7 +944,7 @@ export function StudentAuthForm({
                 </Button>
               </form>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* ── Food / Fruits / Juices Category Badges (from photo 2) ── */}

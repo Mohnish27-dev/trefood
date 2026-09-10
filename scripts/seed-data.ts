@@ -10,7 +10,7 @@
  * Restaurants, menus and every other account are REAL data now: vendors are
  * created by the admin from /admin/vendors (which provisions their login),
  * and each vendor builds their own menu from /vendor/menu. Students are
- * auto-provisioned on their first Supabase sign-in. Nothing scripted seeds
+ * auto-provisioned on their first sign-in. Nothing scripted seeds
  * them any more.
  *
  * MASTER_PROMPT_PRD.md Part 8.4 asks for the ACTUAL gates, curfew times and

@@ -6,7 +6,7 @@ export interface DeliveryPartner {
   badgeId: string;
   name: string;
   phone: string;
-  /** Supabase Storage URL or avatar image */
+  /** Remote avatar image URL. */
   photoUrl: string | null;
 
   restaurantId: string;

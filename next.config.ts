@@ -30,12 +30,10 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Menu images live in Supabase Storage, never in Mongo (DECISIONS.md section 3).
+  // Menu images are remote URLs; Mongo stores the string only (DECISIONS.md
+  // section 3). Nothing is hosted on the old auth provider's storage any more.
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
-      { protocol: "https", hostname: "images.unsplash.com" },
-    ],
+    remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
 };
 
