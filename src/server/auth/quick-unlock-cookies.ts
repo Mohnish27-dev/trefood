@@ -6,6 +6,7 @@ import type { QuickUnlockDeviceState } from "@/lib/quick-unlock";
 import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
 import type { User } from "@/types/user";
+import { authCookieDomain } from "@/server/auth/session-store";
 import {
   createQuickUnlockToken,
   QUICK_UNLOCK_DEVICE_COOKIE,
@@ -41,6 +42,10 @@ async function setQuickUnlockCookie(
     path: "/",
     maxAge,
     secure: serverEnv().NODE_ENV === "production",
+    // Shared with the session cookie, for the same reason: this app answers on
+    // both `trefood.in` and `www.trefood.in`, and a PIN registered on one host
+    // must still open the app on the other.
+    domain: authCookieDomain(),
   });
 }
 
@@ -64,8 +69,9 @@ export async function setQuickUnlockSessionCookie(userId: string): Promise<void>
 
 export async function clearQuickUnlockCookies(): Promise<void> {
   const store = await cookies();
-  store.delete(QUICK_UNLOCK_DEVICE_COOKIE);
-  store.delete(QUICK_UNLOCK_SESSION_COOKIE);
+  const domain = authCookieDomain();
+  store.delete({ name: QUICK_UNLOCK_DEVICE_COOKIE, path: "/", domain });
+  store.delete({ name: QUICK_UNLOCK_SESSION_COOKIE, path: "/", domain });
 }
 
 /** The userId this browser is allowed to attempt a quick unlock for, or null. */

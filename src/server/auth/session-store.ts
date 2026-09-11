@@ -43,6 +43,47 @@ function mintToken(): string {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+/**
+ * The domain every auth cookie is written for, or undefined to leave it
+ * host-only.
+ *
+ * `trefood.in` and `www.trefood.in` both serve this app, and neither
+ * redirects to the other — `next.config.ts` lists both as Server Action
+ * origins because students genuinely arrive on both. A cookie set with no
+ * Domain belongs to exactly the host that set it, so those two hosts had two
+ * separate sign-in states.
+ *
+ * That is invisible for email and password, which sign in on whichever host
+ * the student is already on. Google is different: the flow is pinned to
+ * `NEXT_PUBLIC_APP_URL` because Google matches `redirect_uri` byte for byte,
+ * so `/api/auth/google/start` bounces an apex visitor to `www` and the session
+ * cookie is minted there. Return to the apex later — a bookmark, the home
+ * screen, a typed address — and the browser has nothing to send. The account
+ * was never signed out; the cookie simply belonged to the other host.
+ *
+ * One Domain on the parent fixes it for both hosts at once.
+ */
+export function authCookieDomain(): string | undefined {
+  let host: string;
+  try {
+    host = new URL(serverEnv().NEXT_PUBLIC_APP_URL).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+
+  // `localhost`, a bare IPv4, and a bracketed IPv6 literal cannot carry a
+  // Domain at all — a cookie that names one is dropped by every browser.
+  if (host === "localhost" || host.startsWith("[") || /^[\d.]+$/.test(host)) return undefined;
+
+  const bare = host.startsWith("www.") ? host.slice(4) : host;
+
+  // Deliberately no public-suffix list. Two labels is the shape this deploys
+  // as, and anything else stays host-only: a cookie that stayed too narrow
+  // costs one sign-in, and a cookie widened onto a public suffix is refused
+  // outright — or, worse, shared with a stranger.
+  return bare.split(".").length === 2 ? bare : undefined;
+}
+
 /** The cookie attributes, in one place, so the Route Handler and the Server Action agree. */
 export function sessionCookieOptions(): {
   httpOnly: true;
@@ -50,6 +91,7 @@ export function sessionCookieOptions(): {
   path: "/";
   maxAge: number;
   secure: boolean;
+  domain: string | undefined;
 } {
   return {
     httpOnly: true,
@@ -57,6 +99,7 @@ export function sessionCookieOptions(): {
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
     secure: serverEnv().NODE_ENV === "production",
+    domain: authCookieDomain(),
   };
 }
 
@@ -166,7 +209,10 @@ export async function destroyCurrentSession(): Promise<void> {
   if (token) {
     await (await db.sessions()).deleteOne({ _id: tokenDigest(token) });
   }
-  store.delete(SESSION_COOKIE);
+  // Same `domain` and `path` the cookie was written with. A delete that does
+  // not match them writes a second, host-only cookie instead of removing the
+  // one the browser is actually holding, and sign-out silently does nothing.
+  store.delete({ name: SESSION_COOKIE, path: "/", domain: authCookieDomain() });
 }
 
 /**
