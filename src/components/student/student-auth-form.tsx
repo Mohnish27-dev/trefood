@@ -73,7 +73,10 @@ const REASONS: Record<string, string> = {
   vendor: "That account is not linked to a restaurant. Pick a vendor account below.",
   admin: "That page needs an admin account.",
   auth_failed: "Authentication could not be completed. Please try signing in again.",
-  auth_expired: "That sign-in attempt took too long. Try again.",
+  // Only shown after the callback has already restarted the flow once on its
+  // own, so "try again" is advice the student has effectively taken already.
+  auth_expired:
+    "Google sign-in could not be completed because this browser did not keep the sign-in cookie. Allow cookies for this site, or sign in with your email and password below.",
   google_cancelled: "Google sign-in was cancelled.",
   google_unavailable: "Google sign-in is not configured on this deployment. Use your email and password.",
   google_unverified: "Google has not verified that email address, so it cannot be used to sign in.",

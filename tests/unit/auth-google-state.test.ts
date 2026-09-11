@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { googleRedirectUri, readStateCookie, startGoogleFlow } from "@/server/auth/google";
+import {
+  GOOGLE_STATE_MAX_AGE,
+  attemptFromState,
+  canonicalOrigin,
+  googleRedirectUri,
+  readStateCookie,
+  startGoogleFlow,
+} from "@/server/auth/google";
 
 /**
  * The Google flow's three defences, tested as defences.
@@ -81,5 +88,64 @@ describe("Google OAuth flow state", () => {
   it("points the redirect URI at this app's callback", () => {
     expect(googleRedirectUri()).toMatch(/\/api\/auth\/google\/callback$/);
     expect(googleRedirectUri()).not.toMatch(/\/\/api/);
+  });
+});
+
+/**
+ * Surviving a lost state cookie.
+ *
+ * The callback used to answer a missing cookie with an error page, and the
+ * student's own fix was to press the button again — which worked, because the
+ * error page had already moved them onto the canonical origin in a browser that
+ * keeps cookies. The flow now performs that second attempt itself, which it can
+ * only do safely if it can tell a first try from a retry without reading the
+ * cookie that just went missing. `state` is the one value Google hands back.
+ */
+describe("Google OAuth retry marking", () => {
+  it("marks the first attempt in the state Google echoes back", () => {
+    const { url } = startGoogleFlow(null);
+    const state = new URL(url).searchParams.get("state") ?? "";
+
+    expect(attemptFromState(state)).toBe(1);
+  });
+
+  it("carries the retry number through the state, not a cookie", () => {
+    const { url, stateCookieValue } = startGoogleFlow(null, 2);
+    const state = new URL(url).searchParams.get("state") ?? "";
+
+    expect(attemptFromState(state)).toBe(2);
+    // Still the value the cookie will be checked against, marker and all.
+    expect(readStateCookie(stateCookieValue)?.state).toBe(state);
+  });
+
+  it("treats an unmarked or hostile state as a first attempt", () => {
+    // A retry is the generous branch, so anything unreadable must land on the
+    // attempt that is allowed to retry rather than one that silently loops.
+    expect(attemptFromState("")).toBe(1);
+    expect(attemptFromState("nomarker")).toBe(1);
+    expect(attemptFromState("~leading")).toBe(1);
+    expect(attemptFromState("abc~value")).toBe(1);
+    expect(attemptFromState("-4~value")).toBe(1);
+    expect(attemptFromState("1e9~value")).toBe(1);
+  });
+
+  it("keeps a marked state distinguishable from the random half", () => {
+    const first = new URL(startGoogleFlow(null, 1).url).searchParams.get("state") ?? "";
+    const second = new URL(startGoogleFlow(null, 2).url).searchParams.get("state") ?? "";
+
+    expect(first.slice(first.indexOf("~") + 1)).not.toBe(second.slice(second.indexOf("~") + 1));
+  });
+
+  it("allows for a first-ever Google sign-in, not just a fast one", () => {
+    // Typing an address, a password and a code from a second device is what the
+    // five-minute window used to cut short, one attempt before it worked.
+    expect(GOOGLE_STATE_MAX_AGE).toBeGreaterThanOrEqual(10 * 60);
+  });
+
+  it("has one canonical origin, and the redirect URI is built from it", () => {
+    // The cookie is set on whatever host serves the start route; the callback
+    // happens on this one. They have to be the same host or the cookie is lost.
+    expect(googleRedirectUri().startsWith(`${canonicalOrigin()}/`)).toBe(true);
+    expect(canonicalOrigin()).not.toMatch(/\/$/);
   });
 });
