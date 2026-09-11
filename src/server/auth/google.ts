@@ -30,8 +30,47 @@ const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const USERINFO_ENDPOINT = "https://openidconnect.googleapis.com/v1/userinfo";
 
 export const GOOGLE_STATE_COOKIE = "trefood_oauth_state";
-/** Five minutes is longer than any honest trip through a Google consent screen. */
-export const GOOGLE_STATE_MAX_AGE = 5 * 60;
+/**
+ * Fifteen minutes.
+ *
+ * It used to be five, on the reasoning that no honest trip through a consent
+ * screen takes longer. That reasoning only holds for somebody already signed
+ * in to Google. A student signing in for the first time on their phone types
+ * an address, a password, and often a code from a second device, on campus
+ * wifi — and every one of those minutes is spent on Google's side of the trip,
+ * where nothing here can see it. When the cookie expired mid-flow the callback
+ * reported `auth_expired`, the student pressed the button again, Google now had
+ * a session, the second trip took seconds, and it worked. That is the "fails
+ * once, then works" shape this window is widened to remove.
+ *
+ * Fifteen is still well short of Google's own ten-minute code lifetime plus any
+ * reasonable consent, and the value is single-use regardless.
+ */
+export const GOOGLE_STATE_MAX_AGE = 15 * 60;
+
+/**
+ * Separates the attempt number from the random half of `state`.
+ *
+ * Google echoes `state` back verbatim, which makes it the only channel that
+ * survives a lost cookie. The callback reads the attempt number out of it to
+ * decide whether restarting the flow is a recovery or a loop. `~` is outside
+ * the base64url alphabet, so it can never occur in the random half.
+ */
+const STATE_ATTEMPT_SEPARATOR = "~";
+
+/** The one origin Google is configured to redirect back to. */
+export function canonicalOrigin(): string {
+  return serverEnv().NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
+}
+
+/** Which attempt produced this `state`. Untrusted input, so it never throws. */
+export function attemptFromState(returnedState: string): number {
+  const separator = returnedState.indexOf(STATE_ATTEMPT_SEPARATOR);
+  if (separator <= 0) return 1;
+
+  const parsed = Number.parseInt(returnedState.slice(0, separator), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
 
 export function isGoogleConfigured(): boolean {
   const env = serverEnv();
@@ -40,8 +79,7 @@ export function isGoogleConfigured(): boolean {
 
 /** The redirect URI, which must match the Google console entry byte for byte. */
 export function googleRedirectUri(): string {
-  const base = serverEnv().NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
-  return `${base}/api/auth/google/callback`;
+  return `${canonicalOrigin()}/api/auth/google/callback`;
 }
 
 export interface GoogleFlowStart {
@@ -65,13 +103,16 @@ function base64url(input: Buffer): string {
  * Builds the consent URL and the cookie that the callback will check it against.
  *
  * The whole flow state rides in one signed cookie rather than a database row:
- * it is single-use, five minutes long, and belongs to exactly one browser, so
+ * it is single-use, quarter-hour lived, and belongs to exactly one browser, so
  * a row would be a row nobody ever reads twice.
  */
-export function startGoogleFlow(next: string | null): GoogleFlowStart {
+export function startGoogleFlow(next: string | null, attempt = 1): GoogleFlowStart {
   const env = serverEnv();
 
-  const state = base64url(crypto.randomBytes(24));
+  // The attempt number travels in the clear, in the half of `state` Google
+  // hands back. It is not a secret and guards nothing: it only lets the
+  // callback tell "the cookie went missing once" from "restarting is a loop".
+  const state = `${attempt}${STATE_ATTEMPT_SEPARATOR}${base64url(crypto.randomBytes(24))}`;
   const verifier = base64url(crypto.randomBytes(32));
   const nonce = base64url(crypto.randomBytes(16));
 

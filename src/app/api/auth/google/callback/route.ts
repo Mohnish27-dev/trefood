@@ -5,6 +5,8 @@ import { resolveLandingPath } from "@/lib/routes";
 import { upsertGoogleAccount } from "@/server/auth/accounts";
 import {
   GOOGLE_STATE_COOKIE,
+  attemptFromState,
+  canonicalOrigin,
   exchangeGoogleCode,
   isGoogleConfigured,
   readStateCookie,
@@ -29,7 +31,7 @@ import { welcomeMessage } from "@/server/mail/templates";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const origin = serverEnv().NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
+  const origin = canonicalOrigin();
   const params = request.nextUrl.searchParams;
 
   const fail = (reason: string): NextResponse => {
@@ -50,7 +52,44 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!code || !returnedState) return fail("auth_failed");
 
   const cookieValue = request.cookies.get(GOOGLE_STATE_COOKIE)?.value;
-  if (!cookieValue) return fail("auth_expired");
+  if (!cookieValue) {
+    /**
+     * No state cookie, so there is nothing to check the code against and this
+     * sign-in cannot be completed. The question is what the student sees next.
+     *
+     * Sending them to an error page taught them to press the button a second
+     * time, and the second time worked — which is the bug as they experience
+     * it. Everything that drops the cookie between the two hops (a window that
+     * ran out on a slow first pass through Google, a flow begun on a
+     * non-canonical host, a link opened in a webview with its own cookie jar)
+     * is gone by the time that second attempt starts, because this response is
+     * what moves them onto the canonical origin in an ordinary browser.
+     *
+     * So do the retry for them, once. The attempt number rides in `state`,
+     * which Google echoes back, so it survives exactly the thing that went
+     * missing — no cookie is needed to know this is already the second try,
+     * and two failures in a row stop rather than loop.
+     */
+    const attempt = attemptFromState(returnedState);
+    const carried = request.cookies.getAll().map((cookie) => cookie.name);
+
+    console.warn(
+      `[auth:google] no state cookie on attempt ${attempt}` +
+        ` (host=${request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "?"},` +
+        ` cookies=[${carried.join(",")}])`,
+    );
+
+    if (attempt < 2) {
+      const restart = new URL("/api/auth/google/start", origin);
+      restart.searchParams.set("attempt", "2");
+      // `next` lived in the cookie that is gone, so the retry lands on the
+      // role's own home rather than wherever they were headed. One wrong
+      // landing beats an error page.
+      return NextResponse.redirect(restart);
+    }
+
+    return fail("auth_expired");
+  }
 
   const state = readStateCookie(cookieValue);
   if (!state) return fail("auth_failed");
