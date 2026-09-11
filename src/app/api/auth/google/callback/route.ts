@@ -11,7 +11,13 @@ import {
   isGoogleConfigured,
   readStateCookie,
 } from "@/server/auth/google";
-import { AUTH_METHOD, openSession, sessionCookieOptions, SESSION_COOKIE } from "@/server/auth/session-store";
+import {
+  AUTH_METHOD,
+  authCookieDomain,
+  openSession,
+  sessionCookieOptions,
+  SESSION_COOKIE,
+} from "@/server/auth/session-store";
 import {
   QUICK_UNLOCK_DEVICE_COOKIE,
   QUICK_UNLOCK_SESSION_COOKIE,
@@ -133,6 +139,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Re-arm (or clear) quick unlock for this browser now that we know who just
   // signed in, so the PIN screen after a sign-out belongs to them and not to
   // whoever used this laptop before.
+  const cookieDomain = authCookieDomain();
   const device = quickUnlockDeviceCookieFor(user);
   if (device) {
     response.cookies.set(device.name, device.value, {
@@ -141,10 +148,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       path: "/",
       maxAge: device.maxAge,
       secure: serverEnv().NODE_ENV === "production",
+      domain: cookieDomain,
     });
   } else {
-    response.cookies.delete(QUICK_UNLOCK_DEVICE_COOKIE);
-    response.cookies.delete(QUICK_UNLOCK_SESSION_COOKIE);
+    response.cookies.delete({ name: QUICK_UNLOCK_DEVICE_COOKIE, path: "/", domain: cookieDomain });
+    response.cookies.delete({ name: QUICK_UNLOCK_SESSION_COOKIE, path: "/", domain: cookieDomain });
   }
 
   return response;

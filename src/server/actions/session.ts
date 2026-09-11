@@ -20,6 +20,7 @@ import {
 } from "@/server/auth/otp";
 import {
   AUTH_METHOD,
+  authCookieDomain,
   createSession,
   destroyAllSessions,
   destroyCurrentSession,
@@ -496,7 +497,7 @@ export async function signOut(): Promise<void> {
   // means "stop being signed in", not "forget my phone" — the PIN screen on
   // /signin can then mint a fresh session, which is the whole point of it.
   // "Use a different account" (forgetQuickUnlockDevice) is what forgets.
-  store.delete(QUICK_UNLOCK_SESSION_COOKIE);
+  store.delete({ name: QUICK_UNLOCK_SESSION_COOKIE, path: "/", domain: authCookieDomain() });
 
   redirect("/signin");
 }
