@@ -15,6 +15,7 @@ import { VegMark } from "@/components/shared/veg-mark";
 import { ConnectionBanner } from "@/components/shared/states";
 import { markInstallPromptEarned } from "@/components/shared/pwa";
 import { StockoutScreen } from "./stockout-screen";
+import { PackingCharges } from "./packing-charges";
 import { usePoll } from "@/hooks/use-poll";
 import { clientEnv } from "@/lib/env";
 import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
@@ -83,6 +84,33 @@ export function OrderTracker({ initial }: { initial: OrderPollResponse }) {
 /* ══════════════════════════════════════════════════════════════════════
    Unified Live Status & Confirmation Screen
    ══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * What the cash total is made of: food, each item's packing, and any coupon.
+ *
+ * Read from the prices frozen at checkout, so it matches what the student
+ * agreed to. A stockout can only lower the cash due below that, never raise
+ * it, and the gap is shown as its own line rather than silently re-totalled.
+ */
+function OrderBill({ order }: { order: OrderPollResponse }) {
+  const { bill } = order;
+  // A poll answered mid-deploy by an older server has no bill; show only the cash row.
+  if (!bill) return null;
+  const notDeliveredPaise = Math.max(0, bill.grandTotalPaise - order.cashDuePaise);
+
+  return (
+    <div className="mb-1 border-b border-line pb-2">
+      <MoneyRow label="Item total" paise={bill.subtotalPaise} />
+      <PackingCharges totalPaise={bill.packagingFeePaise} lines={order.items} />
+      {bill.discountPaise > 0 ? (
+        <MoneyRow label="Discount" paise={bill.discountPaise} negative />
+      ) : null}
+      {notDeliveredPaise > 0 ? (
+        <MoneyRow label="Not delivered" paise={notDeliveredPaise} negative />
+      ) : null}
+    </div>
+  );
+}
 
 function StatusScreen({
   order,
@@ -273,6 +301,11 @@ function StatusScreen({
                 {item.addOns.length > 0 ? (
                   <p className="mt-0.5 text-xs text-faint">{item.addOns.join(", ")}</p>
                 ) : null}
+                {item.linePackingFeePaise > 0 ? (
+                  <p className="mt-0.5 text-xs text-faint">
+                    + <Money paise={item.linePackingFeePaise} /> packing
+                  </p>
+                ) : null}
               </div>
               <Money paise={item.lineTotalPaise} className="shrink-0 text-sm text-muted" />
             </div>
@@ -280,6 +313,7 @@ function StatusScreen({
         </div>
 
         <div className="border-t border-line p-4">
+          {!isFailure(order.status) ? <OrderBill order={order} /> : null}
           {order.paymentStatus === "COLLECTED" ? (
             <MoneyRow label="Paid in cash" paise={order.cashDuePaise} emphasis />
           ) : (

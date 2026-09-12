@@ -75,6 +75,8 @@ export interface CartPricingResponse {
     isVeg: boolean;
     quantity: number;
     lineTotalPaise: number;
+    /** Packing for the whole line (per-unit fee x quantity). 0 when the vendor charges none. */
+    linePackingFeePaise: number;
     addOns: { name: string; pricePaise: number }[];
   }[];
   quote: CartQuote;
@@ -166,6 +168,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       isVeg: i.isVeg,
       quantity: i.quantity,
       lineTotalPaise: i.lineTotalPaise,
+      linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
       addOns: i.addOns,
     })),
     quote: toQuote(preview),

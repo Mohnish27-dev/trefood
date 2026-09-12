@@ -65,7 +65,23 @@ export interface OrderPollResponse {
   /** F11 — the gate changed while the order was in flight. */
   reroutedFrom: string | null;
 
-  items: { name: string; isVeg: boolean; quantity: number; lineTotalPaise: number; addOns: string[] }[];
+  items: {
+    name: string;
+    isVeg: boolean;
+    quantity: number;
+    lineTotalPaise: number;
+    /** Packing for the whole line (per-unit fee x quantity), as frozen at checkout. */
+    linePackingFeePaise: number;
+    addOns: string[];
+  }[];
+
+  /** The bill as frozen at checkout. `cashDuePaise` may sit below it after a stockout. */
+  bill: {
+    subtotalPaise: number;
+    packagingFeePaise: number;
+    discountPaise: number;
+    grandTotalPaise: number;
+  };
 
   feedback: {
     rating: number;
@@ -143,8 +159,16 @@ export async function GET(
       isVeg: i.isVeg,
       quantity: i.quantity,
       lineTotalPaise: i.lineTotalPaise,
+      linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
       addOns: i.addOns.map((a) => a.name),
     })),
+
+    bill: {
+      subtotalPaise: order.pricing.subtotalPaise,
+      packagingFeePaise: order.pricing.packagingFeePaise,
+      discountPaise: order.pricing.discountPaise,
+      grandTotalPaise: order.pricing.grandTotalPaise,
+    },
 
     feedback: order.feedback
       ? {

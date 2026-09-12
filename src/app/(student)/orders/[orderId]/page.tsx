@@ -67,8 +67,15 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
       isVeg: i.isVeg,
       quantity: i.quantity,
       lineTotalPaise: i.lineTotalPaise,
+      linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
       addOns: i.addOns.map((a) => a.name),
     })),
+    bill: {
+      subtotalPaise: order.pricing.subtotalPaise,
+      packagingFeePaise: order.pricing.packagingFeePaise,
+      discountPaise: order.pricing.discountPaise,
+      grandTotalPaise: order.pricing.grandTotalPaise,
+    },
     feedback: order.feedback
       ? {
           rating: order.feedback.rating,
