@@ -120,13 +120,28 @@ export async function runSettlement(params: {
     .toArray();
   const existingRestaurantIds = new Set(existingStatements.map((s) => s.restaurantId));
 
+  // A vendor that already has a LATER statement cannot be invoiced for this
+  // day any more. That later run swept every delivered order up to its own
+  // cutoff, so this one would bill nothing — and worse, it would read the same
+  // opening balance the later statement already consumed and bill it twice.
+  // Running days out of order is easy to do from the date box, so refuse it.
+  const supersededRestaurantIds = new Set(
+    await statements.distinct("restaurantId", {
+      campusId: params.campus._id,
+      statementDate: { $gt: statementDate },
+    }),
+  );
+
   const written: CommissionStatement[] = [];
   const skipped: string[] = [];
   let ordersSettled = 0;
 
   const results = await Promise.all(
     vendors.map(async (restaurant) => {
-      if (existingRestaurantIds.has(restaurant._id)) {
+      if (
+        existingRestaurantIds.has(restaurant._id) ||
+        supersededRestaurantIds.has(restaurant._id)
+      ) {
         return { skipped: restaurant._id, written: null, ordersSettled: 0 };
       }
 
@@ -280,12 +295,14 @@ function isDuplicateKey(error: unknown): boolean {
 
 export async function listStatements(params: {
   statementDate?: string;
+  campusId?: string;
   restaurantId?: string;
   status?: CommissionStatement["status"];
   limit?: number;
 }): Promise<CommissionStatement[]> {
   const filter: Record<string, unknown> = {};
   if (params.statementDate) filter.statementDate = params.statementDate;
+  if (params.campusId) filter.campusId = params.campusId;
   if (params.restaurantId) filter.restaurantId = params.restaurantId;
   if (params.status) filter.status = params.status;
 
@@ -296,13 +313,68 @@ export async function listStatements(params: {
     .toArray();
 }
 
+export interface UnbilledSummary {
+  restaurantId: string;
+  orderCount: number;
+  cashCollectedPaise: Paise;
+  commissionDuePaise: Paise;
+}
+
+/**
+ * What a run for this day WOULD bill, per restaurant, without writing anything.
+ *
+ * Mirrors the sweep in `runSettlement` exactly — DELIVERED and not yet
+ * invoiced, delivered before the end of the day — so the figures the admin
+ * sees before pressing Run are the figures that land on the statement. Without
+ * this, a day nobody has run yet renders as an empty screen, which reads as
+ * "no business" rather than "not invoiced".
+ */
+export async function previewUnbilled(params: {
+  campus: Campus;
+  statementDate: string;
+}): Promise<Map<string, UnbilledSummary>> {
+  const { end } = campusDayRange(params.statementDate, params.campus.timezone);
+
+  const grouped = await (await db.orders())
+    .aggregate<UnbilledSummary & { _id: string }>([
+      {
+        $match: {
+          campusId: params.campus._id,
+          status: { $in: [...BILLABLE_STATUSES] },
+          "timestamps.deliveredAt": { $lt: end },
+        },
+      },
+      {
+        $group: {
+          _id: "$restaurantId",
+          orderCount: { $sum: 1 },
+          cashCollectedPaise: { $sum: "$payment.cashCollectedPaise" },
+          commissionDuePaise: { $sum: "$pricing.platformCommissionPaise" },
+        },
+      },
+    ])
+    .toArray();
+
+  return new Map(
+    grouped.map((row) => [
+      row._id,
+      {
+        restaurantId: row._id,
+        orderCount: row.orderCount,
+        cashCollectedPaise: row.cashCollectedPaise,
+        commissionDuePaise: row.commissionDuePaise,
+      },
+    ]),
+  );
+}
+
 export type CollectionMethod = NonNullable<CommissionStatement["collectionMethod"]>;
 
 export async function markStatementCollected(params: {
   statementId: string;
   collectionMethod: CollectionMethod;
-  /** UPI ref, bank UTR, or the cash receipt number. Free text on purpose. */
-  paymentReference: string;
+  /** UPI ref, bank UTR, or the cash receipt number. Free text on purpose; optional for cash. */
+  paymentReference: string | null;
   actorId: string;
 }): Promise<
   { ok: true; statement: CommissionStatement } | { ok: false; message: string }
@@ -310,9 +382,11 @@ export async function markStatementCollected(params: {
   const statements = await db.commissionStatements();
 
   // The status guard makes this a compare-and-swap: two admins marking the
-  // same statement collected cannot both write a reference.
+  // same statement collected cannot both write a reference. A zero-due row
+  // (rolled forward under the floor) has nothing to collect: marking it paid
+  // would hide the carry that the next statement still bills.
   const updated = await statements.findOneAndUpdate(
-    { _id: params.statementId, status: "PENDING" },
+    { _id: params.statementId, status: "PENDING", netDuePaise: { $gt: 0 } },
     {
       $set: {
         status: "PAID",
@@ -325,7 +399,10 @@ export async function markStatementCollected(params: {
   );
 
   if (!updated) {
-    return { ok: false, message: "That statement is missing, or was already marked collected." };
+    return {
+      ok: false,
+      message: "That statement is missing, has nothing due, or was already marked collected.",
+    };
   }
 
   await writeAudit({
@@ -335,7 +412,9 @@ export async function markStatementCollected(params: {
     to: "PAID",
     actorId: params.actorId,
     actorRole: ACTOR.ADMIN,
-    reason: `Commission collected by ${params.collectionMethod}, ref ${params.paymentReference}`,
+    reason:
+      `Commission collected by ${params.collectionMethod}` +
+      (params.paymentReference ? `, ref ${params.paymentReference}` : ""),
   });
 
   return { ok: true, statement: updated };

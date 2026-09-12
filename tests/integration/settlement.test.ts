@@ -60,8 +60,11 @@ const DAY_TWO = "2020-01-02";
 const DAY_THREE = "2020-01-03";
 const DAY_FOUR = "2020-01-04";
 
+/** Before every other test day, for running a day out of order. */
+const DAY_BEFORE = "2019-12-31";
+
 /** Every statement day this file writes, so teardown misses none of them. */
-const TEST_DAYS = [DAY_ONE, DAY_TWO, DAY_THREE, DAY_FOUR];
+const TEST_DAYS = [DAY_BEFORE, DAY_ONE, DAY_TWO, DAY_THREE, DAY_FOUR];
 
 let campus: Campus;
 let student: User;
@@ -363,6 +366,21 @@ describe("the nightly commission run", () => {
 
     const rerun = await runSettlement({ campus, statementDate: DAY_FOUR, actorId: "user_admin" });
     expect(rerun.ordersSettled).toBe(0);
+  });
+
+  it("will not invoice a day that a later statement has already swept", async () => {
+    // DAY_ONE onwards already exist for this vendor. Running an earlier day now
+    // would bill no orders (they are SETTLED) but re-read the opening balance
+    // that DAY_ONE already consumed, charging the same carry twice.
+    const run = await runSettlement({ campus, statementDate: DAY_BEFORE, actorId: "user_admin" });
+
+    expect(run.skipped).toContain(RESTAURANT_ID);
+    expect(run.written.find((row) => row.restaurantId === RESTAURANT_ID)).toBeUndefined();
+    expect(
+      (await listStatements({ statementDate: DAY_BEFORE })).find(
+        (row) => row.restaurantId === RESTAURANT_ID,
+      ),
+    ).toBeUndefined();
   });
 
   it("refuses to invoice a day that has not happened yet", async () => {
