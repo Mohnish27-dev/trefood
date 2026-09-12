@@ -138,6 +138,12 @@ const createItemSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
+  packingFeeEnabled: z.boolean().default(false),
+  packingFeeRupees: z.coerce
+    .number()
+    .min(0, "Packing fee cannot be negative")
+    .max(500, "Packing fee cannot be more than ₹500")
+    .default(0),
   addOnGroups: z.array(addOnGroupSchema).optional(),
   sortOrder: z.coerce.number().int().optional(),
 });
@@ -174,6 +180,8 @@ export async function createMenuItemAction(input: unknown): Promise<AdminMenuAct
     imageUrl: data.imageUrl,
     isAvailable: data.isAvailable,
     isPopular: data.isPopular,
+    packingFeeEnabled: data.packingFeeEnabled,
+    packingFeePaise: rupeesToPaise(data.packingFeeRupees),
     addOnGroups,
     sortOrder: data.sortOrder,
     actorId: user._id,
@@ -199,6 +207,12 @@ const updateItemSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
+  packingFeeEnabled: z.boolean().default(false),
+  packingFeeRupees: z.coerce
+    .number()
+    .min(0, "Packing fee cannot be negative")
+    .max(500, "Packing fee cannot be more than ₹500")
+    .default(0),
   addOnGroups: z.array(addOnGroupSchema).optional(),
   sortOrder: z.coerce.number().int().optional(),
 });
@@ -236,6 +250,8 @@ export async function updateMenuItemAction(input: unknown): Promise<AdminMenuAct
     imageUrl: data.imageUrl,
     isAvailable: data.isAvailable,
     isPopular: data.isPopular,
+    packingFeeEnabled: data.packingFeeEnabled,
+    packingFeePaise: rupeesToPaise(data.packingFeeRupees),
     addOnGroups,
     sortOrder: data.sortOrder,
     actorId: user._id,

@@ -17,6 +17,7 @@ import { placeOrder } from "@/server/actions/student";
 import { cn } from "@/lib/utils";
 
 import { CouponSection } from "@/components/student/coupon-section";
+import { PackingCharges } from "@/components/student/packing-charges";
 
 export interface CheckoutZone {
   id: string;
@@ -159,6 +160,9 @@ export function CheckoutView({
       }
 
       setError(result.status === "error" ? result.message : "Something went wrong.");
+      // The refusal may be about a coupon that just ran out; re-price so the
+      // summary stops showing a discount the order can no longer get.
+      reload();
     } catch (err) {
       console.error("Order placement failed:", err);
       const isTechnicalReactError =
@@ -316,6 +320,7 @@ export function CheckoutView({
         </h2>
 
         <MoneyRow label="Item total" paise={quote.subtotalPaise} />
+        <PackingCharges totalPaise={quote.packagingFeePaise} lines={data.items} />
         {quote.discountPaise > 0 ? (
           <MoneyRow label="Discount" paise={quote.discountPaise} negative />
         ) : null}

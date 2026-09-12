@@ -6,7 +6,8 @@ import {
 } from "@/components/admin/earnings-dashboard";
 import { requireAdmin } from "@/server/auth/session";
 import { listAllCampuses } from "@/server/services/admin";
-import { getEarningsAnalytics } from "@/server/services/analytics";
+import { datesOfMonth, getEarningsAnalytics } from "@/server/services/analytics";
+import { getDailyVendorReport, isIsoDay } from "@/server/services/daily-vendor-report";
 
 export const metadata: Metadata = { title: "Earnings" };
 export const dynamic = "force-dynamic";
@@ -20,17 +21,18 @@ export const dynamic = "force-dynamic";
  * mutate is a screen where somebody eventually mutates by accident while
  * trying to filter.
  *
- * `?campus=` scopes to one campus and `?month=YYYY-MM` picks the month; both
- * are absent by default, which means every campus and the current month.
+ * `?campus=` scopes to one campus, `?month=YYYY-MM` picks the month and
+ * `?day=YYYY-MM-DD` picks the day the vendor report covers. All are absent by
+ * default, which means every campus, the current month, and today.
  */
 export default async function AdminEarningsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ campus?: string; month?: string }>;
+  searchParams: Promise<{ campus?: string; month?: string; day?: string }>;
 }) {
   await requireAdmin();
 
-  const { campus, month } = await searchParams;
+  const { campus, month, day } = await searchParams;
   const allCampuses = await listAllCampuses();
 
   // An unknown or stale campus id falls back to every campus rather than
@@ -46,6 +48,15 @@ export default async function AdminEarningsPage({
     ...(month !== undefined && /^\d{4}-\d{2}$/.test(month) ? { month } : {}),
   });
 
+  const reportDay = isIsoDay(day) ? day : defaultReportDay(analytics.month, analytics.todayDate);
+
+  const dailyReport = await getDailyVendorReport({
+    campuses,
+    from: reportDay,
+    to: reportDay,
+    includeIdle: true,
+  });
+
   const campusOptions: DashboardCampus[] = allCampuses.map((row) => ({
     campusId: row._id,
     name: row.name,
@@ -54,8 +65,20 @@ export default async function AdminEarningsPage({
   return (
     <EarningsDashboard
       {...analytics}
+      reportDay={reportDay}
+      dailyReport={dailyReport}
       campuses={campusOptions}
       selectedCampusId={selectedCampusId}
     />
   );
+}
+
+/**
+ * Today when the month being viewed contains it, otherwise the nearest day of
+ * that month to today: its last day for a past month, its first for a future one.
+ */
+function defaultReportDay(month: string, todayDate: string): string {
+  const days = datesOfMonth(month);
+  if (todayDate.startsWith(month)) return todayDate;
+  return (month < todayDate ? days.at(-1) : days[0]) ?? todayDate;
 }

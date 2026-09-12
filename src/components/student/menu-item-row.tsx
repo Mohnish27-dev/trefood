@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/money";
 import { VegMark } from "@/components/shared/veg-mark";
 import { useCart } from "@/hooks/use-cart";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/restaurant";
 
@@ -41,6 +42,7 @@ export function MenuItemRow({
 
   const hasChoices = item.addOnGroups.length > 0;
   const canOrder = item.isAvailable && restaurantIsOpen;
+  const packingFeePaise = packingFeePaiseOf(item);
 
   const commit = (addOnOptionIds: string[]): void => {
     const result = add({
@@ -111,6 +113,11 @@ export function MenuItemRow({
 
           <p className="mt-1 text-sm font-semibold text-bone">
             <Money paise={item.pricePaise} strike={!item.isAvailable} />
+            {packingFeePaise > 0 && item.isAvailable ? (
+              <span className="ml-1.5 text-[11px] font-normal text-faint">
+                + <Money paise={packingFeePaise} /> packing
+              </span>
+            ) : null}
           </p>
 
           <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>

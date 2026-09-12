@@ -39,6 +39,25 @@ export interface MenuItem {
    */
   isAvailable: boolean;
 
+  /**
+   * Per-item packing fee, set by the vendor.
+   *
+   * A dry samosa needs a paper bag; a biryani needs a sealed container. One
+   * fee for the whole restaurant charges both the same, so the fee lives on
+   * the item and the vendor decides per item whether to charge it at all.
+   *
+   * Charged PER UNIT — two biryanis are two containers — and it lands in
+   * `OrderPricing.packagingFeePaise`, which is already inside the commission
+   * base (D6). It is never folded into the item price, so the student always
+   * sees packing as its own line on the bill.
+   *
+   * Optional because items created before this feature carry neither field;
+   * absent or disabled both mean "no packing fee". Always read it through
+   * `packingFeePaiseOf()` rather than touching the fields directly.
+   */
+  packingFeeEnabled?: boolean;
+  packingFeePaise?: Paise;
+
   addOnGroups: AddOnGroup[];
   sortOrder: number;
   isPopular: boolean;
@@ -97,6 +116,13 @@ export interface Restaurant {
   foodGstBps: Bps;
   /** Admin-set override. Null means use the campus rate. */
   commissionBpsOverride: Bps | null;
+  /**
+   * Admin-set TREFOOD platform fee for this vendor. Strictly between admin and
+   * vendor: shown on the vendor's dashboard, never on any student bill or in
+   * order pricing. Absent on restaurants created before the field existed;
+   * read it as zero.
+   */
+  platformFeePaise?: Paise;
 
   /**
    * Which gates this restaurant will deliver to. Drives the student list:

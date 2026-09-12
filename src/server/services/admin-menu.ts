@@ -4,6 +4,7 @@ import * as db from "@/server/db/collections";
 import { ACTOR, type Actor } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { type Paise } from "@/lib/money";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { writeAudit } from "./audit";
 import type { AddOnGroup, MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 
@@ -185,6 +186,9 @@ export interface CreateMenuItemAdminParams {
   imageUrl?: string | null | undefined;
   isAvailable?: boolean | undefined;
   isPopular?: boolean | undefined;
+  /** Per-item packing fee. The amount is ignored while the switch is off. */
+  packingFeeEnabled?: boolean | undefined;
+  packingFeePaise?: Paise | undefined;
   addOnGroups?: AddOnGroup[] | undefined;
   sortOrder?: number | undefined;
   actorId: string;
@@ -225,6 +229,8 @@ export async function createMenuItemAdmin(
     imageUrl: params.imageUrl ?? null,
     isAvailable: params.isAvailable ?? true,
     isPopular: params.isPopular ?? false,
+    packingFeeEnabled: params.packingFeeEnabled ?? false,
+    packingFeePaise: params.packingFeePaise ?? 0,
     addOnGroups: params.addOnGroups ?? [],
     sortOrder,
   };
@@ -255,6 +261,9 @@ export interface UpdateMenuItemAdminParams {
   imageUrl?: string | null | undefined;
   isAvailable: boolean;
   isPopular: boolean;
+  /** Per-item packing fee. Omit either field to leave the item's own setting alone. */
+  packingFeeEnabled?: boolean | undefined;
+  packingFeePaise?: Paise | undefined;
   addOnGroups?: AddOnGroup[] | undefined;
   sortOrder?: number | undefined;
   actorId: string;
@@ -285,6 +294,14 @@ export async function updateMenuItemAdmin(
   if (params.sortOrder !== undefined) {
     updateFields.sortOrder = params.sortOrder;
   }
+  if (params.packingFeeEnabled !== undefined) {
+    updateFields.packingFeeEnabled = params.packingFeeEnabled;
+  }
+  if (params.packingFeePaise !== undefined) {
+    // The amount is kept even when the switch is off, so a vendor who pauses
+    // the fee for a day does not have to remember the number tomorrow.
+    updateFields.packingFeePaise = params.packingFeePaise;
+  }
 
   const updated = await itemsCollection.findOneAndUpdate(
     { _id: params.itemId, restaurantId: params.restaurantId },
@@ -297,14 +314,20 @@ export async function updateMenuItemAdmin(
   await writeAudit({
     entity: "RESTAURANT",
     entityId: params.restaurantId,
-    from: `item:${before.name} (₹${before.pricePaise / 100})`,
-    to: `item:${updated.name} (₹${updated.pricePaise / 100})`,
+    from: `item:${before.name} (₹${before.pricePaise / 100}${packingLabel(before)})`,
+    to: `item:${updated.name} (₹${updated.pricePaise / 100}${packingLabel(updated)})`,
     actorId: params.actorId,
     actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Updated menu item "${updated.name}"`,
   });
 
   return { ok: true, item: updated };
+}
+
+/** " + ₹5 packing" when the item charges one, nothing when it does not. */
+function packingLabel(item: MenuItem): string {
+  const fee = packingFeePaiseOf(item);
+  return fee > 0 ? ` + ₹${fee / 100} packing` : "";
 }
 
 export async function deleteMenuItemAdmin(params: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, Power, PowerOff, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, Percent, Power, PowerOff, Receipt, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import {
   reviewVendorKyc,
   saveCommissionOverride,
   savePayoutDetails,
+  savePlatformFee,
   toggleRestaurantOpenAction,
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
@@ -54,6 +55,8 @@ export interface AdminVendorRow {
   packagingFeePaise: number;
   commissionBpsOverride: number | null;
   campusCommissionBps: number;
+  /** TREFOOD platform fee, between admin and vendor only. 0 when none. */
+  platformFeePaise: number;
   payout: { accountName: string; accountNumber: string; ifsc: string; upiId: string | null };
 }
 
@@ -214,6 +217,10 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
           label="Minimum order"
           value={<Money paise={vendor.minOrderPaise} />}
         />
+        <Field
+          label="Platform fee"
+          value={vendor.platformFeePaise > 0 ? <Money paise={vendor.platformFeePaise} /> : "None"}
+        />
       </dl>
 
       {vendor.kycStatus === "REJECTED" && vendor.rejectionReason ? (
@@ -252,6 +259,7 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
           </Button>
           <KycDialog vendor={vendor} />
           <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
+          <PlatformFeeDialog vendor={vendor} />
           <PayoutDialog vendor={vendor} />
           <Button asChild size="sm" variant="secondary" className="gap-1.5">
             <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
@@ -437,6 +445,92 @@ function CommissionDialog({
           <Button disabled={submitting} onClick={() => void save(true)}>
             {submitting ? <Loader2 className="animate-spin" /> : null}
             Save override
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PlatformFeeDialog({ vendor }: { vendor: AdminVendorRow }) {
+  const [open, setOpen] = useState(false);
+  const [rupees, setRupees] = useState(String(vendor.platformFeePaise / 100));
+  const [submitting, setSubmitting] = useState(false);
+
+  const value = Number(rupees);
+  const valid =
+    rupees.trim() !== "" && Number.isInteger(value) && value >= 0 && value <= 1_00_000;
+
+  const save = async (feeRupees: number): Promise<void> => {
+    setSubmitting(true);
+    const result = await savePlatformFee({
+      restaurantId: vendor.restaurantId,
+      platformFeePaise: feeRupees * 100,
+    });
+    setSubmitting(false);
+
+    if (result.status === "error") {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(result.message);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Reopening starts from the saved value, not a half-typed one.
+        if (next) setRupees(String(vendor.platformFeePaise / 100));
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="secondary">
+          <Receipt />
+          Platform Fee
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Platform fee for {vendor.name}</DialogTitle>
+          <DialogDescription>
+            The TREFOOD platform fee for this vendor. It is shown on the vendor&apos;s
+            Earnings dashboard only — students never see it and it is not added to any order.
+            You can change it at any time.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogBody>
+          <Label htmlFor={`platform-fee-${vendor.restaurantId}`}>Platform fee (₹)</Label>
+          <Input
+            id={`platform-fee-${vendor.restaurantId}`}
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min={0}
+            max={100000}
+            value={rupees}
+            onChange={(event) => setRupees(event.target.value)}
+          />
+          <p className="mt-2 text-xs text-muted">
+            Whole rupees. Set ₹0 for no platform fee.
+          </p>
+        </DialogBody>
+
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            disabled={submitting || vendor.platformFeePaise === 0}
+            onClick={() => void save(0)}
+          >
+            Remove fee
+          </Button>
+          <Button disabled={submitting || !valid} onClick={() => void save(value)}>
+            {submitting ? <Loader2 className="animate-spin" /> : null}
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

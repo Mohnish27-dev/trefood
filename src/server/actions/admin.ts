@@ -12,6 +12,7 @@ import {
   deleteZone,
   reviewKyc,
   setCommissionOverride,
+  setPlatformFee,
   setRestaurantOpenAsAdmin,
   setZoneActive,
   updateCampusSettings,
@@ -27,6 +28,7 @@ import {
   markStatementCollected,
   runSettlement,
 } from "@/server/services/settlement";
+import { campusDateString, formatCampusDate, shiftCampusDate } from "@/lib/campus-time";
 import { clearStrikes, setOrdersBlocked } from "@/server/services/students";
 import { runAllSweeps } from "@/server/services/sweeps";
 import { notifyOrderEvent } from "@/server/services/push";
@@ -263,6 +265,26 @@ export async function saveCommissionOverride(input: unknown): Promise<AdminActio
   return { status: "ok", message: "Commission updated" };
 }
 
+export async function savePlatformFee(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({
+      restaurantId: z.string().min(1),
+      // Whole rupees only. Between admin and vendor; never touches order pricing.
+      platformFeePaise: z.number().int().min(0).max(10_000_000).multipleOf(100),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Platform fee must be a whole rupee amount from ₹0 to ₹1,00,000." };
+  }
+
+  const { user } = await requireAdmin();
+  const updated = await setPlatformFee({ ...parsed.data, actorId: user._id });
+  if (!updated) return { status: "error", message: "That restaurant does not exist." };
+
+  revalidatePath("/admin/vendors");
+  return { status: "ok", message: `Platform fee for ${updated.name} updated` };
+}
+
 export async function savePayoutDetails(input: unknown): Promise<AdminActionState> {
   const parsed = z
     .object({
@@ -482,15 +504,25 @@ export async function runSettlementNow(input: unknown): Promise<AdminActionState
   const campus = await getCampusById(parsed.data.campusId);
   if (!campus) return { status: "error", message: "That campus does not exist." };
 
+  // From this screen, only a day that has FINISHED can be invoiced. A run
+  // freezes the statement, so pressing Run at 3pm would lock the day with half
+  // its deliveries and push the rest onto tomorrow's row — the cash collected
+  // shown for each date would stop matching what actually happened on it. The
+  // 23:59 cron still runs "today"; it is the only caller allowed to.
+  const today = campusDateString(new Date(), campus.timezone);
+  const statementDate = parsed.data.statementDate ?? shiftCampusDate(today, -1);
+  if (statementDate >= today) {
+    return {
+      status: "error",
+      message:
+        `${formatCampusDate(statementDate)} is not over yet. ` +
+        `Its statements can be run from tomorrow; the live figures stay on screen until then.`,
+    };
+  }
+
   let result;
   try {
-    result = await runSettlement({
-      campus,
-      ...(parsed.data.statementDate === undefined
-        ? {}
-        : { statementDate: parsed.data.statementDate }),
-      actorId: user._id,
-    });
+    result = await runSettlement({ campus, statementDate, actorId: user._id });
   } catch (error: unknown) {
     // A future date is a typo in the date box, not a fault. Say what is wrong
     // rather than surfacing a stack trace to somebody chasing cash.
@@ -516,18 +548,27 @@ export async function markCollected(input: unknown): Promise<AdminActionState> {
     .object({
       statementId: z.string().min(1),
       collectionMethod: z.enum(["CASH", "UPI", "BANK_TRANSFER"]),
-      paymentReference: z
-        .string()
-        .trim()
-        .min(3, "Enter a reference: the UPI id, bank UTR, or cash receipt number"),
+      // Cash handed over in person often has no receipt number, so a
+      // reference is optional there. UPI and bank transfers always carry one,
+      // and it is what settles an "I already paid" dispute.
+      paymentReference: z.string().trim().max(120).default(""),
     })
+    .refine(
+      (value) => value.collectionMethod === "CASH" || value.paymentReference.length >= 3,
+      { message: "Enter the UPI reference or bank UTR", path: ["paymentReference"] },
+    )
     .safeParse(input);
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid reference." };
   }
 
   const { user } = await requireAdmin();
-  const result = await markStatementCollected({ ...parsed.data, actorId: user._id });
+  const result = await markStatementCollected({
+    statementId: parsed.data.statementId,
+    collectionMethod: parsed.data.collectionMethod,
+    paymentReference: parsed.data.paymentReference || null,
+    actorId: user._id,
+  });
   if (!result.ok) return { status: "error", message: result.message };
 
   revalidatePath("/admin/settlements");

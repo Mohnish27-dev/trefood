@@ -34,6 +34,7 @@ export default async function AdminVendorsPage() {
       minOrderPaise: vendor.minOrderPaise,
       packagingFeePaise: vendor.packagingFeePaise,
       commissionBpsOverride: vendor.commissionBpsOverride,
+      platformFeePaise: vendor.platformFeePaise ?? 0,
       campusCommissionBps: campus?.settings.commissionBps ?? 1_000,
       payout: vendor.payout,
     };

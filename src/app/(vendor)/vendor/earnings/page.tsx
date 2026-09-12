@@ -28,6 +28,7 @@ export default async function VendorEarningsPage() {
         today={earnings.today}
         commissionPct={String(bpsToPct(commissionBps))}
         outstandingDuePaise={earnings.outstandingDuePaise}
+        platformFeePaise={restaurant.platformFeePaise ?? 0}
         ledgerTotalPaise={earnings.ledgerTotalPaise}
         ledger={earnings.ledger.map((entry) => ({
           id: entry._id,

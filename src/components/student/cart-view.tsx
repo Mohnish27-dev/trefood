@@ -13,6 +13,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useCartQuote } from "@/hooks/use-cart-quote";
 
 import { CouponSection } from "@/components/student/coupon-section";
+import { PackingCharges } from "@/components/student/packing-charges";
 
 /**
  * The cart.
@@ -121,6 +122,11 @@ export function CartView() {
                 ) : priced ? (
                   <p className="mt-1 text-sm text-muted">
                     <Money paise={priced.lineTotalPaise} />
+                    {priced.linePackingFeePaise > 0 ? (
+                      <span className="ml-1.5 text-xs text-faint">
+                        + <Money paise={priced.linePackingFeePaise} /> packing
+                      </span>
+                    ) : null}
                   </p>
                 ) : null}
               </div>
@@ -167,6 +173,7 @@ export function CartView() {
         </h2>
 
         <MoneyRow label="Item total" paise={quote.subtotalPaise} />
+        <PackingCharges totalPaise={quote.packagingFeePaise} lines={data.items} />
         {quote.discountPaise > 0 ? (
           <MoneyRow label="Discount" paise={quote.discountPaise} negative />
         ) : null}

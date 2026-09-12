@@ -164,6 +164,61 @@ describe("add-ons", () => {
   });
 });
 
+describe("per-item packing fees", () => {
+  it("are charged per unit and billed as packaging, not as food", () => {
+    const { pricing, lineTotalsPaise, linePackingFeesPaise, itemPackingFeePaise } = computePricing(
+      baseInput({
+        lines: [
+          { quantity: 2, unitPricePaise: R(120), addOnPricesPaise: [], packingFeePaise: R(10) },
+          { quantity: 3, unitPricePaise: R(15), addOnPricesPaise: [] }, // switched off
+        ],
+        packagingFeePaise: 0,
+        deliveryFeePaise: 0,
+      }),
+    );
+
+    expect(lineTotalsPaise).toEqual([R(240), R(45)]); // packing never inflates the line
+    expect(linePackingFeesPaise).toEqual([R(20), 0]); // 10 x 2 containers
+    expect(itemPackingFeePaise).toBe(R(20));
+    expect(pricing.subtotalPaise).toBe(R(285));
+    expect(pricing.packagingFeePaise).toBe(R(20));
+    expect(pricing.grandTotalPaise).toBe(R(305));
+  });
+
+  it("add to the restaurant-wide fee and sit inside the commission base (D6)", () => {
+    const { pricing } = computePricing(
+      baseInput({
+        lines: [{ quantity: 1, unitPricePaise: R(200), addOnPricesPaise: [], packingFeePaise: R(5) }],
+      }),
+    );
+
+    expect(pricing.packagingFeePaise).toBe(R(15)); // 10 restaurant + 5 item
+    expect(pricing.commissionBasePaise).toBe(R(230)); // 200 + 15 + 15
+    expect(pricing.platformCommissionPaise).toBe(R(23)); // CEIL(23.00)
+  });
+
+  it("do not count towards the minimum-order subtotal", () => {
+    const { pricing } = computePricing(
+      baseInput({
+        lines: [{ quantity: 4, unitPricePaise: R(20), addOnPricesPaise: [], packingFeePaise: R(10) }],
+      }),
+    );
+    expect(pricing.subtotalPaise).toBe(R(80));
+  });
+
+  it("reject a negative packing fee", () => {
+    expect(() =>
+      computePricing(
+        baseInput({
+          lines: [
+            { quantity: 1, unitPricePaise: R(50), addOnPricesPaise: [], packingFeePaise: -100 },
+          ],
+        }),
+      ),
+    ).toThrow(/packingFeePaise must be >= 0/);
+  });
+});
+
 describe("coupons — vendor-absorbed", () => {
   it("do not reduce the commission the vendor owes", () => {
     const without = computePricing(baseInput()).pricing;

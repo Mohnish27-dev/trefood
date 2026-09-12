@@ -54,6 +54,8 @@ export interface AvailableCouponDto {
   valueBps: number;
   maxDiscountPaise: number;
   minOrderPaise: number;
+  /** Empty when the coupon applies to the whole menu. */
+  appliesToItemNames: string[];
   isEligible: boolean;
   reason?: string | undefined;
   calculatedDiscountPaise: number;
@@ -75,6 +77,8 @@ export interface CartPricingResponse {
     isVeg: boolean;
     quantity: number;
     lineTotalPaise: number;
+    /** Packing for the whole line (per-unit fee x quantity). 0 when the vendor charges none. */
+    linePackingFeePaise: number;
     addOns: { name: string; pricePaise: number }[];
   }[];
   quote: CartQuote;
@@ -117,6 +121,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
+      lines: rawPreview.items,
       studentId: studentId ?? null,
     });
 
@@ -142,6 +147,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
+      lines: rawPreview.items,
       studentId: studentId ?? null,
     }),
   ]);
@@ -166,6 +172,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       isVeg: i.isVeg,
       quantity: i.quantity,
       lineTotalPaise: i.lineTotalPaise,
+      linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
       addOns: i.addOns,
     })),
     quote: toQuote(preview),
@@ -179,6 +186,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       valueBps: c.coupon.valueBps,
       maxDiscountPaise: c.coupon.maxDiscountPaise,
       minOrderPaise: c.coupon.minOrderPaise,
+      appliesToItemNames: (c.coupon.menuItemNames ?? []).filter(Boolean),
       isEligible: c.isEligible,
       reason: c.reason,
       calculatedDiscountPaise: c.calculatedDiscountPaise,

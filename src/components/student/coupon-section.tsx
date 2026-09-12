@@ -152,6 +152,11 @@ export function CouponSection({
                       {coupon.description ? (
                         <p className="text-[11px] text-muted truncate mt-0.5">{coupon.description}</p>
                       ) : null}
+                      {coupon.isEligible && coupon.appliesToItemNames.length > 0 ? (
+                        <p className="text-[10px] text-faint truncate mt-0.5">
+                          Only on {coupon.appliesToItemNames.join(", ")}
+                        </p>
+                      ) : null}
                       {!coupon.isEligible && coupon.reason ? (
                         <p className="text-[10px] text-amber mt-0.5">{coupon.reason}</p>
                       ) : null}

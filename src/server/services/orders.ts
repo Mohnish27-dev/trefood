@@ -14,13 +14,14 @@ import {
   type OrderStatus,
 } from "@/lib/constants";
 import type { Paise } from "@/lib/money";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { assertTransition } from "./order-state";
 import { computePricing, type PricingLineInput } from "./pricing";
 import { generateGateCode } from "./gate-code";
 import { writeAudit } from "./audit";
 import { getCampusById, getMenuItemsByIds, getRestaurantById, isRestaurantServing } from "./catalog";
 import { campusLocalMinutes, getEffectiveMinOrderPaise } from "./curfew";
-import { validateCouponForOrder } from "./coupons";
+import { claimCouponSlot, releaseCouponSlot, validateCouponForOrder } from "./coupons";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuItem, Restaurant } from "@/types/restaurant";
 import type { Order, OrderItem } from "@/types/order";
@@ -144,10 +145,13 @@ export async function previewCart(params: {
       continue;
     }
 
+    const packingFeePaise = packingFeePaiseOf(item);
+
     pricingLines.push({
       quantity: line.quantity,
       unitPricePaise: item.pricePaise,
       addOnPricesPaise: addOns.map((a) => a.pricePaise),
+      packingFeePaise,
     });
 
     orderItems.push({
@@ -158,6 +162,7 @@ export async function previewCart(params: {
       unitPricePaise: item.pricePaise,
       addOns,
       lineTotalPaise: 0, // filled in below, from the pricing result
+      packingFeePaise,
     });
   }
 
@@ -220,7 +225,12 @@ export type CreateOrderResult =
   | { ok: true; order: Order; reused: boolean }
   | {
       ok: false;
-      code: "CART_INVALID" | "ORDERING_BLOCKED" | "BELOW_MINIMUM" | "RESTAURANT_CLOSED";
+      code:
+        | "CART_INVALID"
+        | "ORDERING_BLOCKED"
+        | "BELOW_MINIMUM"
+        | "RESTAURANT_CLOSED"
+        | "COUPON_UNAVAILABLE";
       message: string;
       issues?: CartIssue[];
     };
@@ -256,6 +266,7 @@ export async function createOrder(params: {
         restaurantId: params.restaurantId,
         campusId: rawPreview.campus._id,
         subtotalPaise: rawPreview.pricing.subtotalPaise,
+        lines: rawPreview.items,
         studentId: params.customer._id,
       });
       if (couponValidation.ok) {
@@ -325,6 +336,17 @@ export async function createOrder(params: {
   const zone = preview.campus.zones.find((z) => z.id === params.zoneId);
   if (!zone) {
     return { ok: false, code: "CART_INVALID", message: "That delivery gate no longer exists." };
+  }
+
+  // Validation above only read the person-limit count. This is the write that
+  // holds a slot, and the one a racing student loses. The student was shown
+  // the discount, so refuse rather than silently charge them more.
+  if (appliedCoupon && !(await claimCouponSlot(appliedCoupon._id, params.customer._id))) {
+    return {
+      ok: false,
+      code: "COUPON_UNAVAILABLE",
+      message: `Coupon "${appliedCoupon.code}" was just claimed by its last eligible customer. Remove it to place your order.`,
+    };
   }
 
   const orderNumber = await nextOrderNumber(preview.campus);
@@ -404,6 +426,7 @@ export async function createOrder(params: {
       const winner = await orders.findOne({ idempotencyKey: params.idempotencyKey });
       if (winner) return { ok: true, order: winner, reused: true };
     }
+    if (appliedCoupon) await releaseCouponSlot(appliedCoupon._id, params.customer._id);
     throw error;
   }
 
@@ -582,6 +605,7 @@ export async function transitionOrder(options: TransitionOptions): Promise<Trans
       { _id: order.couponId, usedCount: { $gt: 0 } },
       { $inc: { usedCount: -1 } },
     );
+    await releaseCouponSlot(order.couponId, order.customerId);
   }
 
   await writeAudit({

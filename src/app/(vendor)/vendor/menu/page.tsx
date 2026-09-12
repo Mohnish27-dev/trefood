@@ -31,6 +31,8 @@ export default async function VendorMenuPage() {
       pricePaise: item.pricePaise,
       isAvailable: item.isAvailable,
       isPopular: item.isPopular ?? false,
+      packingFeeEnabled: item.packingFeeEnabled ?? false,
+      packingFeePaise: item.packingFeePaise ?? 0,
       addOnGroups: item.addOnGroups ?? [],
       addOnGroupCount: item.addOnGroups?.length ?? 0,
     })),

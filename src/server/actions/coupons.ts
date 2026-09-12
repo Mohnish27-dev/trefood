@@ -9,7 +9,6 @@ import {
   createCouponDirectly,
   deleteCoupon,
   toggleCouponStatus,
-  validateCouponForOrder,
 } from "@/server/services/coupons";
 
 export type ActionResponse =
@@ -30,9 +29,10 @@ const createCouponSchema = z.object({
   maxDiscountRupees: z.number().nonnegative().optional(),
   minOrderRupees: z.number().nonnegative().default(0),
   perStudentLimit: z.number().int().min(1).default(1),
-  totalLimit: z.number().int().positive().nullable().optional(),
-  validFrom: z.string().optional(),
-  validUntil: z.string().min(1, "Expiration date is required"),
+  /** First N distinct customers. 0 = everyone, until the coupon closes. */
+  personLimit: z.number().int().min(0, "Person limit cannot be negative").default(0),
+  /** Empty = the whole menu. */
+  menuItemIds: z.array(z.string().min(1)).max(200).default([]),
 });
 
 export async function createRestaurantCouponAction(input: unknown): Promise<ActionResponse> {
@@ -53,17 +53,9 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
     maxDiscountRupees,
     minOrderRupees,
     perStudentLimit,
-    totalLimit,
-    validFrom,
-    validUntil,
+    personLimit,
+    menuItemIds,
   } = parsed.data;
-
-  const validUntilDate = new Date(validUntil);
-  if (isNaN(validUntilDate.getTime())) {
-    return { status: "error", message: "Invalid expiration date" };
-  }
-
-  const validFromDate = validFrom ? new Date(validFrom) : new Date();
 
   const valuePaise = type === "FLAT" ? rupeesToPaise(value) : 0;
   const valueBps = type === "PERCENT" ? pctToBps(value) : 0;
@@ -84,9 +76,9 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
     maxDiscountPaise,
     minOrderPaise,
     perStudentLimit,
-    totalLimit: totalLimit ?? null,
-    validFrom: validFromDate,
-    validUntil: validUntilDate,
+    personLimit,
+    menuItemIds,
+    // No validUntil: every coupon closes at the end of the campus day it was made.
     actorId: session.user._id,
   });
 
@@ -158,41 +150,4 @@ export async function deleteCouponAction(input: unknown): Promise<ActionResponse
   revalidatePath("/admin/vendors");
 
   return { status: "success", message: "Coupon deleted successfully." };
-}
-
-const validateCouponSchema = z.object({
-  code: z.string().min(1),
-  restaurantId: z.string().min(1),
-  campusId: z.string().min(1),
-  subtotalPaise: z.number().int().nonnegative(),
-  studentId: z.string().optional(),
-});
-
-export async function validateCouponCodeAction(input: unknown): Promise<
-  | { status: "success"; couponCode: string; discountPaise: number; message: string }
-  | { status: "error"; message: string }
-> {
-  const parsed = validateCouponSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: "Invalid coupon request." };
-  }
-
-  const res = await validateCouponForOrder({
-    code: parsed.data.code,
-    restaurantId: parsed.data.restaurantId,
-    campusId: parsed.data.campusId,
-    subtotalPaise: parsed.data.subtotalPaise,
-    studentId: parsed.data.studentId ?? null,
-  });
-
-  if (!res.ok) {
-    return { status: "error", message: res.message };
-  }
-
-  return {
-    status: "success",
-    couponCode: res.coupon.code,
-    discountPaise: res.discountPaise,
-    message: `Applied coupon ${res.coupon.code} (-₹${res.discountPaise / 100})`,
-  };
 }

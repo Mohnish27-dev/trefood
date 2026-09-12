@@ -84,8 +84,20 @@ export interface Coupon {
   maxDiscountPaise: Paise;
   minOrderPaise: Paise;
   perStudentLimit: number;
+  /** Legacy redemption cap. New coupons use `personLimit` instead and leave this null. */
   totalLimit: number | null;
   usedCount: number;
+  /**
+   * How many DISTINCT customers may use this coupon — "first 10 customers".
+   * 0 (or absent, on coupons created before this existed) means no cap.
+   */
+  personLimit?: number;
+  /** Customers holding one of the `personLimit` slots. Claimed atomically at order creation. */
+  redeemedCustomerIds?: string[];
+  /** When non-empty, the coupon only applies to these items and discounts only their lines. */
+  menuItemIds?: string[];
+  /** Names of `menuItemIds`, snapshotted at creation for labels. */
+  menuItemNames?: string[];
   validFrom: Date;
   validUntil: Date;
   isActive: boolean;

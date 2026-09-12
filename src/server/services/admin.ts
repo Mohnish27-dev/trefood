@@ -303,6 +303,36 @@ export async function setCommissionOverride(params: {
   return updated;
 }
 
+export async function setPlatformFee(params: {
+  restaurantId: string;
+  platformFeePaise: Paise;
+  actorId: string;
+}): Promise<Restaurant | null> {
+  const restaurants = await db.restaurants();
+  const before = await restaurants.findOne({ _id: params.restaurantId });
+  if (!before) return null;
+
+  const updated = await restaurants.findOneAndUpdate(
+    { _id: params.restaurantId },
+    { $set: { platformFeePaise: params.platformFeePaise, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+
+  if (updated) {
+    await writeAudit({
+      entity: "RESTAURANT",
+      entityId: updated._id,
+      from: String(before.platformFeePaise ?? 0),
+      to: String(params.platformFeePaise),
+      actorId: params.actorId,
+      actorRole: ACTOR.ADMIN,
+      reason: "Platform fee changed",
+    });
+  }
+
+  return updated;
+}
+
 export async function updateRestaurantDisplayOrders(params: {
   orderedRestaurantIds: string[];
   actorId: string;
@@ -466,6 +496,7 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
     prepMinutes: Math.max(1, params.prepMinutes),
     foodGstBps: 0,
     commissionBpsOverride: null,
+    platformFeePaise: 0,
     servedZoneIds,
     opensMinutes: 7 * 60, // 07:00
     closesMinutes: 23 * 60 + 30, // 23:30
