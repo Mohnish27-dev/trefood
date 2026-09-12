@@ -54,6 +54,8 @@ export interface AvailableCouponDto {
   valueBps: number;
   maxDiscountPaise: number;
   minOrderPaise: number;
+  /** Empty when the coupon applies to the whole menu. */
+  appliesToItemNames: string[];
   isEligible: boolean;
   reason?: string | undefined;
   calculatedDiscountPaise: number;
@@ -119,6 +121,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
+      lines: rawPreview.items,
       studentId: studentId ?? null,
     });
 
@@ -144,6 +147,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
+      lines: rawPreview.items,
       studentId: studentId ?? null,
     }),
   ]);
@@ -182,6 +186,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       valueBps: c.coupon.valueBps,
       maxDiscountPaise: c.coupon.maxDiscountPaise,
       minOrderPaise: c.coupon.minOrderPaise,
+      appliesToItemNames: (c.coupon.menuItemNames ?? []).filter(Boolean),
       isEligible: c.isEligible,
       reason: c.reason,
       calculatedDiscountPaise: c.calculatedDiscountPaise,

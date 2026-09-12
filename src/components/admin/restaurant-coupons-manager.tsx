@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
+import { VegMark } from "@/components/shared/veg-mark";
 import type { Coupon } from "@/types/finance";
 import type { Restaurant } from "@/types/restaurant";
 import {
@@ -37,16 +38,23 @@ import {
   toggleCouponStatusAction,
 } from "@/server/actions/coupons";
 
+export interface CouponMenuSection {
+  categoryName: string;
+  items: { id: string; name: string; isVeg: boolean; pricePaise: number }[];
+}
+
 interface RestaurantCouponsManagerProps {
   restaurant: Restaurant;
   campusName: string;
   coupons: Coupon[];
+  menuSections: CouponMenuSection[];
 }
 
 export function RestaurantCouponsManager({
   restaurant,
   campusName,
   coupons,
+  menuSections,
 }: RestaurantCouponsManagerProps) {
   return (
     <div className="space-y-6 max-w-5xl">
@@ -69,7 +77,11 @@ export function RestaurantCouponsManager({
           </p>
         </div>
 
-        <CreateCouponDialog restaurantId={restaurant._id} restaurantName={restaurant.name} />
+        <CreateCouponDialog
+          restaurantId={restaurant._id}
+          restaurantName={restaurant.name}
+          menuSections={menuSections}
+        />
       </div>
 
       {/* ── Coupons List ─────────────────────────────────────────── */}
@@ -106,6 +118,9 @@ function CouponCard({
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isExpired = new Date(coupon.validUntil) < new Date();
+  const personLimit = coupon.personLimit ?? 0;
+  const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
+  const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
 
   const handleToggle = async () => {
     setToggling(true);
@@ -180,20 +195,32 @@ function CouponCard({
           </div>
 
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-faint block">Usage</span>
+            <span className="text-[10px] uppercase tracking-wider text-faint block">Customers</span>
             <span className="text-bone">
-              {coupon.usedCount} used {coupon.totalLimit ? `/ ${coupon.totalLimit}` : "(unlimited)"}
+              {personLimit > 0
+                ? `${customersUsed} / ${personLimit}`
+                : coupon.totalLimit
+                  ? `${coupon.usedCount} used / ${coupon.totalLimit}`
+                  : `${coupon.usedCount} used (no limit)`}
             </span>
           </div>
 
           <div>
             <span className="text-[10px] uppercase tracking-wider text-faint block">Valid Till</span>
             <span className="text-bone">
-              {new Date(coupon.validUntil).toLocaleDateString("en-IN", {
+              {new Date(coupon.validUntil).toLocaleString("en-IN", {
                 day: "numeric",
                 month: "short",
-                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
               })}
+            </span>
+          </div>
+
+          <div className="col-span-2">
+            <span className="text-[10px] uppercase tracking-wider text-faint block">Applies To</span>
+            <span className="text-bone">
+              {itemNames.length > 0 ? itemNames.join(", ") : "Entire menu"}
             </span>
           </div>
         </div>
@@ -237,9 +264,11 @@ function CouponCard({
 function CreateCouponDialog({
   restaurantId,
   restaurantName,
+  menuSections,
 }: {
   restaurantId: string;
   restaurantName: string;
+  menuSections: CouponMenuSection[];
 }) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -252,17 +281,34 @@ function CreateCouponDialog({
   const [maxDiscountRupees, setMaxDiscountRupees] = useState("100");
   const [minOrderRupees, setMinOrderRupees] = useState("100");
   const [perStudentLimit, setPerStudentLimit] = useState("1");
-  const [totalLimit, setTotalLimit] = useState("");
+  const [personLimit, setPersonLimit] = useState("0");
+  const [appliesTo, setAppliesTo] = useState<"ALL" | "ITEMS">("ALL");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [itemFilter, setItemFilter] = useState("");
 
-  // Default validity: 30 days from now
-  const [validUntil, setValidUntil] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split("T")[0] ?? "";
-  });
+  const personLimitValue = parseInt(personLimit, 10) || 0;
+
+  const toggleItem = (id: string) =>
+    setSelectedItemIds((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+
+  const filterText = itemFilter.trim().toLowerCase();
+  const visibleSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: filterText
+        ? section.items.filter((item) => item.name.toLowerCase().includes(filterText))
+        : section.items,
+    }))
+    .filter((section) => section.items.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (appliesTo === "ITEMS" && selectedItemIds.length === 0) {
+      toast.error("Select at least one item, or apply the coupon to the entire menu.");
+      return;
+    }
     setSubmitting(true);
 
     const res = await createRestaurantCouponAction({
@@ -274,8 +320,8 @@ function CreateCouponDialog({
       maxDiscountRupees: type === "PERCENT" && maxDiscountRupees ? parseFloat(maxDiscountRupees) : undefined,
       minOrderRupees: minOrderRupees ? parseFloat(minOrderRupees) : 0,
       perStudentLimit: perStudentLimit ? parseInt(perStudentLimit, 10) : 1,
-      totalLimit: totalLimit ? parseInt(totalLimit, 10) : null,
-      validUntil: new Date(`${validUntil}T23:59:59`).toISOString(),
+      personLimit: personLimitValue,
+      menuItemIds: appliesTo === "ITEMS" ? selectedItemIds : [],
     });
 
     setSubmitting(false);
@@ -290,6 +336,10 @@ function CreateCouponDialog({
     // Reset form
     setCode("");
     setDescription("");
+    setPersonLimit("0");
+    setAppliesTo("ALL");
+    setSelectedItemIds([]);
+    setItemFilter("");
   };
 
   return (
@@ -408,7 +458,7 @@ function CreateCouponDialog({
               </div>
             </div>
 
-            {/* Per Student Limit */}
+            {/* Per Student & Person Limit */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="coupon-per-student">Per Student Limit</Label>
@@ -420,33 +470,99 @@ function CreateCouponDialog({
                   onChange={(e) => setPerStudentLimit(e.target.value)}
                 />
               </div>
-            </div>
-
-            {/* Expiry Date & Total Redemptions */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="coupon-expiry">Valid Until</Label>
-                <Input
-                  id="coupon-expiry"
-                  type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                  required
-                />
-              </div>
 
               <div>
-                <Label htmlFor="coupon-total-limit">Total Limit (Optional)</Label>
+                <Label htmlFor="coupon-person-limit">Person Limit</Label>
                 <Input
-                  id="coupon-total-limit"
+                  id="coupon-person-limit"
                   type="number"
-                  min={1}
-                  placeholder="Unlimited"
-                  value={totalLimit}
-                  onChange={(e) => setTotalLimit(e.target.value)}
+                  min={0}
+                  value={personLimit}
+                  onChange={(e) => setPersonLimit(e.target.value)}
                 />
               </div>
             </div>
+            <p className="-mt-2 text-[11px] text-muted">
+              {personLimitValue > 0
+                ? `Only the first ${personLimitValue} customers can use this coupon. After that it is hidden for everyone else.`
+                : "0 = available to every customer until the coupon closes."}
+            </p>
+
+            {/* Applies To */}
+            <div>
+              <Label>Applies To</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 border border-line">
+                <button
+                  type="button"
+                  onClick={() => setAppliesTo("ALL")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    appliesTo === "ALL" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  Entire Menu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppliesTo("ITEMS")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    appliesTo === "ITEMS" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  Selected Items
+                </button>
+              </div>
+
+              {appliesTo === "ITEMS" ? (
+                <div className="mt-2 space-y-2">
+                  <Input
+                    placeholder="Search items"
+                    value={itemFilter}
+                    onChange={(e) => setItemFilter(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <div className="max-h-52 overflow-y-auto rounded-xl border border-line divide-y divide-line/60">
+                    {visibleSections.length === 0 ? (
+                      <p className="p-3 text-xs text-muted">
+                        {menuSections.length === 0
+                          ? "This restaurant has no menu items yet."
+                          : "No items match."}
+                      </p>
+                    ) : (
+                      visibleSections.map((section) => (
+                        <div key={section.categoryName} className="p-2">
+                          <p className="px-1 pb-1 text-[10px] uppercase tracking-wider text-faint">
+                            {section.categoryName}
+                          </p>
+                          {section.items.map((item) => (
+                            <label
+                              key={item.id}
+                              className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs hover:bg-surface-raised"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedItemIds.includes(item.id)}
+                                onChange={() => toggleItem(item.id)}
+                                className="size-4 accent-saffron"
+                              />
+                              <VegMark isVeg={item.isVeg} />
+                              <span className="flex-1 text-bone">{item.name}</span>
+                              <Money paise={item.pricePaise} className="text-muted" />
+                            </label>
+                          ))}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted">
+                    {selectedItemIds.length} selected. The discount is calculated on these items only.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            <p className="rounded-lg border border-line bg-surface px-3 py-2 text-[11px] text-muted">
+              Valid today only. The coupon closes automatically at 11:59 PM.
+            </p>
           </DialogBody>
 
           <DialogFooter className="mt-4">

@@ -160,6 +160,9 @@ export function CheckoutView({
       }
 
       setError(result.status === "error" ? result.message : "Something went wrong.");
+      // The refusal may be about a coupon that just ran out; re-price so the
+      // summary stops showing a discount the order can no longer get.
+      reload();
     } catch (err) {
       console.error("Order placement failed:", err);
       const isTechnicalReactError =
