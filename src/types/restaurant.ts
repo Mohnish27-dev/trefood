@@ -116,6 +116,13 @@ export interface Restaurant {
   foodGstBps: Bps;
   /** Admin-set override. Null means use the campus rate. */
   commissionBpsOverride: Bps | null;
+  /**
+   * Admin-set TREFOOD platform fee for this vendor. Strictly between admin and
+   * vendor: shown on the vendor's dashboard, never on any student bill or in
+   * order pricing. Absent on restaurants created before the field existed;
+   * read it as zero.
+   */
+  platformFeePaise?: Paise;
 
   /**
    * Which gates this restaurant will deliver to. Drives the student list:

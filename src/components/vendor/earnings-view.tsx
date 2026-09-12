@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Download, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { Banknote, Download, Landmark, Receipt, TrendingUp, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -69,6 +69,7 @@ export function EarningsView({
   ledgerTotalPaise,
   statements,
   outstandingDuePaise,
+  platformFeePaise,
 }: {
   days: EarningsDayView[];
   today: EarningsDayView;
@@ -76,6 +77,8 @@ export function EarningsView({
   ledgerTotalPaise: number;
   statements: StatementRowView[];
   outstandingDuePaise: number;
+  /** Admin-set TREFOOD platform fee for this vendor. 0 when none. */
+  platformFeePaise: number;
   commissionPct?: string;
 }) {
   const { t, lang } = useVendorLanguage();
@@ -90,7 +93,7 @@ export function EarningsView({
       </header>
 
       {/* ── Today ────────────────────────────────────────────────── */}
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           icon={TrendingUp}
           label={t("todayGross")}
@@ -110,6 +113,12 @@ export function EarningsView({
           paise={outstandingDuePaise}
           hint={t("commissionOwedHint")}
           tone="saffron"
+        />
+        <Stat
+          icon={Landmark}
+          label={t("platformFee")}
+          paise={platformFeePaise}
+          hint={t("platformFeeHint")}
         />
       </section>
 

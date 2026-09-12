@@ -12,6 +12,7 @@ import {
   deleteZone,
   reviewKyc,
   setCommissionOverride,
+  setPlatformFee,
   setRestaurantOpenAsAdmin,
   setZoneActive,
   updateCampusSettings,
@@ -262,6 +263,26 @@ export async function saveCommissionOverride(input: unknown): Promise<AdminActio
 
   revalidatePath("/admin/vendors");
   return { status: "ok", message: "Commission updated" };
+}
+
+export async function savePlatformFee(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({
+      restaurantId: z.string().min(1),
+      // Whole rupees only. Between admin and vendor; never touches order pricing.
+      platformFeePaise: z.number().int().min(0).max(10_000_000).multipleOf(100),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: "Platform fee must be a whole rupee amount from ₹0 to ₹1,00,000." };
+  }
+
+  const { user } = await requireAdmin();
+  const updated = await setPlatformFee({ ...parsed.data, actorId: user._id });
+  if (!updated) return { status: "error", message: "That restaurant does not exist." };
+
+  revalidatePath("/admin/vendors");
+  return { status: "ok", message: `Platform fee for ${updated.name} updated` };
 }
 
 export async function savePayoutDetails(input: unknown): Promise<AdminActionState> {

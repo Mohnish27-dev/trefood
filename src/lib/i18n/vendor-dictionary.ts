@@ -292,6 +292,11 @@ export const VENDOR_STRINGS = {
     en: "Statements raised and not yet paid",
     hi: "स्टेटमेंट बन चुकी है, भुगतान बाकी है",
   },
+  platformFee: { en: "Platform fee", hi: "प्लेटफ़ॉर्म शुल्क" },
+  platformFeeHint: {
+    en: "Set by TREFOOD admin. Students never see this.",
+    hi: "TREFOOD एडमिन द्वारा तय। छात्रों को यह नहीं दिखता।",
+  },
   lastSevenDays: { en: "Last seven days", hi: "पिछले 7 दिन" },
   day: { en: "Day", hi: "दिन" },
   ordersCount: { en: "Orders", hi: "ऑर्डर" },
