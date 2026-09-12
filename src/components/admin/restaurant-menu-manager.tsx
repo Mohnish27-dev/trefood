@@ -8,6 +8,7 @@ import {
   Filter,
   Layers,
   Loader2,
+  Package,
   Plus,
   Search,
   Trash2,
@@ -34,6 +35,7 @@ import {
 import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
 import { VegMark } from "@/components/shared/veg-mark";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { cn } from "@/lib/utils";
 import type { AddOnGroup, AddOnOption, MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 import {
@@ -284,6 +286,15 @@ export function RestaurantMenuManager({
                             {item.isPopular ? (
                               <span className="rounded bg-amber-wash px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber">
                                 Pop
+                              </span>
+                            ) : null}
+                            {packingFeePaiseOf(item) > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px] text-muted"
+                                title="Packing fee per unit"
+                              >
+                                <Package className="size-2.5" />
+                                +<Money paise={packingFeePaiseOf(item)} />
                               </span>
                             ) : null}
                             <Money
@@ -609,6 +620,8 @@ function AddMenuItemDialog({
   const [priceRupees, setPriceRupees] = useState("");
   const [isPopular, setIsPopular] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
+  const [packingFeeEnabled, setPackingFeeEnabled] = useState(false);
+  const [packingFeeRupees, setPackingFeeRupees] = useState("");
   const [addOnGroups, setAddOnGroups] = useState<AddOnGroupFormItem[]>([]);
 
   const resetForm = () => {
@@ -619,6 +632,8 @@ function AddMenuItemDialog({
     setPriceRupees("");
     setIsPopular(false);
     setIsAvailable(true);
+    setPackingFeeEnabled(false);
+    setPackingFeeRupees("");
     setAddOnGroups([]);
   };
 
@@ -660,6 +675,8 @@ function AddMenuItemDialog({
         priceRupees: Number(priceRupees) || 0,
         isPopular,
         isAvailable,
+        packingFeeEnabled,
+        packingFeeRupees: Number(packingFeeRupees) || 0,
         addOnGroups,
       });
 
@@ -774,6 +791,14 @@ function AddMenuItemDialog({
               </label>
             </div>
 
+            <PackingFeeField
+              idPrefix="admin-item"
+              enabled={packingFeeEnabled}
+              onEnabledChange={setPackingFeeEnabled}
+              rupees={packingFeeRupees}
+              onRupeesChange={setPackingFeeRupees}
+            />
+
             {/* Add-on Groups / Sizes Builder */}
             <div className="space-y-3 pt-2 border-t border-line">
               <div className="flex items-center justify-between">
@@ -863,6 +888,10 @@ function EditMenuItemDialog({
   const [priceRupees, setPriceRupees] = useState((item.pricePaise / 100).toString());
   const [isPopular, setIsPopular] = useState(item.isPopular);
   const [isAvailable, setIsAvailable] = useState(item.isAvailable);
+  const [packingFeeEnabled, setPackingFeeEnabled] = useState(item.packingFeeEnabled ?? false);
+  const [packingFeeRupees, setPackingFeeRupees] = useState(
+    item.packingFeePaise ? (item.packingFeePaise / 100).toString() : "",
+  );
   const [addOnGroups, setAddOnGroups] = useState<AddOnGroupFormItem[]>(() =>
     item.addOnGroups.map((g) => ({
       id: g.id,
@@ -917,6 +946,8 @@ function EditMenuItemDialog({
         priceRupees: Number(priceRupees) || 0,
         isPopular,
         isAvailable,
+        packingFeeEnabled,
+        packingFeeRupees: Number(packingFeeRupees) || 0,
         addOnGroups,
       });
 
@@ -1025,6 +1056,14 @@ function EditMenuItemDialog({
               </label>
             </div>
 
+            <PackingFeeField
+              idPrefix={`admin-edit-item-${item._id}`}
+              enabled={packingFeeEnabled}
+              onEnabledChange={setPackingFeeEnabled}
+              rupees={packingFeeRupees}
+              onRupeesChange={setPackingFeeRupees}
+            />
+
             {/* Add-on Groups */}
             <div className="space-y-3 pt-2 border-t border-line">
               <div className="flex items-center justify-between">
@@ -1084,6 +1123,57 @@ function EditMenuItemDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Per-item packing fee — the same control the vendor sees on their own menu. */
+function PackingFeeField({
+  idPrefix,
+  enabled,
+  onEnabledChange,
+  rupees,
+  onRupeesChange,
+}: {
+  idPrefix: string;
+  enabled: boolean;
+  onEnabledChange: (next: boolean) => void;
+  rupees: string;
+  onRupeesChange: (next: string) => void;
+}) {
+  const inputId = `${idPrefix}-packing-fee`;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-line bg-surface p-3">
+      <label className="flex cursor-pointer items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-bone">
+            <Package className="size-3.5 text-saffron" />
+            Packing fee for this item
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">
+            Charged per unit and shown to the student as a separate packing line on the bill.
+          </span>
+        </span>
+        <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+      </label>
+
+      {enabled ? (
+        <div className="max-w-xs">
+          <Label htmlFor={inputId}>Packing fee (₹) *</Label>
+          <Input
+            id={inputId}
+            type="number"
+            required
+            min={1}
+            max={500}
+            step={1}
+            placeholder="e.g. 10"
+            value={rupees}
+            onChange={(e) => onRupeesChange(e.target.value)}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   type OrderStatus,
 } from "@/lib/constants";
 import type { Paise } from "@/lib/money";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { assertTransition } from "./order-state";
 import { computePricing, type PricingLineInput } from "./pricing";
 import { generateGateCode } from "./gate-code";
@@ -144,10 +145,13 @@ export async function previewCart(params: {
       continue;
     }
 
+    const packingFeePaise = packingFeePaiseOf(item);
+
     pricingLines.push({
       quantity: line.quantity,
       unitPricePaise: item.pricePaise,
       addOnPricesPaise: addOns.map((a) => a.pricePaise),
+      packingFeePaise,
     });
 
     orderItems.push({
@@ -158,6 +162,7 @@ export async function previewCart(params: {
       unitPricePaise: item.pricePaise,
       addOns,
       lineTotalPaise: 0, // filled in below, from the pricing result
+      packingFeePaise,
     });
   }
 

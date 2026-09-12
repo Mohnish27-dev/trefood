@@ -29,11 +29,20 @@ export interface PricingLineInput {
   unitPricePaise: Paise;
   /** Add-on prices, per single unit of the item. */
   addOnPricesPaise: readonly Paise[];
+  /**
+   * The item's own packing fee, per single unit. Omitted or 0 when the vendor
+   * has packing switched off for that item.
+   *
+   * It is NOT part of the line total: packing is billed as its own line, so it
+   * lands in `packagingFeePaise` alongside the restaurant-wide fee rather than
+   * hiding inside the price of the food.
+   */
+  packingFeePaise?: Paise | undefined;
 }
 
 export interface PricingInput {
   lines: readonly PricingLineInput[];
-  /** Restaurant's packaging fee. In the commission base (D6). */
+  /** Restaurant-wide packaging fee, charged once. In the commission base (D6). */
   packagingFeePaise: Paise;
   /** Campus flat delivery fee (D5). In the commission base (D6). */
   deliveryFeePaise: Paise;
@@ -54,6 +63,10 @@ export interface PricingResult {
   pricing: OrderPricing;
   /** Per-line totals, so the caller can build OrderItem[] without recomputing. */
   lineTotalsPaise: Paise[];
+  /** Per-line packing, `packingFeePaise x quantity`. Sums into `pricing.packagingFeePaise`. */
+  linePackingFeesPaise: Paise[];
+  /** The per-item part of the packaging fee — the rest is the restaurant-wide one. */
+  itemPackingFeePaise: Paise;
   /** What the delivery partner collects at the gate. Always the grand total. */
   cashDuePaise: Paise;
 }
@@ -76,7 +89,9 @@ export function computePricing(input: PricingInput): PricingResult {
   // section 7 implies a per-line total that scales. Resolved as
   //   (unitPrice + sum(addOns)) x qty
   const lineTotalsPaise: Paise[] = [];
+  const linePackingFeesPaise: Paise[] = [];
   let subtotalPaise = 0;
+  let itemPackingFeePaise = 0;
 
   for (const line of input.lines) {
     let perUnit = line.unitPricePaise;
@@ -84,12 +99,22 @@ export function computePricing(input: PricingInput): PricingResult {
     const lineTotal = perUnit * line.quantity;
     lineTotalsPaise.push(lineTotal);
     subtotalPaise += lineTotal;
+
+    // Packing scales with quantity for the same reason add-ons do: three
+    // portions go into three containers. It stays OUT of the subtotal, so the
+    // restaurant's minimum order is still measured on food alone and a packing
+    // fee can never push a cart over the line on its own.
+    const linePacking = (line.packingFeePaise ?? 0) * line.quantity;
+    linePackingFeesPaise.push(linePacking);
+    itemPackingFeePaise += linePacking;
   }
 
   /* --- 2. Commission base (D6) ------------------------------------ */
 
-  // Delivery fee is explicitly NOT commission-exempt.
-  const commissionBasePaise = subtotalPaise + input.packagingFeePaise + input.deliveryFeePaise;
+  // Packaging is the restaurant-wide fee plus every item's own, charged as one
+  // line on the bill. Delivery fee is explicitly NOT commission-exempt.
+  const packagingFeePaise = input.packagingFeePaise + itemPackingFeePaise;
+  const commissionBasePaise = subtotalPaise + packagingFeePaise + input.deliveryFeePaise;
 
   /* --- 3. The split that never drifts (A4) ------------------------ */
 
@@ -115,7 +140,7 @@ export function computePricing(input: PricingInput): PricingResult {
 
   const pricing: OrderPricing = {
     subtotalPaise,
-    packagingFeePaise: input.packagingFeePaise,
+    packagingFeePaise,
     deliveryFeePaise: input.deliveryFeePaise,
     discountPaise,
     commissionBasePaise,
@@ -127,7 +152,13 @@ export function computePricing(input: PricingInput): PricingResult {
 
   assertInvariants(pricing, { cashDuePaise: grandTotalPaise });
 
-  return { pricing, lineTotalsPaise, cashDuePaise: grandTotalPaise };
+  return {
+    pricing,
+    lineTotalsPaise,
+    linePackingFeesPaise,
+    itemPackingFeePaise,
+    cashDuePaise: grandTotalPaise,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -147,6 +178,9 @@ function validate(input: PricingInput): void {
     line.addOnPricesPaise.forEach((p, j) =>
       assertNonNegativePaise(p, `line ${i} addOn ${j} pricePaise`),
     );
+    if (line.packingFeePaise !== undefined) {
+      assertNonNegativePaise(line.packingFeePaise, `line ${i} packingFeePaise`);
+    }
   });
 
   assertNonNegativePaise(input.packagingFeePaise, "packagingFeePaise");

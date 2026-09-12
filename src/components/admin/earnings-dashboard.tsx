@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BadgeIndianRupee,
   Download,
+  CalendarDays,
   Minus,
   Store,
 } from "lucide-react";
@@ -29,7 +30,7 @@ import {
   type RankedBar,
   type TrendPoint,
 } from "@/components/admin/earnings-charts";
-import { bpsToPct, formatINRCompact, formatINRPlain } from "@/lib/money";
+import { bpsToPct, formatINRCompact } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 /**
@@ -108,6 +109,38 @@ export interface DashboardRestaurant {
   lastStatementDate: string | null;
 }
 
+/** One vendor on one day. Mirrors `DailyVendorRow` in services/daily-vendor-report.ts. */
+export interface DashboardDailyVendor {
+  date: string;
+  restaurantId: string;
+  name: string;
+  campusName: string;
+  phone: string;
+  commissionBps: number;
+  ordersTaken: number;
+  ordersCancelled: number;
+  ordersDelivered: number;
+  billedPaise: number;
+  cashCollectedPaise: number;
+  discountPaise: number;
+  commissionPaise: number;
+  vendorKeepsPaise: number;
+  statement: {
+    orderCount: number;
+    commissionDuePaise: number;
+    adjustmentsPaise: number;
+    openingBalancePaise: number;
+    netDuePaise: number;
+    carriedForwardPaise: number;
+    status: "PENDING" | "PAID";
+    paidAt: string | null;
+    collectionMethod: "CASH" | "UPI" | "BANK_TRANSFER" | null;
+    paymentReference: string | null;
+  } | null;
+  submittedPaise: number;
+  balancePaise: number;
+}
+
 export interface DashboardCampus {
   campusId: string;
   name: string;
@@ -131,6 +164,10 @@ export interface EarningsDashboardProps {
   trailingDaily: DashboardDaily[];
 
   restaurants: DashboardRestaurant[];
+  /** Campus-local "YYYY-MM-DD" the daily vendor report covers. */
+  reportDay: string;
+  /** Every vendor in scope on `reportDay`, idle ones included. */
+  dailyReport: DashboardDailyVendor[];
   collection: {
     collectedPaise: number;
     outstandingPaise: number;
@@ -153,14 +190,31 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
 
-  const go = (next: { campus?: string; month?: string }): void => {
+  const go = (next: { campus?: string; month?: string; day?: string }): void => {
     const params = new URLSearchParams();
     const campus = next.campus ?? props.selectedCampusId;
-    const month = next.month ?? props.month;
+    // Picking a day pulls the month along with it, so the charts and the day
+    // report never describe two different months. Picking a month drops the
+    // day and lets the server choose the nearest one inside it.
+    const month = next.day?.slice(0, 7) ?? next.month ?? props.month;
+    const day = next.day ?? (next.month === undefined ? props.reportDay : undefined);
     if (campus !== "") params.set("campus", campus);
     params.set("month", month);
+    if (day !== undefined) params.set("day", day);
     startNavigation(() => router.push(`/admin/earnings?${params.toString()}`));
   };
+
+  const exportHref = (from: string, to: string): string => {
+    const params = new URLSearchParams({ from, to });
+    if (props.selectedCampusId !== "") params.set("campus", props.selectedCampusId);
+    return `/api/admin/earnings/export?${params.toString()}`;
+  };
+
+  // The month export runs to today at the latest: days that have not happened
+  // yet have nothing on them. A future month has no range at all.
+  const monthStart = props.monthDaily[0]?.date ?? `${props.month}-01`;
+  const monthEnd = props.monthDaily.at(-1)?.date ?? monthStart;
+  const monthExportEnd = monthEnd < props.todayDate ? monthEnd : props.todayDate;
 
   /* ---- Derived views ------------------------------------------------ */
 
@@ -282,10 +336,34 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
             />
           </div>
 
-          <Button variant="secondary" onClick={() => downloadCsv(props)}>
-            <Download />
-            Export report
+          <div className="min-w-40">
+            <Label htmlFor="earnings-day">Day</Label>
+            <Input
+              id="earnings-day"
+              type="date"
+              value={props.reportDay}
+              max={props.todayDate}
+              onChange={(event) => {
+                if (event.target.value !== "") go({ day: event.target.value });
+              }}
+            />
+          </div>
+
+          <Button variant="secondary" asChild>
+            <a href={exportHref(props.reportDay, props.reportDay)} download>
+              <Download />
+              Export day
+            </a>
           </Button>
+
+          {monthStart <= monthExportEnd ? (
+            <Button variant="ghost" asChild>
+              <a href={exportHref(monthStart, monthExportEnd)} download>
+                <Download />
+                Month, day by day
+              </a>
+            </Button>
+          ) : null}
 
           <Button variant="ghost" asChild className="ml-auto">
             <Link href="/admin/settlements">Go to collections</Link>
@@ -447,6 +525,10 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
         </Card>
       </div>
 
+      {/* ---- The day: every vendor, what they took, owe and handed over -- */}
+
+      <DailyVendorReport day={props.reportDay} rows={props.dailyReport} />
+
       {/* ---- The table: every value above, reachable without hover ------ */}
 
       <div>
@@ -545,6 +627,220 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
    Pieces
    ══════════════════════════════════════════════════════════════════════ */
 
+const COLLECTION_METHOD_LABEL: Record<"CASH" | "UPI" | "BANK_TRANSFER", string> = {
+  CASH: "Cash",
+  UPI: "UPI",
+  BANK_TRANSFER: "Bank transfer",
+};
+
+/**
+ * One day, every vendor: what they took, what they made, what they owe us on
+ * it, and what they have handed over.
+ *
+ * Orders taken are counted by when they reached the vendor; every money column
+ * is counted by when the order was delivered, which is how the nightly
+ * statement bills it. That is why "taken" and "delivered" can disagree across
+ * midnight, and why the statement column can carry more than the day's own
+ * commission — it sweeps up anything an earlier run missed, plus credits and
+ * carry-forward.
+ */
+function DailyVendorReport({ day, rows }: { day: string; rows: DashboardDailyVendor[] }) {
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (total, row) => ({
+          ordersTaken: total.ordersTaken + row.ordersTaken,
+          ordersDelivered: total.ordersDelivered + row.ordersDelivered,
+          ordersCancelled: total.ordersCancelled + row.ordersCancelled,
+          billedPaise: total.billedPaise + row.billedPaise,
+          commissionPaise: total.commissionPaise + row.commissionPaise,
+          vendorKeepsPaise: total.vendorKeepsPaise + row.vendorKeepsPaise,
+          netDuePaise: total.netDuePaise + (row.statement?.netDuePaise ?? 0),
+          submittedPaise: total.submittedPaise + row.submittedPaise,
+          balancePaise: total.balancePaise + row.balancePaise,
+          notRun: total.notRun + (row.statement === null && row.ordersDelivered > 0 ? 1 : 0),
+        }),
+        {
+          ordersTaken: 0,
+          ordersDelivered: 0,
+          ordersCancelled: 0,
+          billedPaise: 0,
+          commissionPaise: 0,
+          vendorKeepsPaise: 0,
+          netDuePaise: 0,
+          submittedPaise: 0,
+          balancePaise: 0,
+          notRun: 0,
+        },
+      ),
+    [rows],
+  );
+
+  const dayLabel = formatDay(day);
+
+  return (
+    <div>
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <CalendarDays className="size-4 shrink-0 self-center text-faint" />
+        <h2 className="font-display text-base font-semibold text-bone">Vendors on {dayLabel}</h2>
+        <p className="text-xs text-muted">
+          Orders taken, what each vendor made, the commission they owe on it, and what they have
+          handed over. Pick another day above.
+        </p>
+      </div>
+
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile
+          label="Vendors made"
+          paise={totals.billedPaise}
+          caption={`${totals.ordersTaken} taken · ${totals.ordersDelivered} delivered · ${totals.ordersCancelled} cancelled`}
+        />
+        <Tile
+          label="Commission owed"
+          paise={totals.commissionPaise}
+          caption="On this day's deliveries"
+        />
+        <Tile
+          label="Handed over"
+          paise={totals.submittedPaise}
+          caption="Net due on statements marked collected"
+        />
+        <Tile
+          label="Still owed"
+          paise={totals.balancePaise}
+          caption={
+            totals.notRun > 0
+              ? `${totals.notRun} vendor${totals.notRun === 1 ? "" : "s"} with no statement yet`
+              : "Net due on statements not yet collected"
+          }
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <Card className="px-6 py-10 text-center text-sm text-muted">
+          No vendors on this campus yet.
+        </Card>
+      ) : (
+        <Table>
+          <THead>
+            <tr>
+              <TH>Vendor</TH>
+              <TH className="text-right">Orders</TH>
+              <TH className="text-right">Made</TH>
+              <TH className="text-right">Commission</TH>
+              <TH className="text-right">Vendor keeps</TH>
+              <TH className="text-right">Statement due</TH>
+              <TH>Handed over</TH>
+            </tr>
+          </THead>
+          <TBody>
+            {rows.map((row) => {
+              const idle = row.ordersTaken === 0 && row.ordersDelivered === 0;
+
+              return (
+                <TR key={`${row.restaurantId}-${row.date}`} className={cn(idle && "opacity-60")}>
+                  <TD>
+                    <p className="font-medium">{row.name}</p>
+                    <p className="mt-0.5 text-[11px] text-faint">
+                      {row.campusName}
+                      {row.phone !== "" ? ` · ${row.phone}` : ""}
+                    </p>
+                  </TD>
+                  <TD className="text-right">
+                    <p className="font-medium tabular">{row.ordersTaken}</p>
+                    <p className="mt-0.5 text-[11px] whitespace-nowrap text-faint">
+                      {row.ordersDelivered} delivered · {row.ordersCancelled} cancelled
+                    </p>
+                  </TD>
+                  <TD className="text-right">
+                    <Money paise={row.billedPaise} exact />
+                  </TD>
+                  <TD className="text-right">
+                    <p className="font-semibold text-saffron">
+                      <Money paise={row.commissionPaise} exact />
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-faint tabular">
+                      {bpsToPct(row.commissionBps)}%
+                    </p>
+                  </TD>
+                  <TD className="text-right text-muted">
+                    <Money paise={row.vendorKeepsPaise} exact />
+                  </TD>
+                  <TD className="text-right">
+                    {row.statement === null ? (
+                      row.ordersDelivered > 0 ? (
+                        <Badge tone="warning">Not run</Badge>
+                      ) : (
+                        <span className="text-faint">—</span>
+                      )
+                    ) : (
+                      <Money paise={row.statement.netDuePaise} exact />
+                    )}
+                  </TD>
+                  <TD className="whitespace-nowrap">
+                    <HandedOver statement={row.statement} />
+                  </TD>
+                </TR>
+              );
+            })}
+
+            <TR className="bg-surface-raised/40 font-semibold">
+              <TD>Total</TD>
+              <TD className="text-right tabular">{totals.ordersTaken}</TD>
+              <TD className="text-right">
+                <Money paise={totals.billedPaise} exact />
+              </TD>
+              <TD className="text-right text-saffron">
+                <Money paise={totals.commissionPaise} exact />
+              </TD>
+              <TD className="text-right text-muted">
+                <Money paise={totals.vendorKeepsPaise} exact />
+              </TD>
+              <TD className="text-right">
+                <Money paise={totals.netDuePaise} exact />
+              </TD>
+              <TD>
+                <span className="text-mint">
+                  <Money paise={totals.submittedPaise} exact />
+                </span>
+                {totals.balancePaise > 0 ? (
+                  <span className="ml-2 text-xs text-amber">
+                    <Money paise={totals.balancePaise} exact /> owed
+                  </span>
+                ) : null}
+              </TD>
+            </TR>
+          </TBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+function HandedOver({ statement }: { statement: DashboardDailyVendor["statement"] }) {
+  if (statement === null) return <span className="text-faint">—</span>;
+
+  if (statement.netDuePaise <= 0) {
+    return <span className="text-xs text-muted">Nothing due</span>;
+  }
+
+  if (statement.status === "PENDING") {
+    return <Badge tone="warning">Pending</Badge>;
+  }
+
+  return (
+    <div>
+      <p className="font-medium text-mint">
+        <Money paise={statement.netDuePaise} exact />
+      </p>
+      <p className="mt-0.5 text-[11px] text-faint">
+        {statement.collectionMethod ? COLLECTION_METHOD_LABEL[statement.collectionMethod] : "Paid"}
+        {statement.paymentReference ? ` · ${statement.paymentReference}` : ""}
+      </p>
+    </div>
+  );
+}
+
 function Tile({
   label,
   paise,
@@ -622,68 +918,6 @@ function Delta({
       <span className="text-faint">vs {periodLabel}</span>
     </p>
   );
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   Export
-   ══════════════════════════════════════════════════════════════════════ */
-
-/**
- * The month's vendor ledger as a spreadsheet.
- *
- * Plain rupee decimals, no symbol and no grouping — the same shape the
- * collections CSV uses, so both files open cleanly and add up in the same
- * column of the same sheet.
- */
-function downloadCsv(props: EarningsDashboardProps): void {
-  const header = [
-    "month",
-    "campus",
-    "vendor",
-    "commissionPct",
-    "ordersThisMonth",
-    "billedThisMonth",
-    "cashRecordedThisMonth",
-    "commissionThisMonth",
-    "billedToday",
-    "outstanding",
-    "collectedToDate",
-    "unbilledOrders",
-    "unbilledCommission",
-    "lastStatementDate",
-  ].join(",");
-
-  const body = props.restaurants.map((restaurant) =>
-    [
-      props.month,
-      csvCell(restaurant.campusName),
-      csvCell(restaurant.name),
-      String(bpsToPct(restaurant.commissionBps)),
-      String(restaurant.month.orderCount),
-      formatINRPlain(restaurant.month.billedPaise),
-      formatINRPlain(restaurant.month.cashCollectedPaise),
-      formatINRPlain(restaurant.month.commissionPaise),
-      formatINRPlain(restaurant.today.billedPaise),
-      formatINRPlain(restaurant.outstandingPaise),
-      formatINRPlain(restaurant.collectedPaise),
-      String(restaurant.unbilled.orderCount),
-      formatINRPlain(restaurant.unbilled.commissionPaise),
-      csvCell(restaurant.lastStatementDate ?? ""),
-    ].join(","),
-  );
-
-  const blob = new Blob([[header, ...body].join("\r\n")], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `trefood-earnings-${props.month}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function csvCell(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -218,6 +218,17 @@ export const VENDOR_STRINGS = {
   nonVeg: { en: "Non-Veg", hi: "मांसाहारी (Non-Veg)" },
   markPopular: { en: "Mark as Popular", hi: "लोकप्रिय (Popular) मार्क करें" },
   popularTag: { en: "POPULAR", hi: "लोकप्रिय" },
+  packingFeeTitle: { en: "Packing fee for this item", hi: "इस आइटम का पैकिंग शुल्क" },
+  packingFeeDesc: {
+    en: "Turn on to charge the student for the box or container this item is packed in. It shows as a separate packing line on their bill.",
+    hi: "इस आइटम के डिब्बे/पैकिंग का शुल्क लेने के लिए चालू करें। यह छात्र के बिल में अलग पैकिंग शुल्क के रूप में दिखेगा।",
+  },
+  packingFeeAmount: { en: "Packing fee (₹)", hi: "पैकिंग शुल्क (₹)" },
+  packingFeePerUnitHint: {
+    en: "Charged per piece — 2 plates means 2× this fee.",
+    hi: "हर पीस पर लगेगा — 2 प्लेट पर 2 गुना शुल्क।",
+  },
+  packingTag: { en: "packing", hi: "पैकिंग" },
   saveChanges: { en: "Save Changes", hi: "बदलाव सेव करें" },
   createItem: { en: "Add Item", hi: "आइटम जोड़ें" },
   itemDialogSubtitleAdd: {

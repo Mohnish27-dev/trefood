@@ -48,6 +48,18 @@ export interface OrderItem {
   addOns: OrderItemAddOn[];
   /** (unitPrice + sum(addOns)) x quantity. Frozen at creation. */
   lineTotalPaise: Paise;
+  /**
+   * The item's packing fee, PER UNIT, as the vendor had it set at checkout.
+   *
+   * Kept out of `lineTotalPaise` because packing is billed as its own line on
+   * the bill (`pricing.packagingFeePaise`), not as part of the food. Snapshot
+   * here so a stockout can take exactly this line's packing back off the cash
+   * due without re-reading a menu that may have changed since.
+   *
+   * Absent on orders placed before per-item packing fees existed; read it as
+   * zero.
+   */
+  packingFeePaise?: Paise;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

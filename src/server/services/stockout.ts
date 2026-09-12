@@ -3,6 +3,7 @@ import "server-only";
 import * as db from "@/server/db/collections";
 import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
 import { ceilRupeeOfBps, type Paise } from "@/lib/money";
+import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { writeLedgerEntry } from "./ledger";
 import { transitionOrder } from "./orders";
 import { writeAudit } from "./audit";
@@ -152,9 +153,14 @@ export async function resolveStockout(params: {
   /* --- Remove the line, deliver the rest --------------------------- */
 
   if (params.choice === "REMOVE") {
+    // The packing fee goes back too. Nothing was packed, so charging for the
+    // container of food that never left the kitchen is the same mistake as
+    // charging for the food.
+    const linePackingPaise = (line.packingFeePaise ?? 0) * line.quantity;
+
     outcome.cashReducedPaise = await reduceCashDue({
       order,
-      byPaise: line.lineTotalPaise,
+      byPaise: line.lineTotalPaise + linePackingPaise,
       note: `${stockout.itemName} not delivered on ${order.orderNumber}`,
       actorId: params.actorId ?? null,
     });
@@ -179,8 +185,12 @@ export async function resolveStockout(params: {
     if (!substitute) return { ok: false, message: "That swap is no longer available." };
 
     // Per-unit comparison, because the line may be for several portions.
-    const originalPerUnit = line.unitPricePaise;
-    const differencePerUnit = originalPerUnit - substitute.pricePaise;
+    // Packing rides along with the price: a swap into something that needs a
+    // cheaper container should cost the student less for exactly the same
+    // reason a cheaper dish does.
+    const originalPerUnit = line.unitPricePaise + (line.packingFeePaise ?? 0);
+    const substitutePerUnit = substitute.pricePaise + packingFeePaiseOf(substitute);
+    const differencePerUnit = originalPerUnit - substitutePerUnit;
 
     if (differencePerUnit > 0) {
       outcome.cashReducedPaise = await reduceCashDue({

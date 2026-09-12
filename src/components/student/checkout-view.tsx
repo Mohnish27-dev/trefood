@@ -316,6 +316,9 @@ export function CheckoutView({
         </h2>
 
         <MoneyRow label="Item total" paise={quote.subtotalPaise} />
+        {quote.packagingFeePaise > 0 ? (
+          <MoneyRow label="Packing charges" paise={quote.packagingFeePaise} />
+        ) : null}
         {quote.discountPaise > 0 ? (
           <MoneyRow label="Discount" paise={quote.discountPaise} negative />
         ) : null}
