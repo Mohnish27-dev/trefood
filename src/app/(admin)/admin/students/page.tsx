@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminStudentsPage() {
   await requireAdmin();
 
-  const students = await listStudents({ limit: 200 });
+  const { rows: students, total } = await listStudents({});
 
   const rows: StudentRowView[] = students.map((row) => ({
     userId: row.user._id,
@@ -34,7 +34,7 @@ export default async function AdminStudentsPage() {
         </p>
       </header>
 
-      <StudentTable students={rows} />
+      <StudentTable students={rows} total={total} />
     </>
   );
 }

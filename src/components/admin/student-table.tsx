@@ -45,7 +45,14 @@ export interface StudentRowView {
  * had an exam, or fell asleep. Clearing their strikes costs nothing, and it is
  * the first thing to reach for.
  */
-export function StudentTable({ students }: { students: StudentRowView[] }) {
+export function StudentTable({
+  students,
+  total,
+}: {
+  students: StudentRowView[];
+  /** Every student in the database, in case fewer were loaded. */
+  total: number;
+}) {
   const [query, setQuery] = useState("");
 
   const needle = query.trim().toLowerCase();
@@ -59,18 +66,55 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
             (student.phone ?? "").includes(needle),
         );
 
+  const pausedCount = students.filter((student) => student.ordersBlocked).length;
+  const withStrikesCount = students.filter((student) => student.strikes > 0).length;
+
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Name, email or phone"
-          className="pl-9"
-          aria-label="Search students"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Name, email or phone"
+            className="pl-9"
+            aria-label="Search students"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted" aria-live="polite">
+          <span className="rounded-full border border-line bg-surface px-3 py-1">
+            {needle.length > 0 ? (
+              <>
+                <span className="tabular font-semibold text-bone">{filtered.length}</span> of{" "}
+                <span className="tabular">{total}</span> students
+              </>
+            ) : (
+              <>
+                <span className="tabular font-semibold text-bone">{total}</span>{" "}
+                {total === 1 ? "student" : "students"}
+              </>
+            )}
+          </span>
+          {withStrikesCount > 0 ? (
+            <span className="rounded-full border border-line bg-surface px-3 py-1">
+              <span className="tabular font-semibold text-amber">{withStrikesCount}</span> with strikes
+            </span>
+          ) : null}
+          {pausedCount > 0 ? (
+            <span className="rounded-full border border-line bg-surface px-3 py-1">
+              <span className="tabular font-semibold text-chili">{pausedCount}</span> paused
+            </span>
+          ) : null}
+        </div>
       </div>
+
+      {students.length < total ? (
+        <p className="text-xs text-amber">
+          Showing the first {students.length} of {total} students — search only covers those.
+        </p>
+      ) : null}
 
       {filtered.length === 0 ? (
         <Card>
@@ -88,6 +132,7 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
         <Table>
           <THead>
             <tr>
+              <TH className="w-12 text-right">#</TH>
               <TH>Student</TH>
               <TH className="text-right">Orders</TH>
               <TH className="text-right">No-shows</TH>
@@ -97,8 +142,9 @@ export function StudentTable({ students }: { students: StudentRowView[] }) {
             </tr>
           </THead>
           <TBody>
-            {filtered.map((student) => (
+            {filtered.map((student, index) => (
               <TR key={student.userId}>
+                <TD className="text-right tabular text-faint">{index + 1}</TD>
                 <TD>
                   <p className="font-medium">{student.name}</p>
                   <p className="mt-0.5 text-[11px] text-faint">

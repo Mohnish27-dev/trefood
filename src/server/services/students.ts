@@ -143,13 +143,23 @@ export interface StudentRow {
   lastOrderAt: Date | null;
 }
 
-/** The admin student list. Counts come from orders, never from a denormalised field. */
+export interface StudentList {
+  rows: StudentRow[];
+  /** Every student matching the filter, not just the ones returned. */
+  total: number;
+}
+
+/**
+ * The admin student list. Counts come from orders, never from a denormalised field.
+ * No limit by default — a truncated list hides students from search, which only
+ * runs over what was loaded.
+ */
 export async function listStudents(params: {
   campusId?: string;
   query?: string;
   blockedOnly?: boolean;
   limit?: number;
-}): Promise<StudentRow[]> {
+}): Promise<StudentList> {
   const filter: Record<string, unknown> = { role: "STUDENT" };
   if (params.campusId) filter.campusId = params.campusId;
   if (params.blockedOnly === true) filter.ordersBlocked = true;
@@ -162,38 +172,49 @@ export async function listStudents(params: {
     ];
   }
 
-  const users = await (await db.users())
-    .find(filter)
-    .sort({ strikes: -1, name: 1 })
-    .limit(params.limit ?? 100)
+  const usersColl = await db.users();
+  let cursor = usersColl.find(filter).sort({ strikes: -1, name: 1 });
+  if (params.limit !== undefined) cursor = cursor.limit(params.limit);
+
+  const [users, total] = await Promise.all([
+    cursor.toArray(),
+    usersColl.countDocuments(filter),
+  ]);
+
+  if (users.length === 0) return { rows: [], total };
+
+  // Grouped in the database: pulling every order into memory and filtering it
+  // per student is quadratic, and the list is no longer capped.
+  const stats = await (await db.orders())
+    .aggregate<{ _id: string; orderCount: number; noShowCount: number; lastOrderAt: Date }>([
+      {
+        $match: {
+          customerId: { $in: users.map((u) => u._id) },
+          status: { $in: [...CUSTOMER_VISIBLE_STATUSES] },
+        },
+      },
+      {
+        $group: {
+          _id: "$customerId",
+          orderCount: { $sum: 1 },
+          noShowCount: { $sum: { $cond: [{ $eq: ["$status", "NO_SHOW"] }, 1, 0] } },
+          lastOrderAt: { $max: "$timestamps.createdAt" },
+        },
+      },
+    ])
     .toArray();
 
-  if (users.length === 0) return [];
+  const statsByUser = new Map(stats.map((s) => [s._id, s]));
 
-  const orders = await (await db.orders())
-    .find({
-      customerId: { $in: users.map((u) => u._id) },
-      status: { $in: [...CUSTOMER_VISIBLE_STATUSES] },
-    })
-    .project<{ customerId: string; status: string; timestamps: { createdAt: Date } }>({
-      customerId: 1,
-      status: 1,
-      "timestamps.createdAt": 1,
-    })
-    .toArray();
-
-  return users.map((user) => {
-    const mine = orders.filter((o) => o.customerId === user._id);
-    const lastOrderAt = mine.reduce<Date | null>((latest, o) => {
-      const at = o.timestamps.createdAt;
-      return latest === null || at > latest ? at : latest;
-    }, null);
-
+  const rows = users.map((user) => {
+    const mine = statsByUser.get(user._id);
     return {
       user,
-      orderCount: mine.length,
-      noShowCount: mine.filter((o) => o.status === "NO_SHOW").length,
-      lastOrderAt,
+      orderCount: mine?.orderCount ?? 0,
+      noShowCount: mine?.noShowCount ?? 0,
+      lastOrderAt: mine?.lastOrderAt ?? null,
     };
   });
+
+  return { rows, total };
 }
