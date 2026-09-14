@@ -1823,7 +1823,7 @@ export async function seedRoyalBihar(): Promise<void> {
       "Rolls",
       "Breads",
     ],
-    phone: "9876543211",
+    phone: "9031726976",
     description:
       "The Royal Bihar Restaurant - Authentic Bihari Dehati curries, Handi Mutton, Tandoori Kebabs, Dum Biryanis & North Indian delicacies. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
@@ -1843,7 +1843,7 @@ export async function seedRoyalBihar(): Promise<void> {
     kyc: {
       status: "APPROVED",
       ownerName: "Royal Bihar Manager",
-      ownerPhone: "9876543211",
+      ownerPhone: "9031726976",
       gstin: null,
       fssai: null,
       reviewedAt: now,
@@ -1874,7 +1874,7 @@ export async function seedRoyalBihar(): Promise<void> {
     role: ROLE.VENDOR_OWNER,
     name: "Royal Bihar Manager",
     email: VENDOR_EMAIL,
-    phone: "9876543211",
+    phone: "9031726976",
     passwordHash: hashPassword("royalbihartraefood123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,

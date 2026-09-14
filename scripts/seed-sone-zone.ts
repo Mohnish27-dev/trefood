@@ -1773,7 +1773,7 @@ export async function seedSoneZone(): Promise<void> {
       "Biryani",
       "Thalis",
     ],
-    phone: "9876543212",
+    phone: "9821136151",
     description:
       "Sone Zone Cafe - Hot Tea, Shakes, Mocktails, Pizzas, Burgers, South Indian Dosas, Thalis, Momos & Chinese Delicacies. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
@@ -1793,7 +1793,7 @@ export async function seedSoneZone(): Promise<void> {
     kyc: {
       status: "APPROVED",
       ownerName: "Sone Zone Manager",
-      ownerPhone: "9876543212",
+      ownerPhone: "9821136151",
       gstin: null,
       fssai: null,
       reviewedAt: now,
@@ -1824,7 +1824,7 @@ export async function seedSoneZone(): Promise<void> {
     role: ROLE.VENDOR_OWNER,
     name: "Sone Zone Manager",
     email: VENDOR_EMAIL,
-    phone: "9876543212",
+    phone: "9821136151",
     passwordHash: hashPassword("sonezonecafe@1995"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,

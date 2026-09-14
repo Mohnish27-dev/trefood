@@ -272,7 +272,7 @@ export async function seedMokila(): Promise<void> {
       "Fast Food",
       "North Indian",
     ],
-    phone: "9876543214",
+    phone: "7479892202",
     description:
       "Mokila Restaurant Bihta - Good Food Good Mood. Freshly prepared Rolls, Burgers, Manchurian, Chilli & Gravy, Chowmein and Lachha Parathas delivered fast.",
     imageUrl: null,
@@ -292,7 +292,7 @@ export async function seedMokila(): Promise<void> {
     kyc: {
       status: "APPROVED",
       ownerName: "Mokila Restaurant Manager",
-      ownerPhone: "9876543214",
+      ownerPhone: "7479892202",
       gstin: null,
       fssai: null,
       reviewedAt: now,
@@ -323,7 +323,7 @@ export async function seedMokila(): Promise<void> {
     role: ROLE.VENDOR_OWNER,
     name: "Mokila Manager",
     email: VENDOR_EMAIL,
-    phone: "9876543214",
+    phone: "7479892202",
     passwordHash: hashPassword("Mukesh@74798"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
