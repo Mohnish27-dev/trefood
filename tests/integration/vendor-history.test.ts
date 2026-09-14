@@ -51,6 +51,8 @@ describe("vendor order history", () => {
     expect(history.orders.every(order => order.status !== ORDER_STATUS.PENDING_CONFIRMATION && order.status !== ORDER_STATUS.CANCELLED_BY_STUDENT)).toBe(true);
     expect(history.orders.map(order => order.createdAt)).toEqual(history.orders.map(order => order.createdAt).sort().reverse());
     expect(history.orders[0]).not.toHaveProperty("gateCode");
+    // The vendor must be able to ring the student back about any past order.
+    expect(history.orders.every(order => order.customerPhone === "+919876543210")).toBe(true);
     const other = await getVendorOrderHistory({ restaurantId: "other-history-restaurant" });
     expect(other.total).toBe(1);
     expect(history.orders.some(order => order.id === other.orders[0]?.id)).toBe(false);

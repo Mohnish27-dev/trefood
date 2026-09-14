@@ -95,6 +95,19 @@ export function VendorOrderCard({
           <p className="mt-0.5 truncate font-display text-sm font-semibold text-bone">
             {order.customerName}
           </p>
+          {/* Visible from the first flash, not only after accepting: a vendor
+              who needs to check something before saying yes has to be able to
+              ring the student while the countdown is still running. */}
+          {order.customerPhone ? (
+            <a
+              href={`tel:${order.customerPhone}`}
+              aria-label={`${t("callCustomer")} ${order.customerPhone}`}
+              className="mt-1 inline-flex min-h-6 items-center gap-1.5 text-xs font-semibold text-mint hover:underline"
+            >
+              <Phone className="size-3 shrink-0" />
+              <span className="tabular">{order.customerPhone}</span>
+            </a>
+          ) : null}
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
             <MapPin className="size-3 shrink-0 text-faint" />
             <span className="truncate">{order.zoneName}</span>

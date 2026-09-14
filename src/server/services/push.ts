@@ -252,6 +252,7 @@ export async function notifyVendorNewOrder(params: {
         body: [
           summariseItems(order),
           `${formatINR(order.payment.cashDuePaise)} cash · ${order.deliveryZoneSnapshot.name}`,
+          [order.customerSnapshot.name, order.customerSnapshot.phone].filter(Boolean).join(" · "),
           reminder === 0
             ? `Accept within ${minutesLeft} min`
             : `Not accepted yet — auto-cancels in ${minutesLeft} min`,
