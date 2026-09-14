@@ -7,40 +7,21 @@ import { Money } from "@/components/shared/money";
 import { ConnectionBanner, EmptyState, ErrorState } from "@/components/shared/states";
 import { NewOrderAlarm } from "./new-order-alarm";
 import { VendorOrderCard } from "./order-card";
+import { ORDER_STAGES, type OrderStage } from "./order-stages";
 import { useVendorAlarm } from "@/context/vendor-alarm-context";
 import { useVendorLanguage } from "@/context/vendor-language-context";
-import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import type { VendorBoard } from "@/server/services/vendor";
 
-export function OrderBoard({ initial }: { initial: VendorBoard }) {
+export function OrderBoard({ initial, stage }: { initial: VendorBoard; stage: OrderStage }) {
   const { t } = useVendorLanguage();
 
   // The poll lives in the layout alongside the alarm, so it keeps running while
   // the vendor is on any other tab. This page just renders what it finds there.
   const { board: data, connectionLost, lastSyncedAt, error, refresh } = useVendorAlarm();
 
-  const columns: { key: string; label: string; statuses: readonly OrderStatus[]; hint: string }[] = [
-    {
-      key: "new",
-      label: t("colNewOrders"),
-      statuses: [ORDER_STATUS.PLACED],
-      hint: t("hintNewOrders"),
-    },
-    {
-      key: "preparing",
-      label: t("colPreparing"),
-      statuses: [ORDER_STATUS.ACCEPTED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY],
-      hint: t("hintPreparing"),
-    },
-    {
-      key: "on_the_way",
-      label: t("colOnTheWay"),
-      statuses: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.AT_GATE],
-      hint: t("hintOnTheWay"),
-    },
-  ];
-
+  const config = ORDER_STAGES[stage];
   const board = data ?? initial;
+  const orders = board.orders.filter((o) => config.statuses.includes(o.status));
 
   // Only a total failure with nothing on screen is worth an error state. A
   // failed poll on top of a known-good board is the connection banner's job —
@@ -60,7 +41,9 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
       <ConnectionBanner visible={connectionLost} lastSyncedAt={lastSyncedAt} />
 
       <div className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <NewOrderAlarm />
+        {/* Shown on every stage: a vendor on "Preparing" still needs to know an
+            order is ringing, and the banner takes them straight to it. */}
+        <NewOrderAlarm linkToNewOrders={stage !== "new"} />
 
         <div className="ml-auto flex items-center gap-5 text-sm">
           <span className="text-muted">
@@ -72,42 +55,34 @@ export function OrderBoard({ initial }: { initial: VendorBoard }) {
         </div>
       </div>
 
-      {board.orders.length === 0 ? (
-        <EmptyState
-          icon={Inbox}
-          title={t("nothingCookingTitle")}
-          description={t("nothingCookingDesc")}
-        />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {columns.map((column) => {
-            const orders = board.orders.filter((o) => column.statuses.includes(o.status));
-
-            return (
-              <section key={column.key} className="min-w-0">
-                <div className="mb-2.5 flex items-center gap-2">
-                  <h2 className="font-display text-base font-semibold text-bone">{column.label}</h2>
-                  <Badge tone={column.key === "new" && orders.length > 0 ? "danger" : "neutral"}>
-                    {orders.length}
-                  </Badge>
-                </div>
-
-                {orders.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-xs leading-relaxed text-faint">
-                    {column.hint}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {orders.map((order) => (
-                      <VendorOrderCard key={order.orderId} order={order} onChanged={refresh} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            );
-          })}
+      <section className="min-w-0">
+        <div className="mb-2.5 flex items-center gap-2">
+          <h1 className="font-display text-base font-semibold text-bone">{t(config.label)}</h1>
+          <Badge tone={stage === "new" && orders.length > 0 ? "danger" : "neutral"}>
+            {orders.length}
+          </Badge>
         </div>
-      )}
+
+        {orders.length === 0 ? (
+          stage === "new" && board.orders.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title={t("nothingCookingTitle")}
+              description={t("nothingCookingDesc")}
+            />
+          ) : (
+            <p className="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-xs leading-relaxed text-faint">
+              {t(config.hint)}
+            </p>
+          )
+        ) : (
+          <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {orders.map((order) => (
+              <VendorOrderCard key={order.orderId} order={order} onChanged={refresh} />
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { BanknoteArrowUp, ClipboardList, History, LogOut, Settings, UtensilsCrossed } from "lucide-react";
+import {
+  BanknoteArrowUp,
+  Bike,
+  ChefHat,
+  ClipboardList,
+  History,
+  LogOut,
+  Settings,
+  UtensilsCrossed,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -14,9 +23,10 @@ import { signOut } from "@/server/actions/session";
 import { setRestaurantOpen } from "@/server/actions/vendor";
 import { cn } from "@/lib/utils";
 
-import { VendorAlarmProvider } from "@/context/vendor-alarm-context";
+import { VendorAlarmProvider, useVendorAlarm } from "@/context/vendor-alarm-context";
 import { VendorLanguageProvider, useVendorLanguage } from "@/context/vendor-language-context";
 import { unsubscribeThisDevice } from "@/lib/push-client";
+import { ORDER_STAGES, type OrderStage } from "./order-stages";
 import { VendorLanguageToggle } from "./vendor-language-toggle";
 import { VendorPushGate } from "./vendor-push-gate";
 
@@ -71,8 +81,23 @@ function VendorShellContent({
   const [open, setOpen] = useState(isOpen);
   const [saving, setSaving] = useState(false);
 
-  const tabs = [
-    { href: "/vendor/orders", label: t("navOrders"), icon: ClipboardList },
+  const { board } = useVendorAlarm();
+
+  // How many live orders sit in each stage, shown on its tab. Before the first
+  // poll lands there is no board yet, so the tabs simply show no count.
+  const stageCount = (stage: OrderStage): number | null =>
+    board ? board.orders.filter((o) => ORDER_STAGES[stage].statuses.includes(o.status)).length : null;
+
+  const tabs: {
+    href: string;
+    label: string;
+    icon: typeof ClipboardList;
+    count?: number | null;
+    urgent?: boolean;
+  }[] = [
+    { href: ORDER_STAGES.new.href, label: t("colNewOrders"), icon: ClipboardList, count: stageCount("new"), urgent: true },
+    { href: ORDER_STAGES.preparing.href, label: t("colPreparing"), icon: ChefHat, count: stageCount("preparing") },
+    { href: ORDER_STAGES.on_the_way.href, label: t("colOnTheWay"), icon: Bike, count: stageCount("on_the_way") },
     { href: "/vendor/menu", label: t("navMenu"), icon: UtensilsCrossed },
     { href: "/vendor/earnings", label: t("navEarnings"), icon: BanknoteArrowUp },
     { href: "/vendor/settings", label: t("navSettings"), icon: Settings },
@@ -118,7 +143,7 @@ function VendorShellContent({
           </div>
 
           <nav className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:mx-0 sm:w-auto">
-            {tabs.map(({ href, label, icon: Icon }) => {
+            {tabs.map(({ href, label, icon: Icon, count, urgent }) => {
               const active = pathname.startsWith(href);
               return (
                 <Link
@@ -134,6 +159,11 @@ function VendorShellContent({
                 >
                   <Icon className="size-4" />
                   {label}
+                  {count ? (
+                    <Badge tone={urgent ? "danger" : "neutral"} className="px-2">
+                      {count}
+                    </Badge>
+                  ) : null}
                 </Link>
               );
             })}
