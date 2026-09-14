@@ -1255,7 +1255,7 @@ export async function seedWrapchik(): Promise<void> {
       "Fries",
       "Beverages",
     ],
-    phone: "9876543210",
+    phone: "8928727495",
     description:
       "Wrapchik Pizza - Gourmet Pizzas, Crispy Fried Chicken, Juicy Burgers, Loaded Wraps, Waffles & Coolers. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
     imageUrl: null,
@@ -1275,7 +1275,7 @@ export async function seedWrapchik(): Promise<void> {
     kyc: {
       status: "APPROVED",
       ownerName: "Wrapchik Manager",
-      ownerPhone: "9876543210",
+      ownerPhone: "8928727495",
       gstin: null,
       fssai: null,
       reviewedAt: now,
@@ -1306,7 +1306,7 @@ export async function seedWrapchik(): Promise<void> {
     role: ROLE.VENDOR_OWNER,
     name: "Wrapchik Manager",
     email: VENDOR_EMAIL,
-    phone: "9876543210",
+    phone: "8928727495",
     passwordHash: hashPassword("Wrapchicktraefood@123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,

@@ -1255,7 +1255,7 @@ export async function seedVrindavanBhog(): Promise<void> {
     slug: "vrindavan-bhog",
     name: "Vrindavan Bhog",
     cuisines: ["Pure Vegetarian", "North Indian", "South Indian", "Chinese", "Thali"],
-    phone: "9113723910",
+    phone: "7482066766",
     description:
       "Vrindavan Bhog Pure Vegetarian Restaurant - Special Thalis, Paneer & Mushroom delicacies, South Indian dosas, Soups and Indo-Chinese fast food.",
     imageUrl: null,
@@ -1275,7 +1275,7 @@ export async function seedVrindavanBhog(): Promise<void> {
     kyc: {
       status: "APPROVED",
       ownerName: "Vrindavan Bhog Manager",
-      ownerPhone: "9113723910",
+      ownerPhone: "7482066766",
       gstin: null,
       fssai: null,
       reviewedAt: now,
@@ -1306,7 +1306,7 @@ export async function seedVrindavanBhog(): Promise<void> {
     role: ROLE.VENDOR_OWNER,
     name: "Vrindavan Bhog Manager",
     email: VENDOR_EMAIL,
-    phone: "9113723910",
+    phone: "7482066766",
     passwordHash: hashPassword("vrindanamtrefood@123"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,

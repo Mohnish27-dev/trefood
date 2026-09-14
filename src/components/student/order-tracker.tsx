@@ -327,13 +327,46 @@ function StatusScreen({
         </div>
       </Card>
 
-      {/* ── Call Restaurant Button ────────────────────────────── */}
-      <Button asChild block variant="outline" size="lg">
-        <a href={`tel:${order.restaurantPhone}`}>
-          <Phone />
-          Call {order.restaurantName}
-        </a>
-      </Button>
+      {/* ── Order changes: call the restaurant ────────────────── */}
+      {/* Checkout has no free-text notes, so "make the chicken boneless" or
+          "less spicy" can only reach the kitchen by phone. Say so while the
+          order is still live, and put the number on screen, not just behind
+          a button. */}
+      {!order.isTerminal && !isFailure(order.status) && !isDelivered ? (
+        <Card className="border-saffron/30 bg-saffron-wash/20 p-4">
+          <p className="font-display text-sm font-semibold text-bone">
+            Need to modify or add something to your order?
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Forgot to mention boneless, less spicy, or want to add an item? Please contact{" "}
+            <strong className="text-bone">{order.restaurantName}</strong> directly
+            {isAccepted ? " — the sooner you call, the better, as they may already be cooking." : "."}
+          </p>
+          <p className="mt-3 flex items-center gap-2 text-xs text-muted">
+            <Phone className="size-3.5 shrink-0 text-saffron" />
+            Vendor contact:{" "}
+            <a
+              href={`tel:${order.restaurantPhone}`}
+              className="tabular font-semibold tracking-wide text-bone underline-offset-2 hover:underline"
+            >
+              {formatPhone(order.restaurantPhone)}
+            </a>
+          </p>
+          <Button asChild block size="lg" className="mt-3">
+            <a href={`tel:${order.restaurantPhone}`}>
+              <Phone />
+              Call {order.restaurantName}
+            </a>
+          </Button>
+        </Card>
+      ) : (
+        <Button asChild block variant="outline" size="lg">
+          <a href={`tel:${order.restaurantPhone}`}>
+            <Phone />
+            Call {order.restaurantName}
+          </a>
+        </Button>
+      )}
 
       {isDelivered ? (
         <div className="space-y-3 pt-1">
@@ -423,6 +456,13 @@ function CancellationWindow({ order, onChanged }: {
       ) : null}
     </Card>
   );
+}
+
+/** "7209046762" → "72090 46762", the way Indian mobile numbers are read aloud. */
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const local = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+  return local.length === 10 ? `${local.slice(0, 5)} ${local.slice(5)}` : phone;
 }
 
 function isFailure(status: OrderStatus): boolean {
