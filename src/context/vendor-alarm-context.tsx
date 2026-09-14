@@ -23,6 +23,9 @@ const GESTURE_EVENTS = ["pointerdown", "mousedown", "touchstart", "keydown", "cl
 /** How often a should-be-ringing alarm checks that it is in fact ringing, in ms. */
 const RETRY_MS = 2000;
 
+/** With keys configured, the service worker owns every notification. */
+const pushConfigured = Boolean(clientEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+
 /**
  * The board poll and the new-order alarm, hoisted above the routes.
  *
@@ -157,7 +160,16 @@ export function VendorAlarmProvider({
     }
   }, [getAudio]);
 
+  /**
+   * Only where Web Push is not configured for this deployment.
+   *
+   * Where it is, `<VendorPushGate>` owns the permission conversation: it asks
+   * from a tap, subscribes the device, and blocks the console until the phone
+   * can ring with the app closed. Asking again from here would race it and put
+   * a second prompt in front of a vendor mid-rush.
+   */
   const askForNotifications = useCallback((): void => {
+    if (pushConfigured) return;
     if (notificationsAskedRef.current) return;
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission !== "default") return;
@@ -212,11 +224,33 @@ export function VendorAlarmProvider({
   }, [shouldRing, syncPlayback]);
 
   useEffect(() => {
-    if (newOrderCount > previousCount.current) {
+    // Where push is configured the service worker has already shown a richer
+    // notification for this exact order — with the items, the cash and the
+    // gate on it — so a second, vaguer one would just be noise on the same
+    // lock screen. This stays as the fallback for a deployment with no keys.
+    if (!pushConfigured && newOrderCount > previousCount.current) {
       notifyBackgroundTab(newOrderCount, restaurantName);
     }
     previousCount.current = newOrderCount;
   }, [newOrderCount, restaurantName]);
+
+  /**
+   * The vendor tapped the notification on a phone that already had the board
+   * open behind it. The service worker focuses that window and posts this, so
+   * the order is on screen when they look, rather than up to five seconds later.
+   */
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const onMessage = (event: MessageEvent): void => {
+      if ((event.data as { type?: string } | null)?.type === "trefood:notification-click") {
+        refresh();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [refresh]);
 
   // Only on a real teardown — signing out or leaving the console entirely.
   // Navigating between vendor tabs does not reach here, which is the point.

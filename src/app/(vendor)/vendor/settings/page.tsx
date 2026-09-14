@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { VendorAppLock } from "@/components/vendor/vendor-app-lock";
+import { VendorNotificationSettings } from "@/components/vendor/notification-settings";
 import { VendorSettingsForm, type SettingsZone } from "@/components/vendor/settings-form";
 import { requireVendor } from "@/server/auth/session";
 import { getCampusById, getRestaurantById } from "@/server/services/catalog";
@@ -46,6 +47,8 @@ export default async function VendorSettingsPage() {
           servedZoneIds: restaurant.servedZoneIds,
         }}
       />
+
+      <VendorNotificationSettings />
 
       {/*
         Sign-in, not shop settings, so it sits below the form rather than
