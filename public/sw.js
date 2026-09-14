@@ -17,7 +17,7 @@
  * anyway.
  */
 
-const VERSION = "trefood-v2";
+const VERSION = "trefood-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 
@@ -128,6 +128,12 @@ function offlineResponse() {
 /* Web Push                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A long, unmistakable buzz for a vendor's new order. A phone lying on a
+ * counter next to a hot tawa does not register the student pattern.
+ */
+const VENDOR_VIBRATION = [700, 250, 700, 250, 700, 250, 700];
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
@@ -138,37 +144,116 @@ self.addEventListener("push", (event) => {
     payload = { title: "TREFOOD", body: event.data.text(), url: "/orders" };
   }
 
+  const isVendorAlert = payload.kind === "VENDOR_NEW_ORDER" || payload.kind === "VENDOR_TEST";
+
+  // Always shown, even when the console is open and ringing: a push the page
+  // swallows silently is how Chrome ends up revoking the permission, and a
+  // second cue for an unanswered order costs nothing.
   event.waitUntil(
     self.registration.showNotification(payload.title ?? "TREFOOD", {
       body: payload.body ?? "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       // The order id, so "on the way" then "at your gate" replace each other
-      // instead of stacking up four deep on a lock screen.
+      // instead of stacking up four deep on a lock screen. For a vendor, the
+      // one-minute reminders replace the first alert the same way.
       tag: payload.tag ?? "trefood",
       renotify: true,
       requireInteraction: payload.requireInteraction === true,
-      data: { url: payload.url ?? "/orders" },
-      vibrate: [80, 40, 80],
+      silent: false,
+      timestamp: Date.now(),
+      data: { url: payload.url ?? (isVendorAlert ? "/vendor/orders" : "/orders"), kind: payload.kind ?? null },
+      vibrate: isVendorAlert ? VENDOR_VIBRATION : [80, 40, 80],
+      ...(payload.kind === "VENDOR_NEW_ORDER"
+        ? { actions: [{ action: "open", title: "Open orders" }] }
+        : {}),
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data?.url ?? "/orders";
+  const target = new URL(event.notification.data?.url ?? "/orders", self.location.origin);
 
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      // Reuse an open tab rather than piling up windows — a student tapping
-      // three notifications should not end with three copies of the app.
-      for (const client of clients) {
-        if ("focus" in client) {
-          void client.navigate(target);
-          return client.focus();
-        }
-      }
-      return self.clients.openWindow(target);
-    }),
-  );
+  event.waitUntil(focusOrOpen(target));
 });
+
+/**
+ * Reuse an open window rather than piling up copies of the app — a student
+ * tapping three notifications should not end with three windows, and a vendor
+ * tapping an alert should land on the board they already have open.
+ */
+async function focusOrOpen(target) {
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const sameOrigin = windows.filter((client) => new URL(client.url).origin === target.origin);
+
+  // Already showing the target (the vendor board is open in the background):
+  // bring it forward and tell it to refresh now instead of on its next poll.
+  const exact = sameOrigin.find((client) => new URL(client.url).pathname === target.pathname);
+  if (exact) {
+    exact.postMessage({ type: "trefood:notification-click", url: target.href });
+    return exact.focus();
+  }
+
+  for (const client of sameOrigin) {
+    try {
+      const focused = await client.focus();
+      // navigate() rejects for a window this worker does not control yet.
+      const navigated = await (focused ?? client).navigate(target.href);
+      if (navigated) return navigated;
+    } catch {
+      // Try the next window, then fall back to a fresh one.
+    }
+  }
+
+  return self.clients.openWindow(target.href);
+}
+
+/**
+ * The browser re-issued this device's subscription.
+ *
+ * Chrome does this on its own schedule, and the old endpoint stops working the
+ * moment it happens. Without this handler the vendor's phone looks subscribed —
+ * permission granted, no error anywhere — while every order push 410s against
+ * a dead endpoint. Re-register immediately; the same-origin fetch carries the
+ * session cookie, so the row is re-bound to the right account.
+ */
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(resubscribe(event));
+});
+
+async function resubscribe(event) {
+  const oldSubscription = event.oldSubscription;
+  const key =
+    event.newSubscription?.options?.applicationServerKey ??
+    oldSubscription?.options?.applicationServerKey;
+
+  try {
+    const subscription =
+      event.newSubscription ??
+      (key
+        ? await self.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: key,
+          })
+        : null);
+
+    if (oldSubscription?.endpoint && oldSubscription.endpoint !== subscription?.endpoint) {
+      await fetch("/api/push/subscribe", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ endpoint: oldSubscription.endpoint }),
+      }).catch(() => undefined);
+    }
+
+    if (!subscription) return;
+
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+  } catch {
+    // The console re-syncs this device on its next load anyway.
+  }
+}

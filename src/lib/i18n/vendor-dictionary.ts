@@ -48,6 +48,94 @@ export const VENDOR_STRINGS = {
     hi: "आज 3 ऑर्डर का समय पर जवाब नहीं मिला, इसलिए नए ऑर्डर रोक दिए गए हैं। काउंटर पर वापस आने पर ऊपर का स्विच ऑन करें।",
   },
   signOut: { en: "Sign out", hi: "लॉग आउट" },
+
+  // ── Order alerts (Web Push) ──────────────────────────────────────
+  // Every string here is read by someone who is about to lose an order, so
+  // each one says what to tap, not what went wrong.
+  pushGateTitle: { en: "Turn on order alerts", hi: "ऑर्डर का अलर्ट चालू करें" },
+  pushGateBody: {
+    en: "Your phone will ring for every new order — even when TREFOOD is closed or the screen is locked. Orders not answered in 4 minutes cancel themselves.",
+    hi: "हर नए ऑर्डर पर आपका फोन बजेगा — चाहे TREFOOD बंद हो या फोन लॉक हो। जिन ऑर्डर का 4 मिनट में जवाब नहीं मिलता, वे अपने आप रद्द हो जाते हैं।",
+  },
+  pushGateEnable: { en: "Turn on alerts", hi: "अलर्ट चालू करें" },
+  pushGateWorking: { en: "Turning on…", hi: "चालू हो रहा है…" },
+  pushGateBlockedTitle: { en: "Alerts are blocked", hi: "अलर्ट ब्लॉक हैं" },
+  pushGateBlockedBody: {
+    en: "This phone is blocking TREFOOD notifications, so new orders cannot reach you. Allow them in the browser, then tap Check again.",
+    hi: "इस फोन ने TREFOOD के नोटिफिकेशन रोक रखे हैं, इसलिए नए ऑर्डर आप तक नहीं पहुँच सकते। ब्राउज़र में इन्हें चालू करें, फिर “दोबारा जाँचें” दबाएँ।",
+  },
+  pushGateBlockedStep1: {
+    en: "Tap the lock or ⋮ icon next to the address bar.",
+    hi: "एड्रेस बार के पास वाले लॉक या ⋮ निशान को दबाएँ।",
+  },
+  pushGateBlockedStep2: {
+    en: "Open Permissions → Notifications and choose Allow.",
+    hi: "Permissions → Notifications खोलें और Allow चुनें।",
+  },
+  pushGateBlockedStep3: {
+    en: "Installed on the home screen? Long-press the TREFOOD icon → App info → Notifications → Allow.",
+    hi: "होम स्क्रीन पर ऐप है? TREFOOD आइकन को दबाकर रखें → App info → Notifications → Allow करें।",
+  },
+  pushGateRecheck: { en: "Check again", hi: "दोबारा जाँचें" },
+  pushGateIosTitle: { en: "Add TREFOOD to your Home Screen", hi: "TREFOOD को होम स्क्रीन पर जोड़ें" },
+  pushGateIosBody: {
+    en: "On iPhone and iPad, order alerts work only from the installed app. Tap Share, then Add to Home Screen, and open TREFOOD from that icon.",
+    hi: "iPhone और iPad पर ऑर्डर अलर्ट सिर्फ इंस्टॉल किए गए ऐप से आते हैं। Share दबाएँ, फिर Add to Home Screen चुनें, और उसी आइकन से TREFOOD खोलें।",
+  },
+  pushGateUnsupportedTitle: {
+    en: "This browser cannot ring for orders",
+    hi: "यह ब्राउज़र ऑर्डर के लिए नहीं बज सकता",
+  },
+  pushGateUnsupportedBody: {
+    en: "Open the console in Chrome and install it to the home screen. Until then, keep this screen open — the alarm only rings while the console is open.",
+    hi: "कंसोल को Chrome में खोलें और होम स्क्रीन पर इंस्टॉल करें। तब तक यह स्क्रीन खुली रखें — अलार्म तभी बजता है जब कंसोल खुला हो।",
+  },
+  pushGateFailedTitle: { en: "Could not turn on alerts", hi: "अलर्ट चालू नहीं हो सके" },
+  pushGateFailedBody: {
+    en: "This phone refused to register for alerts. Check that you are online, then try again.",
+    hi: "यह फोन अलर्ट के लिए रजिस्टर नहीं हो पाया। इंटरनेट जाँचें और फिर कोशिश करें।",
+  },
+  pushGateRetry: { en: "Try again", hi: "फिर कोशिश करें" },
+  pushGateContinue: { en: "Continue without alerts", hi: "बिना अलर्ट के आगे बढ़ें" },
+  pushGateContinueWarning: {
+    en: "Without alerts you will only hear an order while this console is open on screen.",
+    hi: "अलर्ट के बिना ऑर्डर की आवाज़ सिर्फ तभी आएगी जब यह कंसोल स्क्रीन पर खुला हो।",
+  },
+
+  // ── Settings: order alerts ───────────────────────────────────────
+  pushSettingsTitle: { en: "Order alerts on this phone", hi: "इस फोन पर ऑर्डर अलर्ट" },
+  pushSettingsOn: { en: "On", hi: "चालू" },
+  pushSettingsOff: { en: "Off", hi: "बंद" },
+  pushSettingsOnBody: {
+    en: "New orders ring this device even when TREFOOD is closed.",
+    hi: "TREFOOD बंद होने पर भी नए ऑर्डर इस डिवाइस पर बजेंगे।",
+  },
+  pushSettingsOffBody: {
+    en: "This device will not ring when TREFOOD is closed.",
+    hi: "TREFOOD बंद होने पर यह डिवाइस नहीं बजेगा।",
+  },
+  pushSettingsTest: { en: "Send a test alert", hi: "टेस्ट अलर्ट भेजें" },
+  pushSettingsTestSent: {
+    en: "Sent. Lock your phone or close TREFOOD now — it arrives in about 10 seconds.",
+    hi: "भेज दिया। अब फोन लॉक करें या TREFOOD बंद करें — करीब 10 सेकंड में आएगा।",
+  },
+  pushSettingsTestFailed: {
+    en: "Could not send a test alert to this account.",
+    hi: "इस खाते पर टेस्ट अलर्ट नहीं भेजा जा सका।",
+  },
+  pushSettingsTipsTitle: { en: "If alerts arrive late", hi: "अगर अलर्ट देर से आएँ" },
+  pushSettingsTip1: {
+    en: "Phone settings → Apps → TREFOOD (or Chrome) → Battery → allow unrestricted background use.",
+    hi: "फोन सेटिंग्स → Apps → TREFOOD (या Chrome) → Battery → बैकग्राउंड इस्तेमाल की पूरी छूट दें।",
+  },
+  pushSettingsTip2: {
+    en: "Never use Force stop or clear the app from recents with a task killer — that stops alerts until the app is opened again.",
+    hi: "Force stop न करें और टास्क किलर से ऐप बंद न करें — इससे ऐप दोबारा खोलने तक अलर्ट रुक जाते हैं।",
+  },
+  pushSettingsTip3: {
+    en: "Keep the phone off silent, and leave TREFOOD out of Do Not Disturb.",
+    hi: "फोन साइलेंट पर न रखें, और TREFOOD को Do Not Disturb से बाहर रखें।",
+  },
   stopTakingOrders: { en: "Stop taking orders", hi: "ऑर्डर लेना बंद करें" },
   startTakingOrders: { en: "Start taking orders", hi: "ऑर्डर लेना शुरू करें" },
 

@@ -22,6 +22,7 @@ import { writeAudit } from "./audit";
 import { getCampusById, getMenuItemsByIds, getRestaurantById, isRestaurantServing } from "./catalog";
 import { campusLocalMinutes, getEffectiveMinOrderPaise } from "./curfew";
 import { claimCouponSlot, releaseCouponSlot, validateCouponForOrder } from "./coupons";
+import { notifyVendorNewOrder } from "./push";
 import type { Campus, DeliveryZone } from "@/types/campus";
 import type { MenuItem, Restaurant } from "@/types/restaurant";
 import type { Order, OrderItem } from "@/types/order";
@@ -661,12 +662,27 @@ export async function releasePendingOrders(scope: {
     ...(scope.orderId ? { _id: scope.orderId } : {}),
   }).limit(200).toArray();
   for (const order of pending) {
-    await transitionOrder({
+    const released = await transitionOrder({
       orderId: order._id,
       to: ORDER_STATUS.PLACED,
       actor: ACTOR.SYSTEM,
       reason: "Cancellation window elapsed; sent to restaurant",
     });
+
+    // The vendor's phone buzzes here and nowhere else. PLACED is reached only
+    // through this loop, and the compare-and-swap inside `transitionOrder`
+    // lets exactly one caller win, so a poll, the cron and the post-checkout
+    // timer racing on the same order still produce one alert, not three.
+    if (released.ok) {
+      // A failed lookup falls back to the default window rather than failing
+      // the poll that released the order.
+      const campus = await getCampusById(released.order.campusId).catch(() => null);
+      await notifyVendorNewOrder({
+        order: released.order,
+        secondsToAccept:
+          campus?.settings.vendorAutoExpireSeconds ?? DEFAULTS.vendorAutoExpireSeconds,
+      });
+    }
   }
 }
 

@@ -6,7 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { clientEnv } from "@/lib/env";
+import { readPushSupport, subscribeThisDevice } from "@/lib/push-client";
 
 type PushState = "unsupported" | "unconfigured" | "default" | "granted" | "denied" | "working";
 
@@ -44,28 +44,12 @@ export function PushPermissionCard() {
 
   const enable = async (): Promise<void> => {
     setBusy(true);
-    try {
-      const granted = await Notification.requestPermission();
-      if (granted !== "granted") return;
-
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(clientEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""),
-      });
-
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(subscription.toJSON()),
-      });
-    } catch {
-      // A failed subscription is a degraded convenience, never a broken app.
-      // The store re-reads the real permission on the next notify anyway.
-    } finally {
-      setBusy(false);
-      notifyPermissionListeners();
-    }
+    // A failed subscription is a degraded convenience, never a broken app:
+    // `subscribeThisDevice` reports rather than throws, and the store re-reads
+    // the real permission either way.
+    await subscribeThisDevice();
+    setBusy(false);
+    notifyPermissionListeners();
   };
 
   if (state === "working") {
@@ -127,9 +111,11 @@ function notifyPermissionListeners(): void {
 }
 
 function readPermission(): Exclude<PushState, "working"> {
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) return "unsupported";
-  if (!clientEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return "unconfigured";
-  return Notification.permission;
+  const support = readPushSupport();
+  // A student on an iPhone that has not installed the app is told the same
+  // thing as any other browser that cannot do this yet: the order screen is
+  // where the gate code lives.
+  return support === "ios-needs-install" ? "unsupported" : support;
 }
 
 /**
@@ -175,20 +161,4 @@ function blurb(state: PushState): string {
     default:
       return "Get a buzz the moment your food reaches your gate, instead of watching the screen. On iPhone this needs the app added to your home screen first.";
   }
-}
-
-/**
- * VAPID keys travel as URL-safe base64 and the Push API wants raw bytes.
- * Straight out of the web-push documentation; there is no shorter correct way.
- */
-function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const normalised = (base64 + padding).replaceAll("-", "+").replaceAll("_", "/");
-  const raw = window.atob(normalised);
-
-  // Backed by a plain ArrayBuffer rather than the generic ArrayBufferLike, so
-  // it satisfies `BufferSource` — a SharedArrayBuffer is not a valid key.
-  const output = new Uint8Array(new ArrayBuffer(raw.length));
-  for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i);
-  return output;
 }

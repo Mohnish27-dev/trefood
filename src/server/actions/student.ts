@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import * as db from "@/server/db/collections";
@@ -12,6 +13,7 @@ import { checkCurfew } from "@/server/services/curfew";
 import { createOrder, getOrderForCustomer, transitionOrder } from "@/server/services/orders";
 import { verifyGateCode } from "@/server/services/gate-code";
 import { writeAudit } from "@/server/services/audit";
+import { driveNewOrderAlerts } from "@/server/services/vendor-alerts";
 
 /**
  * Student Server Actions — thin adapters.
@@ -120,6 +122,14 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
           ? { issues: created.issues.map((i) => ({ itemId: i.itemId, message: i.message })) }
           : {}),
       };
+    }
+
+    // Release the order to the restaurant and buzz the vendor's phone on
+    // time, even if the student closes the app this second and the vendor's
+    // console is not open. A reused order already has its timer running.
+    if (!created.reused) {
+      const orderId = created.order._id;
+      after(() => driveNewOrderAlerts(orderId));
     }
 
     revalidatePath("/orders");

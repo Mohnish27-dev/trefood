@@ -16,7 +16,9 @@ import { cn } from "@/lib/utils";
 
 import { VendorAlarmProvider } from "@/context/vendor-alarm-context";
 import { VendorLanguageProvider, useVendorLanguage } from "@/context/vendor-language-context";
+import { unsubscribeThisDevice } from "@/lib/push-client";
 import { VendorLanguageToggle } from "./vendor-language-toggle";
+import { VendorPushGate } from "./vendor-push-gate";
 
 /**
  * The console chrome.
@@ -172,7 +174,17 @@ function VendorShellContent({
 
             <ThemeToggle />
 
-            <form action={signOut}>
+            <form
+              action={async () => {
+                // Hand the device back before the session goes: a counter phone
+                // must stop buzzing for this restaurant's orders the moment its
+                // vendor signs out, or the next person to pick it up keeps
+                // getting them. Bounded, so a dead network cannot block a
+                // sign-out.
+                await unsubscribeThisDevice();
+                await signOut();
+              }}
+            >
               <button
                 type="submit"
                 className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
@@ -198,6 +210,10 @@ function VendorShellContent({
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-5">{children}</main>
+
+      {/* Over everything, including the board: an order that cannot reach this
+          phone is the one failure the console exists to prevent. */}
+      <VendorPushGate />
       <Toaster />
     </div>
   );
