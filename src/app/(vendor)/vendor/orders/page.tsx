@@ -5,11 +5,14 @@ import { OrderBoard } from "@/components/vendor/order-board";
 import { requireVendor } from "@/server/auth/session";
 import { getVendorBoard } from "@/server/services/vendor";
 
-export const metadata: Metadata = { title: "Live board" };
+export const metadata: Metadata = { title: "New orders" };
 export const dynamic = "force-dynamic";
 
 /**
- * The live order board.
+ * New orders — the ones still waiting to be accepted or rejected.
+ *
+ * Preparing and On the way have their own tabs (`/vendor/preparing`,
+ * `/vendor/on-the-way`); all three render the same board, filtered by stage.
  *
  * Server-rendered first, then polled. The first paint matters more here than
  * almost anywhere else in the product: a tablet coming back from sleep at
@@ -22,5 +25,5 @@ export default async function VendorOrdersPage() {
   const board = await getVendorBoard({ restaurantId });
   if (!board) redirect("/signin?next=/vendor/orders&reason=vendor");
 
-  return <OrderBoard initial={board} />;
+  return <OrderBoard initial={board} stage="new" />;
 }

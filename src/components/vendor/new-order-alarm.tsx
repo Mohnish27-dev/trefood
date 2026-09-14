@@ -1,8 +1,11 @@
 "use client";
 
-import { Bell, BellRing } from "lucide-react";
+import { Bell, BellRing, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 import { useVendorAlarm } from "@/context/vendor-alarm-context";
+
+import { ORDER_STAGES } from "./order-stages";
 
 /**
  * ★ The new-order alarm — the indicator ★
@@ -26,7 +29,7 @@ import { useVendorAlarm } from "@/context/vendor-alarm-context";
  * reload into a decision. The provider re-arms itself on every gesture instead,
  * so this badge only ever has two things to say: armed, or ringing.
  */
-export function NewOrderAlarm() {
+export function NewOrderAlarm({ linkToNewOrders = false }: { linkToNewOrders?: boolean }) {
   const { newOrderCount } = useVendorAlarm();
 
   if (newOrderCount === 0) {
@@ -38,16 +41,30 @@ export function NewOrderAlarm() {
     );
   }
 
+  const className =
+    "animate-alarm-flash inline-flex min-h-12 items-center gap-2 rounded-xl border border-chili bg-chili-wash px-4 py-2.5 text-sm font-semibold text-chili";
+  const message = `${newOrderCount} new order${newOrderCount === 1 ? "" : "s"} — accept to stop the alarm`;
+
+  // Off the New Orders tab, the banner is a way back to the cards — still not a
+  // silence control, just the shortest path to answering the order.
+  if (linkToNewOrders) {
+    return (
+      <Link href={ORDER_STAGES.new.href} className={className}>
+        <BellRing className="size-5 shrink-0" />
+        <span role="status" aria-live="assertive">
+          {message}
+        </span>
+        <ChevronRight className="size-4 shrink-0" />
+      </Link>
+    );
+  }
+
   // Deliberately not a button. The only way out of this state is answering the
   // order, which happens on the card.
   return (
-    <div
-      role="status"
-      aria-live="assertive"
-      className="animate-alarm-flash inline-flex min-h-12 items-center gap-2 rounded-xl border border-chili bg-chili-wash px-4 py-2.5 text-sm font-semibold text-chili"
-    >
+    <div role="status" aria-live="assertive" className={className}>
       <BellRing className="size-5 shrink-0" />
-      {newOrderCount} new order{newOrderCount === 1 ? "" : "s"} — accept to stop the alarm
+      {message}
     </div>
   );
 }
