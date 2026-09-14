@@ -1,6 +1,6 @@
 "use client";
 
-import { History, MapPin, UserRound } from "lucide-react";
+import { History, MapPin, Phone, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,12 @@ export function VendorHistoryView({ history, timezone }: { history: VendorOrderH
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
                   <span className="inline-flex items-center gap-1.5"><UserRound className="size-3.5" />{order.customerName}</span>
+                  {order.customerPhone ? (
+                    <a href={`tel:${order.customerPhone}`} aria-label={`${t("callCustomer")} ${order.customerPhone}`}
+                      className="inline-flex items-center gap-1.5 font-medium text-mint hover:underline">
+                      <Phone className="size-3.5" /><span className="tabular">{order.customerPhone}</span>
+                    </a>
+                  ) : null}
                   <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" />{order.zoneName}</span>
                 </div>
                 <p className="text-sm text-bone">{order.items.map(item => `${item.quantity}× ${item.name}`).join(", ")}</p>

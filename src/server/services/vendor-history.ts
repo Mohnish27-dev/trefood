@@ -51,6 +51,7 @@ export async function getVendorOrderHistory(params: {
       createdAt: order.timestamps.createdAt.toISOString(),
       acceptedAt: order.timestamps.acceptedAt?.toISOString() ?? null,
       customerName: order.customerSnapshot.name,
+      customerPhone: order.customerSnapshot.phone,
       zoneName: order.deliveryZoneSnapshot.name,
       items: order.items.map(item => ({
         name: item.name, quantity: item.quantity, isVeg: item.isVeg,
