@@ -41,14 +41,15 @@ export default async function AdminEarningsPage({
   const campuses = scoped.length > 0 ? scoped : allCampuses;
   const selectedCampusId = scoped.length > 0 ? campus ?? "" : "";
 
+  const reportDay = isIsoDay(day) ? day : defaultReportDay(month ?? "", new Date().toISOString().slice(0, 10));
+
   const analytics = await getEarningsAnalytics({
     campuses,
+    reportDay,
     // Anything that is not a real "YYYY-MM" is dropped, so a hand-edited URL
     // cannot reach the date arithmetic.
     ...(month !== undefined && /^\d{4}-\d{2}$/.test(month) ? { month } : {}),
   });
-
-  const reportDay = isIsoDay(day) ? day : defaultReportDay(analytics.month, analytics.todayDate);
 
   const dailyReport = await getDailyVendorReport({
     campuses,
