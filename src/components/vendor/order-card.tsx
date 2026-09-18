@@ -7,6 +7,7 @@ import {
   Check,
   Loader2,
   MapPin,
+  MessageSquare,
   Phone,
   Printer,
   ShieldCheck,
@@ -169,6 +170,21 @@ export function VendorOrderCard({
           </li>
         ))}
       </ul>
+
+      {/* ── Customer Note / Description ───────────────────────────── */}
+      {order.description ? (
+        <div className="mx-3.5 mt-2.5 mb-1 flex items-start gap-2.5 rounded-xl border border-saffron/40 bg-saffron-wash/40 p-3 text-xs">
+          <MessageSquare className="mt-0.5 size-4 shrink-0 text-saffron" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-saffron uppercase tracking-wider text-[10px]">
+              {language === "hi" ? "ग्राहक का विवरण / निर्देश" : "Customer Note / Description"}
+            </p>
+            <p className="mt-0.5 font-medium text-bone leading-relaxed whitespace-pre-wrap">
+              {order.description}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── F6 — waiting on the student ──────────────────────────── */}
       {order.stockout ? (

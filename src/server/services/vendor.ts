@@ -83,6 +83,8 @@ export interface VendorBoardOrder {
   needsAtGateNag: boolean;
   /** F6 — a stockout on this order is waiting on the student. */
   stockout: { itemName: string; expiresAt: string; choice: string | null } | null;
+  /** Optional customer description note / instructions for vendor */
+  description: string | null;
 }
 
 export interface VendorBoard {
@@ -192,6 +194,7 @@ function toBoardOrder(params: {
             choice: order.stockout.choice,
           }
         : null,
+    description: order.description ?? null,
   };
 }
 

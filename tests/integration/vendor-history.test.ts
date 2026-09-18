@@ -17,6 +17,7 @@ const student: User = {
 
 beforeAll(async () => {
   await setUpCanteenFixture();
+  await (await db.orders()).deleteMany({ restaurantId: "other-history-restaurant" });
   const created = await createOrder({ customer: student, restaurantId: CANTEEN_ID, zoneId: "zone_main_gate",
     lines: [{ itemId: "item_nc_veg_thali", quantity: 1, addOnOptionIds: ["opt_full"] }], idempotencyKey: randomUUID() });
   if (!created.ok) throw new Error(created.message);

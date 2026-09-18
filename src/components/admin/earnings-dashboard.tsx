@@ -155,6 +155,9 @@ export interface EarningsDashboardProps {
   today: DashboardBucket;
   yesterday: DashboardBucket;
   weekend: DashboardBucket;
+  weekendDates: [string, string];
+  saturday: DashboardDaily;
+  sunday: DashboardDaily;
   monthTotal: DashboardBucket;
   previousMonthTotal: DashboardBucket;
   yearTotal: DashboardBucket;
@@ -455,7 +458,9 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
         <Tile
           label="Weekend"
           paise={props.weekend.billedPaise}
-          caption="Saturday and Sunday combined"
+          caption={`${props.weekend.orderCount} order${
+            props.weekend.orderCount === 1 ? "" : "s"
+          } · Saturday & Sunday`}
         />
         <Tile
           label={monthLabel}
@@ -492,6 +497,15 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
           </>
         ) : null}
       </p>
+
+      {/* ---- Weekend Section ------------------------------------------- */}
+
+      <WeekendEarningsSection
+        weekend={props.weekend}
+        weekendDates={props.weekendDates}
+        saturday={props.saturday}
+        sunday={props.sunday}
+      />
 
       {/* ---- Charts ----------------------------------------------------- */}
 
@@ -951,4 +965,163 @@ function formatDay(date: string): string {
   const [year, month, day] = date.split("-");
   if (!year || !month || !day) return date;
   return `${day} ${MONTH_NAMES[Number(month) - 1]?.slice(0, 3) ?? month} ${year}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Weekend Section Component
+   ══════════════════════════════════════════════════════════════════════ */
+
+function WeekendEarningsSection({
+  weekend,
+  weekendDates,
+  saturday,
+  sunday,
+}: {
+  weekend: DashboardBucket;
+  weekendDates: [string, string];
+  saturday: DashboardDaily;
+  sunday: DashboardDaily;
+}) {
+  const satLabel = formatDay(weekendDates[0]);
+  const sunLabel = formatDay(weekendDates[1]);
+  const rangeLabel = `${satLabel} – ${sunLabel}`;
+
+  return (
+    <Card className="p-5 border-line/80 bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <CalendarDays className="size-4 shrink-0 text-saffron" />
+          <div>
+            <h2 className="font-display text-base font-semibold text-bone">
+              Weekend Earnings
+            </h2>
+            <p className="text-xs text-muted">
+              Saturday & Sunday performance ({rangeLabel})
+            </p>
+          </div>
+        </div>
+        <Badge tone="neutral" className="tabular">
+          {weekend.orderCount} total order{weekend.orderCount === 1 ? "" : "s"}
+        </Badge>
+      </div>
+
+      {/* Overview Stat Cards */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            TREFOOD Commission
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-saffron tabular">
+            <Money paise={weekend.commissionPaise} exact />
+          </p>
+          <p className="mt-1 text-[11px] text-faint">
+            Platform share earned on weekend
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            Student Volume Billed
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-bone tabular">
+            {formatINRCompact(weekend.billedPaise)}
+          </p>
+          <p className="mt-1 text-[11px] text-faint">
+            Total sales billed across vendors
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            Delivered Orders
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-bone tabular">
+            {weekend.orderCount}
+          </p>
+          <p className="mt-1 text-[11px] text-faint">
+            Completed deliveries Saturday & Sunday
+          </p>
+        </div>
+      </div>
+
+      {/* Saturday & Sunday Breakdown */}
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {/* Saturday */}
+        <div className="rounded-xl border border-line/60 bg-surface/50 p-4 transition-colors hover:border-saffron/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-saffron/15 px-2 py-0.5 text-xs font-semibold text-saffron">
+                Saturday
+              </span>
+              <span className="text-xs text-muted">{satLabel}</span>
+            </div>
+            {saturday.commissionPaise > sunday.commissionPaise && saturday.commissionPaise > 0 ? (
+              <span className="text-[10px] font-semibold text-mint">
+                ★ Top Weekend Day
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-line/30 pt-3">
+            <div>
+              <p className="text-[10px] text-faint uppercase">Orders</p>
+              <p className="mt-0.5 text-sm font-semibold text-bone tabular">
+                {saturday.orderCount}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-faint uppercase">Billed</p>
+              <p className="mt-0.5 text-sm font-semibold text-bone tabular">
+                {formatINRCompact(saturday.billedPaise)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-faint uppercase">Commission</p>
+              <p className="mt-0.5 text-sm font-semibold text-saffron tabular">
+                <Money paise={saturday.commissionPaise} exact />
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sunday */}
+        <div className="rounded-xl border border-line/60 bg-surface/50 p-4 transition-colors hover:border-saffron/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-saffron/15 px-2 py-0.5 text-xs font-semibold text-saffron">
+                Sunday
+              </span>
+              <span className="text-xs text-muted">{sunLabel}</span>
+            </div>
+            {sunday.commissionPaise > saturday.commissionPaise && sunday.commissionPaise > 0 ? (
+              <span className="text-[10px] font-semibold text-mint">
+                ★ Top Weekend Day
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-line/30 pt-3">
+            <div>
+              <p className="text-[10px] text-faint uppercase">Orders</p>
+              <p className="mt-0.5 text-sm font-semibold text-bone tabular">
+                {sunday.orderCount}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-faint uppercase">Billed</p>
+              <p className="mt-0.5 text-sm font-semibold text-bone tabular">
+                {formatINRCompact(sunday.billedPaise)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] text-faint uppercase">Commission</p>
+              <p className="mt-0.5 text-sm font-semibold text-saffron tabular">
+                <Money paise={sunday.commissionPaise} exact />
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }

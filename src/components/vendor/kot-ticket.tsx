@@ -20,6 +20,7 @@ export interface KotOrder {
   /** What the delivery partner must come back with. Every order is cash. */
   cashDuePaise: number;
   gateCode: string | null;
+  description?: string | null;
   items: { name: string; isVeg: boolean; quantity: number; addOns: string[] }[];
 }
 
@@ -109,6 +110,13 @@ export function KotTicket({ order }: { order: KotOrder }) {
               ) : null}
             </div>
           ))}
+
+          {order.description ? (
+            <div className="my-2 border border-black p-1.5">
+              <p className="text-[10px] font-bold uppercase">Customer Note / Special Instructions:</p>
+              <p className="text-[12px] font-bold uppercase whitespace-pre-wrap">{order.description}</p>
+            </div>
+          ) : null}
 
           <Rule />
 

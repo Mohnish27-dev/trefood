@@ -60,6 +60,7 @@ export async function getVendorOrderHistory(params: {
       totalPaise: order.pricing.grandTotalPaise,
       cashCollectedPaise: order.payment.cashCollectedPaise,
       cancellationReason: order.cancellation?.reason ?? null,
+      description: order.description ?? null,
       isActive: VENDOR_ACTIVE_STATUSES.includes(order.status),
     })),
   };

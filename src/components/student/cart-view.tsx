@@ -1,10 +1,11 @@
 "use client";
 
-import { AlertTriangle, Minus, Plus, ShieldCheck, ShoppingCart, Trash2 } from "lucide-react";
+import { AlertTriangle, FileText, Minus, Plus, ShieldCheck, ShoppingCart, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/input";
 import { Money, MoneyRow } from "@/components/shared/money";
 import { EmptyState, ErrorState } from "@/components/shared/states";
 import { VegMark } from "@/components/shared/veg-mark";
@@ -28,7 +29,7 @@ import { PackingCharges } from "@/components/student/packing-charges";
  * HIGHLIGHTED rather than silently re-totalled.
  */
 export function CartView() {
-  const { lines, campusSlug, setQuantity, setCouponCode, removeCoupon, clear, dropItems } = useCart();
+  const { lines, campusSlug, description, setDescription, setQuantity, setCouponCode, removeCoupon, clear, dropItems } = useCart();
   const { status, data, reload } = useCartQuote();
 
   if (lines.length === 0 || status === "empty") {
@@ -155,6 +156,26 @@ export function CartView() {
             </div>
           );
         })}
+      </Card>
+
+      {/* ── Order Description / Notes (Optional) ──────────────── */}
+      <Card className="mt-4 p-3.5">
+        <div className="flex items-center gap-2 mb-2">
+          <FileText className="size-4 text-saffron" />
+          <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-faint">
+            Description / Special instructions (Optional)
+          </h2>
+        </div>
+        <Textarea
+          placeholder="Want anything extra or specific preparation? Type here for the vendor (e.g., Extra spicy, less oil, send extra spoons...)"
+          value={description ?? ""}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={500}
+          className="min-h-20 text-xs"
+        />
+        <p className="mt-1.5 text-[11px] text-faint">
+          This note will be sent directly to the restaurant with your order.
+        </p>
       </Card>
 
       {/* ── Coupons & Offers ──────────────────────────────────── */}

@@ -33,6 +33,7 @@ export interface CartState {
   campusSlug: string | null;
   lines: CartLine[];
   couponCode?: string | null;
+  description?: string | null;
 }
 
 const EMPTY: CartState = {
@@ -41,6 +42,7 @@ const EMPTY: CartState = {
   campusSlug: null,
   lines: [],
   couponCode: null,
+  description: null,
 };
 
 /* ------------------------------------------------------------------ */
@@ -183,6 +185,11 @@ export function useCart() {
     write({ ...current, couponCode: null });
   }, []);
 
+  const setDescription = useCallback((description: string | null): void => {
+    const current = read();
+    write({ ...current, description: description ? description : null });
+  }, []);
+
   const clear = useCallback((): void => write(EMPTY), []);
 
   /** Replace the whole cart — used by "clear and start over" and by reorder. */
@@ -193,6 +200,7 @@ export function useCart() {
       campusSlug: string;
       lines: CartLine[];
       couponCode?: string | null;
+      description?: string | null;
     }): void => write(params),
     [],
   );
@@ -221,6 +229,7 @@ export function useCart() {
     setQuantity,
     setCouponCode,
     removeCoupon,
+    setDescription,
     clear,
     replaceWith,
     dropItems,

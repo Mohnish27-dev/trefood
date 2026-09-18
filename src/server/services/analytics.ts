@@ -125,8 +125,11 @@ export interface EarningsAnalytics {
 
   today: EarningsBucket;
   yesterday: EarningsBucket;
-  /** Saturday and Sunday of the week containing today, combined. */
+  /** Saturday and Sunday of the week containing today or reportDay, combined. */
   weekend: EarningsBucket;
+  weekendDates: [string, string];
+  saturday: DailyPoint;
+  sunday: DailyPoint;
   monthTotal: EarningsBucket;
   previousMonthTotal: EarningsBucket;
   yearTotal: EarningsBucket;
@@ -150,6 +153,7 @@ export async function getEarningsAnalytics(params: {
   campuses: Campus[];
   /** "YYYY-MM". Defaults to the campus-local current month. */
   month?: string;
+  reportDay?: string;
   now?: Date;
 }): Promise<EarningsAnalytics> {
   const now = params.now ?? new Date();
@@ -184,8 +188,15 @@ export async function getEarningsAnalytics(params: {
     sumBuckets(datesMatching(perDay, matches));
 
   const yesterdayDate = campusDateString(new Date(now.getTime() - 86_400_000), timezone);
-  const weekendDates = weekendOf(todayDate);
+  const anchorDate = params.reportDay ?? todayDate;
+  const weekendDates = weekendOf(anchorDate) as [string, string];
+  const [saturdayDate, sundayDate] = weekendDates;
   const previousMonth = shiftMonth(month, -1);
+
+  const satPoints = gapFill(perDay, [saturdayDate]);
+  const sunPoints = gapFill(perDay, [sundayDate]);
+  const saturday = satPoints[0] ?? { date: saturdayDate, ...emptyBucket() };
+  const sunday = sunPoints[0] ?? { date: sundayDate, ...emptyBucket() };
 
   const analytics: EarningsAnalytics = {
     todayDate,
@@ -196,6 +207,9 @@ export async function getEarningsAnalytics(params: {
     today: inPeriod((date) => date === todayDate),
     yesterday: inPeriod((date) => date === yesterdayDate),
     weekend: inPeriod((date) => weekendDates.includes(date)),
+    weekendDates,
+    saturday,
+    sunday,
     monthTotal: inPeriod((date) => date.startsWith(month)),
     previousMonthTotal: inPeriod((date) => date.startsWith(previousMonth)),
     yearTotal: inPeriod((date) => date.startsWith(year)),

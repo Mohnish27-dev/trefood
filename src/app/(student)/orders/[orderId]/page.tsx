@@ -62,6 +62,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[orderId]
         }
       : null,
     reroutedFrom: order.reroutedFromZoneId,
+    description: order.description ?? null,
     items: order.items.map((i) => ({
       name: i.name,
       isVeg: i.isVeg,
