@@ -325,6 +325,13 @@ function StatusScreen({
             />
           )}
         </div>
+
+        {order.description ? (
+          <div className="border-t border-line bg-surface p-3.5 text-xs text-muted">
+            <span className="font-semibold text-bone">Your Note / Special Instructions:</span>
+            <p className="mt-0.5 text-faint italic leading-relaxed">"{order.description}"</p>
+          </div>
+        ) : null}
       </Card>
 
       {/* ── Order changes: call the restaurant ────────────────── */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Banknote, Clock, Loader2, MapPin, ShieldCheck, ShoppingBag } from "lucide-react";
+import { AlertTriangle, Banknote, Clock, FileText, Loader2, MapPin, ShieldCheck, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -52,7 +52,7 @@ export function CheckoutView({
   orderingBlockedReason: string | null;
   initialPhone: string;
 }) {
-  const { lines, couponCode, setCouponCode, removeCoupon, clear, campusSlug } = useCart();
+  const { lines, couponCode, description, setCouponCode, removeCoupon, clear, campusSlug } = useCart();
   const { status, data, reload } = useCartQuote();
   const router = useRouter();
 
@@ -150,6 +150,7 @@ export function CheckoutView({
             : `idem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
         phone: phone.replace(/\s/g, ""),
         couponCode: couponCode || undefined,
+        description: description ? description.trim() : undefined,
       });
 
       if (result.status === "success") {
@@ -301,6 +302,24 @@ export function CheckoutView({
           </div>
         </Card>
       </section>
+
+      {/* ── Order Description / Notes ─────────────────────────────── */}
+      {description && description.trim().length > 0 ? (
+        <section className="mb-5">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-faint">
+            Order Note / Description
+          </h2>
+          <Card className="flex items-start gap-3 p-3.5 border-saffron/30 bg-saffron-wash/30">
+            <FileText className="mt-0.5 size-4 shrink-0 text-saffron" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs italic text-bone leading-relaxed">"{description.trim()}"</p>
+              <Link href="/cart" className="mt-1 inline-block text-[11px] font-medium text-saffron hover:underline">
+                Edit note in cart
+              </Link>
+            </div>
+          </Card>
+        </section>
+      ) : null}
 
       {/* ── Coupons & Offers ──────────────────────────────────── */}
       <div className="mb-5">

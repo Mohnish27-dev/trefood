@@ -54,6 +54,7 @@ export default async function KotPage({
         // Redacted until READY, exactly as on the board. A ticket printed
         // while the food is still on the stove must not carry the code.
         gateCode: revealGateCode(order.gateCode, order.status, "VENDOR"),
+        description: order.description ?? null,
         items: order.items.map((item) => ({
           name: item.name,
           isVeg: item.isVeg,

@@ -179,6 +179,9 @@ export interface Order {
   couponCode?: string | null;
   couponId?: string | null;
 
+  /** Optional customer note / special instructions for vendor */
+  description?: string | null;
+
   /** Customer feedback after delivery completed */
   feedback?: OrderFeedback | null;
 }

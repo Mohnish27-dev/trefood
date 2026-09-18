@@ -87,6 +87,7 @@ export function VendorHistoryView({ history, timezone }: { history: VendorOrderH
                       </div>
                     ))}
                     <div className="flex justify-between text-sm text-muted"><span>{t("historyCollected")}</span><Money paise={order.cashCollectedPaise} /></div>
+                    {order.description ? <p className="text-xs text-saffron bg-saffron-wash/30 p-2 rounded-lg"><strong>Note / Instructions:</strong> {order.description}</p> : null}
                     {order.acceptedAt ? <p className="text-xs text-muted">{t("historyAccepted")}: {dateLabel(order.acceptedAt)}</p> : null}
                     {order.cancellationReason ? <p className="text-sm text-muted">{t("historyReason")}: {order.cancellationReason}</p> : null}
                     {order.isActive ? <Button asChild variant="outline" size="sm"><Link href="/vendor/orders">{t("historyLive")}</Link></Button> : null}

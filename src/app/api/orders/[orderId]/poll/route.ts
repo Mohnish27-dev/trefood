@@ -64,6 +64,7 @@ export interface OrderPollResponse {
 
   /** F11 — the gate changed while the order was in flight. */
   reroutedFrom: string | null;
+  description: string | null;
 
   items: {
     name: string;
@@ -153,6 +154,7 @@ export async function GET(
       : null,
 
     reroutedFrom: order.reroutedFromZoneId,
+    description: order.description ?? null,
 
     items: order.items.map((i) => ({
       name: i.name,

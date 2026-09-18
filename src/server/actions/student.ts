@@ -37,6 +37,7 @@ const placeOrderSchema = z.object({
   idempotencyKey: z.string().min(8).max(64),
   phone: z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number"),
   couponCode: z.string().optional(),
+  description: z.string().max(500).optional(),
 });
 
 export type PlaceOrderState =
@@ -112,6 +113,7 @@ export async function placeOrder(input: unknown): Promise<PlaceOrderState> {
       lines: data.lines,
       idempotencyKey: data.idempotencyKey,
       couponCode: data.couponCode,
+      description: data.description,
     });
 
     if (!created.ok) {

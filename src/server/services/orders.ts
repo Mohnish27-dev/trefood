@@ -245,6 +245,7 @@ export async function createOrder(params: {
   idempotencyKey: string;
   discountPaise?: Paise | undefined;
   couponCode?: string | null | undefined;
+  description?: string | null | undefined;
 }): Promise<CreateOrderResult> {
   const orders = await db.orders();
 
@@ -408,6 +409,7 @@ export async function createOrder(params: {
 
     couponCode: appliedCoupon ? appliedCoupon.code : null,
     couponId: appliedCoupon ? appliedCoupon._id : null,
+    description: params.description?.trim() || null,
   };
 
   try {
