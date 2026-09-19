@@ -6,6 +6,7 @@ import {
   LogOut,
   MapPinned,
   Radar,
+  ShieldAlert,
   SlidersHorizontal,
   Store,
   TrendingUp,
@@ -27,6 +28,7 @@ const SECTIONS: { heading: string; links: { href: string; label: string; icon: t
       heading: "Operations",
       links: [
         { href: "/admin/orders", label: "Live radar", icon: Radar },
+        { href: "/admin/issues", label: "Issue Desk", icon: ShieldAlert },
         { href: "/admin/students", label: "Students", icon: Users },
       ],
     },
