@@ -182,8 +182,19 @@ export interface Order {
   /** Optional customer note / special instructions for vendor */
   description?: string | null;
 
+  /** Issue desk tracking metadata (assigned teammate, resolution status) */
+  issueDesk?: IssueDeskMetadata | null;
+
   /** Customer feedback after delivery completed */
   feedback?: OrderFeedback | null;
+}
+
+export interface IssueDeskMetadata {
+  assignedTeammate?: string | null;
+  isResolved?: boolean;
+  resolvedAt?: Date | null;
+  resolvedBy?: string | null;
+  resolutionNote?: string | null;
 }
 
 export interface OrderFeedback {
