@@ -26,6 +26,9 @@ export default async function VendorEarningsPage() {
     <EarningsView
         days={earnings.days}
         today={earnings.today}
+        month={earnings.month}
+        monthDaysCount={earnings.monthDaysCount}
+        monthTotal={earnings.monthTotal}
         commissionPct={String(bpsToPct(commissionBps))}
         outstandingDuePaise={earnings.outstandingDuePaise}
         platformFeePaise={restaurant.platformFeePaise ?? 0}
