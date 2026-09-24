@@ -5,7 +5,7 @@ import { Banknote, Download, Landmark, Receipt, TrendingUp, Wallet } from "lucid
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { Table, TBody, TD, TFoot, TH, THead, TR } from "@/components/ui/table";
 import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/states";
 import { formatINRPlain } from "@/lib/money";
@@ -65,6 +65,9 @@ export interface StatementRowView {
 export function EarningsView({
   days,
   today,
+  month,
+  monthDaysCount,
+  monthTotal,
   ledger,
   ledgerTotalPaise,
   statements,
@@ -73,6 +76,9 @@ export function EarningsView({
 }: {
   days: EarningsDayView[];
   today: EarningsDayView;
+  month?: string;
+  monthDaysCount?: number;
+  monthTotal?: EarningsDayView;
   ledger: LedgerRowView[];
   ledgerTotalPaise: number;
   statements: StatementRowView[];
@@ -82,6 +88,13 @@ export function EarningsView({
   commissionPct?: string;
 }) {
   const { t, lang } = useVendorLanguage();
+
+  const monthLabel = month
+    ? new Date(`${month}-01T12:00:00Z`).toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -122,9 +135,13 @@ export function EarningsView({
         />
       </section>
 
-      {/* ── Last seven days ──────────────────────────────────────── */}
+      {/* ── Calendar Month Earnings ──────────────────────────────── */}
       <section>
-        <h2 className="mb-2.5 font-display text-sm font-semibold text-bone">{t("lastSevenDays")}</h2>
+        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-sm font-semibold text-bone">
+            {t("thisMonth")}{monthLabel ? ` — ${monthLabel}` : ""} ({monthDaysCount ?? days.length} {t("daysCount")})
+          </h2>
+        </div>
         <Table>
           <THead>
             <tr>
@@ -156,6 +173,26 @@ export function EarningsView({
               </TR>
             ))}
           </TBody>
+          {monthTotal ? (
+            <TFoot>
+              <TR className="border-t-2 border-line bg-surface-raised font-semibold">
+                <TD className="font-display font-bold text-bone">{t("monthTotal")}</TD>
+                <TD className="text-right tabular font-bold text-bone">{monthTotal.orderCount}</TD>
+                <TD className="text-right font-bold text-bone">
+                  <Money paise={monthTotal.grossPaise} />
+                </TD>
+                <TD className="text-right font-bold text-muted">
+                  <Money paise={monthTotal.commissionPaise} />
+                </TD>
+                <TD className="text-right font-bold text-mint">
+                  <Money paise={monthTotal.cashCollectedPaise} />
+                </TD>
+                <TD className="text-right font-bold text-bone">
+                  <Money paise={monthTotal.keptPaise} />
+                </TD>
+              </TR>
+            </TFoot>
+          ) : null}
         </Table>
       </section>
 

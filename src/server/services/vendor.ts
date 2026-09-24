@@ -13,6 +13,7 @@ import { revealGateCode } from "./gate-code";
 import { ackDeadline, estimatedArrival, gateDeadline, releasePendingOrders } from "./orders";
 import { listLedgerEntries } from "./ledger";
 import { listStatements } from "./settlement";
+import { datesOfMonth } from "./analytics";
 import type { Campus } from "@/types/campus";
 import type { MenuCategory, MenuItem, Restaurant } from "@/types/restaurant";
 import type { CommissionStatement, LedgerEntry } from "@/types/finance";
@@ -238,8 +239,11 @@ export interface EarningsDay {
 
 export interface VendorEarnings {
   restaurant: Restaurant;
+  month: string;
+  monthDaysCount: number;
   days: EarningsDay[];
   today: EarningsDay;
+  monthTotal: EarningsDay;
   ledger: LedgerEntry[];
   ledgerTotalPaise: number;
   statements: CommissionStatement[];
@@ -263,15 +267,23 @@ export async function getVendorEarnings(params: {
   restaurant: Restaurant;
   campus: Campus;
   dayCount?: number;
+  month?: string;
   now?: Date;
 }): Promise<VendorEarnings> {
   const now = params.now ?? new Date();
-  const dayCount = params.dayCount ?? 7;
+  const currentMonth = params.month ?? campusDateString(now, params.campus.timezone).slice(0, 7);
+  const monthDates = datesOfMonth(currentMonth);
 
-  const oldest = campusDayRange(
-    campusDateString(new Date(now.getTime() - (dayCount - 1) * 86_400_000), params.campus.timezone),
-    params.campus.timezone,
-  ).start;
+  const dateList = params.dayCount
+    ? Array.from({ length: params.dayCount }, (_, i) =>
+        campusDateString(new Date(now.getTime() - i * 86_400_000), params.campus.timezone),
+      ).sort()
+    : monthDates;
+
+  const firstDate = dateList[0] ?? campusDateString(now, params.campus.timezone);
+  const lastDate = dateList[dateList.length - 1] ?? firstDate;
+  const oldest = campusDayRange(firstDate, params.campus.timezone).start;
+  const newestEnd = campusDayRange(lastDate, params.campus.timezone).end;
 
   // Only orders that actually reached a student count as earnings. Anything
   // rejected, expired, cancelled or never collected produced no cash at all.
@@ -279,16 +291,12 @@ export async function getVendorEarnings(params: {
     .find({
       restaurantId: params.restaurant._id,
       status: { $in: [ORDER_STATUS.DELIVERED, ORDER_STATUS.SETTLED] },
-      "timestamps.deliveredAt": { $gte: oldest },
+      "timestamps.deliveredAt": { $gte: oldest, $lt: newestEnd },
     })
     .toArray();
 
   const buckets = new Map<string, EarningsDay>();
-  for (let i = 0; i < dayCount; i += 1) {
-    const date = campusDateString(
-      new Date(now.getTime() - i * 86_400_000),
-      params.campus.timezone,
-    );
+  for (const date of dateList) {
     buckets.set(date, emptyDay(date));
   }
 
@@ -313,6 +321,16 @@ export async function getVendorEarnings(params: {
   const todayDate = campusDateString(now, params.campus.timezone);
   const today = days.find((d) => d.date === todayDate) ?? emptyDay(todayDate);
 
+  const monthTotal: EarningsDay = {
+    date: currentMonth,
+    orderCount: days.reduce((sum, d) => sum + d.orderCount, 0),
+    grossPaise: days.reduce((sum, d) => sum + d.grossPaise, 0),
+    commissionPaise: days.reduce((sum, d) => sum + d.commissionPaise, 0),
+    discountPaise: days.reduce((sum, d) => sum + d.discountPaise, 0),
+    cashCollectedPaise: days.reduce((sum, d) => sum + d.cashCollectedPaise, 0),
+    keptPaise: days.reduce((sum, d) => sum + d.keptPaise, 0),
+  };
+
   const [ledger, statements] = await Promise.all([
     listLedgerEntries({ restaurantId: params.restaurant._id, limit: 50 }),
     listStatements({ restaurantId: params.restaurant._id, limit: 30 }),
@@ -325,8 +343,11 @@ export async function getVendorEarnings(params: {
 
   return {
     restaurant: params.restaurant,
+    month: currentMonth,
+    monthDaysCount: dateList.length,
     days,
     today,
+    monthTotal,
     ledger,
     ledgerTotalPaise,
     statements,
