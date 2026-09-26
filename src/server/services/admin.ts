@@ -6,12 +6,14 @@ import {
   DEFAULTS,
   ORDER_STATUS,
   ROLE,
-  TERMINAL_STATUSES,
+  VENDOR_ACTIVE_STATUSES,
   type OrderStatus,
   type StuckReason,
 } from "@/lib/constants";
 import { rupeesToPaise, type Paise } from "@/lib/money";
 import { newId } from "@/lib/ids";
+import { campusDateString, campusDayRange } from "@/lib/campus-time";
+import { restaurantPhones } from "@/lib/restaurant-phones";
 import { hashPassword } from "@/server/auth/passwords";
 import { writeAudit } from "./audit";
 import type { Campus, CampusSettings, DeliveryZone, GeoPolygon } from "@/types/campus";
@@ -426,6 +428,43 @@ export async function updatePayoutDetails(params: {
   return updated;
 }
 
+/**
+ * Replace a restaurant's contact numbers. The first becomes `phone`, the one
+ * snapshotted onto new orders; orders already placed keep the number they had.
+ */
+export async function setRestaurantPhones(params: {
+  restaurantId: string;
+  phones: string[];
+  actorId: string;
+}): Promise<Restaurant | null> {
+  const [primary] = params.phones;
+  if (primary === undefined) return null;
+
+  const restaurants = await db.restaurants();
+  const before = await restaurants.findOne({ _id: params.restaurantId });
+  if (!before) return null;
+
+  const updated = await restaurants.findOneAndUpdate(
+    { _id: params.restaurantId },
+    { $set: { phone: primary, phones: params.phones, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+
+  if (updated) {
+    await writeAudit({
+      entity: "RESTAURANT",
+      entityId: updated._id,
+      from: restaurantPhones(before).join(", "),
+      to: params.phones.join(", "),
+      actorId: params.actorId,
+      actorRole: ACTOR.ADMIN,
+      reason: "Contact numbers changed",
+    });
+  }
+
+  return updated;
+}
+
 export interface CreateVendorDirectParams {
   ownerName: string;
   email: string;
@@ -488,6 +527,7 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
     name: params.restaurantName.trim(),
     cuisines: params.cuisines.length > 0 ? params.cuisines : ["Campus Food"],
     phone: params.phone.trim(),
+    phones: [params.phone.trim()],
     description: params.description?.trim() || `${params.restaurantName.trim()} on ${campus.name}.`,
     imageUrl: null,
     bannerUrl: null,
@@ -631,8 +671,27 @@ export async function getRadar(params: {
   const campuses = await (await db.campuses()).find({}).toArray();
   const campusById = new Map(campuses.map((c) => [c._id, c]));
 
-  const filter: Record<string, unknown> = { status: { $nin: [...TERMINAL_STATUSES] } };
-  if (params.campusId) filter.campusId = params.campusId;
+  // Today's live orders only. DELIVERED is not terminal — it waits for the
+  // nightly settlement to become SETTLED — so excluding terminal statuses used
+  // to leave every delivered order on here for days. "Today" is per campus,
+  // because each campus has its own midnight.
+  const scope = params.campusId
+    ? campuses.filter((c) => c._id === params.campusId)
+    : campuses;
+  const todayByCampus = scope.map((c) => ({
+    campusId: c._id,
+    "timestamps.createdAt": {
+      $gte: campusDayRange(campusDateString(now, c.timezone), c.timezone).start,
+    },
+  }));
+  if (todayByCampus.length === 0) {
+    return { orders: [], activeCount: 0, stuckCount: 0, serverTime: now.toISOString() };
+  }
+
+  const filter = {
+    status: { $in: [ORDER_STATUS.PENDING_CONFIRMATION, ...VENDOR_ACTIVE_STATUSES] },
+    $or: todayByCampus,
+  };
 
   const orders = await (await db.orders())
     .find(filter)

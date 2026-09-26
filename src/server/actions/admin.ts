@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { ACTOR, ORDER_STATUS, ZONE_TYPE } from "@/lib/constants";
 import { newId } from "@/lib/ids";
+import { MAX_RESTAURANT_PHONES, PHONE_PATTERN } from "@/lib/restaurant-phones";
 import { requireAdmin } from "@/server/auth/session";
 import {
   createVendorDirectly,
@@ -13,6 +14,7 @@ import {
   reviewKyc,
   setCommissionOverride,
   setPlatformFee,
+  setRestaurantPhones,
   setRestaurantOpenAsAdmin,
   setZoneActive,
   updateCampusSettings,
@@ -307,6 +309,36 @@ export async function savePayoutDetails(input: unknown): Promise<AdminActionStat
 
   revalidatePath("/admin/vendors");
   return { status: "ok", message: "Bank details saved" };
+}
+
+/** Admin only: a vendor sees these numbers but can never change them. */
+export async function saveVendorPhones(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({
+      restaurantId: z.string().min(1),
+      phones: z
+        .array(z.string().trim().regex(PHONE_PATTERN, "Enter valid phone numbers (10 to 15 digits)"))
+        .min(1, "Keep at least one phone number")
+        .max(MAX_RESTAURANT_PHONES, `At most ${MAX_RESTAURANT_PHONES} phone numbers`),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid phone numbers." };
+  }
+
+  const phones = [...new Set(parsed.data.phones)];
+
+  const { user } = await requireAdmin();
+  const updated = await setRestaurantPhones({
+    restaurantId: parsed.data.restaurantId,
+    phones,
+    actorId: user._id,
+  });
+  if (!updated) return { status: "error", message: "That restaurant does not exist." };
+
+  revalidatePath("/admin/vendors");
+  revalidatePath("/vendor/settings");
+  return { status: "ok", message: `Phone numbers for ${updated.name} saved` };
 }
 
 const displayOrderSchema = z.object({

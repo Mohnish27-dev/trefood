@@ -94,7 +94,17 @@ export interface Restaurant {
   slug: string;
   name: string;
   cuisines: string[];
+  /**
+   * The primary number: snapshotted onto orders and shown to students. Always
+   * the first entry of `phones` when an admin has saved that list.
+   */
   phone: string;
+  /**
+   * Every number that reaches this restaurant, primary first. Admin-managed
+   * only — the vendor sees them but cannot change them. Absent on restaurants
+   * created before the field existed; read it through `restaurantPhones()`.
+   */
+  phones?: string[];
   description: string;
 
   imageUrl: string | null;

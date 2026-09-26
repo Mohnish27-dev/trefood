@@ -430,6 +430,11 @@ export const VENDOR_STRINGS = {
   },
   typicalPrepTime: { en: "Typical prep time (minutes)", hi: "औसत तैयारी का समय (मिनट)" },
   phoneStudentsCall: { en: "Phone students and TREFOOD call", hi: "छात्र व TREFOOD संपर्क नंबर" },
+  primaryPhone: { en: "Primary", hi: "मुख्य" },
+  phonesAdminOnly: {
+    en: "Only TREFOOD can add or change these numbers. Contact support to update them.",
+    hi: "ये नंबर केवल TREFOOD बदल सकता है। बदलने के लिए सपोर्ट से संपर्क करें।",
+  },
   opens: { en: "Opens", hi: "खुलने का समय" },
   closes: { en: "Closes", hi: "बंद होने का समय" },
   closingAfterMidnight: {

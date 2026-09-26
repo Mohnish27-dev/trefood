@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Loader2, MapPin, Save, ShieldCheck } from "lucide-react";
+import { Clock, Loader2, Lock, MapPin, Phone, Save, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -21,7 +21,6 @@ export interface SettingsZone {
 }
 
 export interface VendorSettingsValues {
-  phone: string;
   prepMinutes: number;
   opensMinutes: number;
   closesMinutes: number;
@@ -45,11 +44,14 @@ export interface VendorSettingsValues {
 export function VendorSettingsForm({
   initial,
   zones,
+  phones,
   deliveryFeePaise,
   commissionPct,
 }: {
   initial: VendorSettingsValues;
   zones: SettingsZone[];
+  /** Read-only here: only an admin can add, edit or remove these. */
+  phones: string[];
   /** Campus-set and not editable here — shown so the vendor can see the full bill. */
   deliveryFeePaise: number;
   commissionPct: string;
@@ -110,15 +112,25 @@ export function VendorSettingsForm({
           </div>
 
           <div>
-            <Label htmlFor="phone">{t("phoneStudentsCall")}</Label>
-            <Input
-              id="phone"
-              type="tel"
-              inputMode="tel"
-              value={values.phone}
-              onChange={(event) => set("phone", event.target.value)}
-              placeholder="+91…"
-            />
+            <Label>{t("phoneStudentsCall")}</Label>
+            <ul className="space-y-1.5">
+              {phones.map((phone, index) => (
+                <li
+                  key={phone}
+                  className="flex min-h-12 items-center gap-2.5 rounded-xl border border-line bg-surface-raised px-3.5 text-sm text-bone"
+                >
+                  <Phone className="size-3.5 shrink-0 text-faint" />
+                  <span className="font-mono">{phone}</span>
+                  {index === 0 && phones.length > 1 ? (
+                    <span className="ml-auto text-[11px] text-muted">{t("primaryPhone")}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+              <Lock className="size-3 shrink-0 text-faint" />
+              {t("phonesAdminOnly")}
+            </p>
           </div>
 
           <TimeField
