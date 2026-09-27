@@ -8,6 +8,7 @@ import {
   History,
   LogOut,
   Settings,
+  Ticket,
   UtensilsCrossed,
 } from "lucide-react";
 import Link from "next/link";
@@ -99,6 +100,7 @@ function VendorShellContent({
     { href: ORDER_STAGES.preparing.href, label: t("colPreparing"), icon: ChefHat, count: stageCount("preparing") },
     { href: ORDER_STAGES.on_the_way.href, label: t("colOnTheWay"), icon: Bike, count: stageCount("on_the_way") },
     { href: "/vendor/menu", label: t("navMenu"), icon: UtensilsCrossed },
+    { href: "/vendor/coupons", label: t("navCoupons"), icon: Ticket },
     { href: "/vendor/earnings", label: t("navEarnings"), icon: BanknoteArrowUp },
     { href: "/vendor/settings", label: t("navSettings"), icon: Settings },
     { href: "/vendor/past-orders", label: t("navPastOrders"), icon: History },

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { pctToBps, rupeesToPaise } from "@/lib/money";
-import { requireAdmin } from "@/server/auth/session";
+import { ACTOR } from "@/lib/constants";
+import { requireAdmin, requireVendor } from "@/server/auth/session";
 import {
   createCouponDirectly,
   deleteCoupon,
@@ -119,10 +120,49 @@ export async function toggleCouponStatusAction(input: unknown): Promise<ActionRe
     revalidatePath(`/admin/vendors/${parsed.data.restaurantId}/coupons`);
   }
   revalidatePath("/admin/vendors");
+  revalidatePath("/vendor/coupons");
 
   return {
     status: "success",
     message: `Coupon is now ${parsed.data.isActive ? "active" : "inactive"}.`,
+  };
+}
+
+const vendorToggleCouponSchema = z.object({
+  couponId: z.string().min(1),
+  isActive: z.boolean(),
+});
+
+/**
+ * A vendor switching one of its own restaurant's coupons on or off.
+ *
+ * The restaurant comes from the session, never the client, so a vendor cannot
+ * flip another canteen's coupon by guessing its id.
+ */
+export async function toggleVendorCouponStatusAction(input: unknown): Promise<ActionResponse> {
+  const { restaurantId, user } = await requireVendor();
+  const parsed = vendorToggleCouponSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { status: "error", message: "Invalid payload" };
+  }
+
+  const res = await toggleCouponStatus(parsed.data.couponId, parsed.data.isActive, user._id, {
+    restaurantId,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!res.ok) {
+    return { status: "error", message: res.message };
+  }
+
+  revalidatePath("/vendor/coupons");
+  revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
+  revalidatePath("/admin/vendors");
+
+  return {
+    status: "success",
+    message: `Coupon ${res.coupon.code} is now ${parsed.data.isActive ? "active" : "inactive"}.`,
   };
 }
 

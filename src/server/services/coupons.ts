@@ -404,10 +404,12 @@ export async function toggleCouponStatus(
   couponId: string,
   isActive: boolean,
   actorId: string,
+  /** A vendor may only touch its own restaurant's coupons: pass its restaurantId. */
+  scope: { restaurantId?: string; actorRole?: typeof ACTOR.ADMIN | typeof ACTOR.VENDOR } = {},
 ): Promise<{ ok: true; coupon: Coupon } | { ok: false; message: string }> {
   const couponsColl = await db.coupons();
   const updated = await couponsColl.findOneAndUpdate(
-    { _id: couponId },
+    scope.restaurantId ? { _id: couponId, restaurantId: scope.restaurantId } : { _id: couponId },
     { $set: { isActive } },
     { returnDocument: "after" },
   );
@@ -422,7 +424,7 @@ export async function toggleCouponStatus(
     from: (!isActive).toString(),
     to: isActive.toString(),
     actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: scope.actorRole ?? ACTOR.ADMIN,
     reason: `${isActive ? "Activated" : "Deactivated"} coupon ${updated.code}`,
   });
 
