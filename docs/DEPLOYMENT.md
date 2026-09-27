@@ -506,11 +506,11 @@ ports 80/443 must be open in the Lightsail firewall *before* Caddy asks. Check
 
 Worth naming rather than discovering later:
 
-- **The cron routes are not scheduled.** `/api/cron/*` — settlement,
-  reconciliation, expiring unacked orders — are HTTP endpoints guarded by
-  `CRON_SECRET`, and nothing currently calls them. They need a scheduler
-  (a host `cron` entry with `curl`, or an external pinger). Until then those
-  jobs do not run.
+- **The cron jobs run in-process.** `src/instrumentation.ts` starts a
+  scheduler (`src/server/scheduler.ts`) that runs the sweeps every minute and,
+  once per campus day, settles yesterday. Every job is idempotent, so an extra
+  host `cron` hitting `/api/cron/*` is harmless. Set `DISABLE_SCHEDULER=1` to
+  turn it off.
 - **No database backups configured here.** Atlas has its own; make sure the
   cluster tier you are on actually includes them.
 - **Paytm is on test credentials.** `PAYMENT_PROVIDER=paytm` with the staging

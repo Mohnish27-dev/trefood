@@ -8,6 +8,7 @@ import { requireVendor } from "@/server/auth/session";
 import { getCampusById, getRestaurantById } from "@/server/services/catalog";
 import { formatMinutes } from "@/server/services/curfew";
 import { bpsToPct } from "@/lib/money";
+import { restaurantPhones } from "@/lib/restaurant-phones";
 
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
@@ -37,8 +38,8 @@ export default async function VendorSettingsPage() {
         deliveryFeePaise={campus.settings.deliveryFeePaise}
         commissionPct={String(bpsToPct(commissionBps))}
         zones={zones}
+        phones={restaurantPhones(restaurant)}
         initial={{
-          phone: restaurant.phone,
           prepMinutes: restaurant.prepMinutes,
           opensMinutes: restaurant.opensMinutes,
           closesMinutes: restaurant.closesMinutes,

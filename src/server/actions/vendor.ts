@@ -835,8 +835,9 @@ export async function setRestaurantOpen(input: unknown): Promise<VendorActionSta
   return { status: "ok", message: parsed.data.isOpen ? "Taking orders" : "Closed for now" };
 }
 
+// No phone here: contact numbers are admin-managed (saveVendorPhones), and a
+// phone a client still sends is stripped by the schema.
 const settingsSchema = z.object({
-  phone: z.string().regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number"),
   prepMinutes: z.number().int().min(DEFAULTS.prepMinutesMin).max(DEFAULTS.prepMinutesMax),
   opensMinutes: z.number().int().min(0).max(1_439),
   closesMinutes: z.number().int().min(0).max(1_439),
@@ -870,7 +871,6 @@ export async function updateVendorSettings(input: unknown): Promise<VendorAction
     { _id: restaurantId },
     {
       $set: {
-        phone: parsed.data.phone,
         prepMinutes: parsed.data.prepMinutes,
         opensMinutes: parsed.data.opensMinutes,
         closesMinutes: parsed.data.closesMinutes,

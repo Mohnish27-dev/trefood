@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AdminVendorTable, type AdminVendorRow } from "@/components/admin/vendor-table";
+import { restaurantPhones } from "@/lib/restaurant-phones";
 import { requireAdmin } from "@/server/auth/session";
 import { listAllCampuses, listVendors } from "@/server/services/admin";
 
@@ -24,6 +25,7 @@ export default async function AdminVendorsPage() {
       campusName: campus?.name ?? "Unknown campus",
       ownerName: vendor.kyc.ownerName,
       ownerPhone: vendor.kyc.ownerPhone,
+      phones: restaurantPhones(vendor),
       gstin: vendor.kyc.gstin,
       fssai: vendor.kyc.fssai,
       kycStatus: vendor.kyc.status,

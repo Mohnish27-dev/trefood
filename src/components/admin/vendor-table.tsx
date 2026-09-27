@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, Power, PowerOff, Receipt, Ticket, Trash2, UtensilsCrossed, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, Percent, Phone, Plus, Power, PowerOff, Receipt, Ticket, Trash2, UtensilsCrossed, X, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,9 +28,11 @@ import {
   saveCommissionOverride,
   savePayoutDetails,
   savePlatformFee,
+  saveVendorPhones,
   toggleRestaurantOpenAction,
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
+import { MAX_RESTAURANT_PHONES, PHONE_PATTERN } from "@/lib/restaurant-phones";
 import { AddVendorDialog, type CampusOption } from "@/components/admin/add-vendor-dialog";
 import { ReorderRestaurantsDialog } from "@/components/admin/reorder-restaurants-dialog";
 import { getRestaurantDisplayPriority } from "@/lib/restaurant-order";
@@ -44,6 +46,8 @@ export interface AdminVendorRow {
   campusName: string;
   ownerName: string;
   ownerPhone: string;
+  /** Contact numbers students and TREFOOD call, primary first. Admin-managed only. */
+  phones: string[];
   gstin: string | null;
   fssai: string | null;
   kycStatus: "PENDING" | "APPROVED" | "REJECTED";
@@ -206,6 +210,10 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
         <Field label="Owner" value={`${vendor.ownerName} · ${vendor.ownerPhone}`} />
+        <Field
+          label={vendor.phones.length === 1 ? "Phone" : `Phones (${vendor.phones.length})`}
+          value={vendor.phones.length > 0 ? vendor.phones.join(", ") : "None"}
+        />
         <Field label="FSSAI" value={vendor.fssai ?? "Not supplied"} />
         <Field label="GSTIN" value={vendor.gstin ?? "Not registered"} />
         <Field
@@ -261,6 +269,7 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
           <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
           <PlatformFeeDialog vendor={vendor} />
           <PayoutDialog vendor={vendor} />
+          <PhonesDialog vendor={vendor} />
           <Button asChild size="sm" variant="secondary" className="gap-1.5">
             <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
               <UtensilsCrossed className="size-3.5 text-saffron" />
@@ -623,6 +632,134 @@ function PayoutDialog({ vendor }: { vendor: AdminVendorRow }) {
             Cancel
           </Button>
           <Button disabled={submitting} onClick={() => void submit()}>
+            {submitting ? <Loader2 className="animate-spin" /> : null}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The only place a restaurant's contact numbers change. The vendor sees them
+ * on their settings page but cannot edit them, so a number students call is
+ * always one TREFOOD has checked. The first is the primary: it is the one
+ * snapshotted onto new orders.
+ */
+function PhonesDialog({ vendor }: { vendor: AdminVendorRow }) {
+  const [open, setOpen] = useState(false);
+  const [phones, setPhones] = useState<string[]>(vendor.phones);
+  const [submitting, setSubmitting] = useState(false);
+
+  const trimmed = phones.map((phone) => phone.trim());
+  const valid =
+    trimmed.length > 0 &&
+    trimmed.every((phone) => PHONE_PATTERN.test(phone)) &&
+    new Set(trimmed).size === trimmed.length;
+
+  const update = (index: number, value: string): void =>
+    setPhones((prev) => prev.map((phone, i) => (i === index ? value : phone)));
+  const remove = (index: number): void =>
+    setPhones((prev) => prev.filter((_, i) => i !== index));
+  const makePrimary = (index: number): void =>
+    setPhones((prev) => [...prev.filter((_, i) => i === index), ...prev.filter((_, i) => i !== index)]);
+
+  const submit = async (): Promise<void> => {
+    setSubmitting(true);
+    const result = await saveVendorPhones({ restaurantId: vendor.restaurantId, phones: trimmed });
+    setSubmitting(false);
+
+    if (result.status === "error") {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(result.message);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Reopening starts from the saved numbers, not a half-edited list.
+        if (next) setPhones(vendor.phones.length > 0 ? vendor.phones : [""]);
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="secondary">
+          <Phone />
+          Phones
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Phone numbers for {vendor.name}</DialogTitle>
+          <DialogDescription>
+            Students and TREFOOD call these. The vendor can see them but cannot change them.
+            The primary number is the one printed on new orders; orders already placed keep
+            the number they had.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogBody className="space-y-2">
+          {phones.map((phone, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <Input
+                aria-label={`Phone ${index + 1}`}
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(event) => update(index, event.target.value)}
+                placeholder="9876543210"
+                className="flex-1"
+              />
+              {index === 0 ? (
+                <Badge tone="success">Primary</Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => makePrimary(index)}
+                  title="Make this the primary number"
+                >
+                  Make primary
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={phones.length === 1}
+                onClick={() => remove(index)}
+                className="text-muted hover:text-chili"
+                title="Remove this number"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          ))}
+
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={phones.length >= MAX_RESTAURANT_PHONES}
+            onClick={() => setPhones((prev) => [...prev, ""])}
+          >
+            <Plus />
+            Add number
+          </Button>
+          <p className="text-xs text-muted">
+            10 to 15 digits, optional leading +. Up to {MAX_RESTAURANT_PHONES} numbers, no duplicates.
+          </p>
+        </DialogBody>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button disabled={submitting || !valid} onClick={() => void submit()}>
             {submitting ? <Loader2 className="animate-spin" /> : null}
             Save
           </Button>
