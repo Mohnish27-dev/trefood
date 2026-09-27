@@ -16,6 +16,7 @@ import {
   setPlatformFee,
   setRestaurantPhones,
   setRestaurantOpenAsAdmin,
+  setRestaurantDineIn,
   setZoneActive,
   updateCampusSettings,
   updateGeofence,
@@ -400,6 +401,41 @@ export async function toggleRestaurantOpenAction(input: unknown): Promise<AdminA
   return {
     status: "ok",
     message: `${updated.name} is now ${parsed.data.isOpen ? "Open" : "Closed"}`,
+  };
+}
+
+const toggleRestaurantDineInSchema = z.object({
+  restaurantId: z.string().min(1),
+  isDineIn: z.boolean(),
+});
+
+export async function toggleRestaurantDineInAction(input: unknown): Promise<AdminActionState> {
+  const parsed = toggleRestaurantDineInSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid request.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const updated = await setRestaurantDineIn({
+    restaurantId: parsed.data.restaurantId,
+    isDineIn: parsed.data.isDineIn,
+    actorId: user._id,
+  });
+
+  if (!updated) {
+    return { status: "error", message: "That restaurant does not exist." };
+  }
+
+  revalidatePath("/admin/vendors");
+  revalidatePath("/c/[campusSlug]", "page");
+  revalidatePath("/");
+
+  return {
+    status: "ok",
+    message: `${updated.name} dine-in is now ${parsed.data.isDineIn ? "Enabled" : "Disabled"}`,
   };
 }
 

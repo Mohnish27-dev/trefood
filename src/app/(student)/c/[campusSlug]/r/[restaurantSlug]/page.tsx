@@ -153,6 +153,12 @@ export default async function MenuPage({
             <span className="hero-card-strong font-medium">{campus.name}</span>
             <span className="opacity-40">•</span>
             <span>{formatTime12h(restaurant.opensMinutes)} to {formatTime12h(restaurant.closesMinutes)}</span>
+            {restaurant.isDineInAvailable ? (
+              <>
+                <span className="opacity-40">•</span>
+                <span className="font-semibold text-amber-400">🍽️ Dine-in Available</span>
+              </>
+            ) : null}
           </div>
 
           {/* Cuisines & Min Order Line */}
