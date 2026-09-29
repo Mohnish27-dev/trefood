@@ -49,3 +49,12 @@ export function TR({ className, ...props }: ComponentProps<"tr">) {
 export function TD({ className, ...props }: ComponentProps<"td">) {
   return <td className={cn("px-3 py-3 align-middle text-bone", className)} {...props} />;
 }
+
+export function TFoot({ className, ...props }: ComponentProps<"tfoot">) {
+  return (
+    <tfoot
+      className={cn("border-t-2 border-line bg-surface-raised/80 text-left font-semibold", className)}
+      {...props}
+    />
+  );
+}

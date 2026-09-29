@@ -30,6 +30,7 @@ import {
   savePlatformFee,
   saveVendorPhones,
   toggleRestaurantOpenAction,
+  toggleRestaurantDineInAction,
 } from "@/server/actions/admin";
 import { bpsToPct, pctToBps } from "@/lib/money";
 import { MAX_RESTAURANT_PHONES, PHONE_PATTERN } from "@/lib/restaurant-phones";
@@ -54,6 +55,7 @@ export interface AdminVendorRow {
   rejectionReason: string | null;
   isOpen: boolean;
   adminClosed?: boolean;
+  isDineInAvailable?: boolean;
   zoneCount: number;
   minOrderPaise: number;
   packagingFeePaise: number;
@@ -160,6 +162,27 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
   const [isOpen, setIsOpen] = useState(vendor.isOpen);
   const [isAdminClosed, setIsAdminClosed] = useState(Boolean(vendor.adminClosed));
   const [togglingOpen, setTogglingOpen] = useState(false);
+  const [isDineIn, setIsDineIn] = useState(Boolean(vendor.isDineInAvailable));
+  const [togglingDineIn, setTogglingDineIn] = useState(false);
+
+  const handleToggleDineIn = async () => {
+    const nextState = !isDineIn;
+    setTogglingDineIn(true);
+    setIsDineIn(nextState);
+
+    const res = await toggleRestaurantDineInAction({
+      restaurantId: vendor.restaurantId,
+      isDineIn: nextState,
+    });
+
+    if (res.status === "error") {
+      setIsDineIn(!nextState);
+      toast.error(res.message);
+    } else {
+      toast.success(res.message);
+    }
+    setTogglingDineIn(false);
+  };
 
   const handleToggleOpen = async () => {
     const nextState = !isOpen;
@@ -196,6 +219,12 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
             <span className="inline-flex items-center rounded-md border border-line bg-surface-raised px-2 py-0.5 text-[11px] font-mono font-semibold text-bone">
               Rank #{getRestaurantDisplayPriority(vendor)}
             </span>
+          ) : null}
+          {isDineIn ? (
+            <Badge tone="accent" className="gap-1">
+              <UtensilsCrossed className="size-3" />
+              Dine In
+            </Badge>
           ) : null}
           {isOpen ? (
             <Badge tone="success">Open</Badge>
@@ -264,6 +293,26 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
               <Power className="size-3.5 text-mint" />
             )}
             {isOpen ? "Turn Off" : "Turn On"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={togglingDineIn}
+            onClick={handleToggleDineIn}
+            className={cn(
+              "gap-1.5 transition-colors",
+              isDineIn
+                ? "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50"
+                : "text-muted border-line hover:bg-surface-raised",
+            )}
+            title={isDineIn ? "Disable Dine-in for this restaurant" : "Enable Dine-in for this restaurant"}
+          >
+            {togglingDineIn ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <UtensilsCrossed className={cn("size-3.5", isDineIn ? "text-mint" : "text-muted")} />
+            )}
+            {isDineIn ? "Dine In: ON" : "Dine In: OFF"}
           </Button>
           <KycDialog vendor={vendor} />
           <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />

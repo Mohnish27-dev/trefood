@@ -32,6 +32,7 @@ export default async function AdminVendorsPage() {
       rejectionReason: vendor.kyc.rejectionReason,
       isOpen: vendor.isOpen,
       adminClosed: Boolean(vendor.adminClosed),
+      isDineInAvailable: Boolean(vendor.isDineInAvailable),
       zoneCount: vendor.servedZoneIds.length,
       minOrderPaise: vendor.minOrderPaise,
       packagingFeePaise: vendor.packagingFeePaise,

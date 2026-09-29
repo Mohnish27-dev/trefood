@@ -3,7 +3,7 @@
  *
  * Seeds:
  * 1. The restaurant profile for Chai Sutta Bar (CSB)
- * 2. The vendor account login (csbar759@gmail.com / csbtraefood@123)
+ * 2. The vendor account login (csbar759@gmail.com / Lalbiharitrefood@2026)
  * 3. All 22 categories and 85+ menu items transcribed from official menu photos
  *
  * Usage:
@@ -1339,7 +1339,7 @@ export async function seedChaiSuttaBar(): Promise<void> {
     name: "CSB Manager",
     email: VENDOR_EMAIL,
     phone: "9905773851",
-    passwordHash: hashPassword("csbtraefood@123"),
+    passwordHash: hashPassword("Lalbiharitrefood@2026"),
     campusId: CAMPUS_ID,
     restaurantId: RESTAURANT_ID,
     strikes: 0,
@@ -1392,7 +1392,7 @@ export async function seedChaiSuttaBar(): Promise<void> {
   console.log("\n=== Chai Sutta Bar (CSB) Ready! ===");
   console.log(`  - Student URL: /c/${campus.slug}/r/${restaurant.slug}`);
   console.log(`  - Admin Menu URL: /admin/vendors/${RESTAURANT_ID}/menu`);
-  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / csbtraefood@123`);
+  console.log(`  - Vendor Login: ${VENDOR_EMAIL} / Lalbiharitrefood@2026`);
 }
 
 async function main() {

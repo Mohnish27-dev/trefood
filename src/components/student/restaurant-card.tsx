@@ -102,6 +102,14 @@ export function RestaurantCard({
 
               <span className="text-line">•</span>
               <span>{restaurant.prepMinutes} min prep</span>
+              {restaurant.isDineInAvailable ? (
+                <>
+                  <span className="text-line">•</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
+                    🍽️ Dine-in
+                  </span>
+                </>
+              ) : null}
             </div>
 
             {/* Cuisines & Min Order Line */}

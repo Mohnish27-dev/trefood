@@ -264,24 +264,6 @@ export function CheckoutView({
         </div>
       </section>
 
-      {/* ── Phone (D7) ────────────────────────────────────────── */}
-      <section className="mb-5">
-        <Label htmlFor="phone">Phone number</Label>
-        <Input
-          id="phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="+91 98765 43210"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          aria-invalid={phone.length > 0 && !phoneValid}
-        />
-        <p className="mt-1.5 text-xs text-faint">
-          The restaurant calls this if they cannot find you at the gate. Saved for next time.
-        </p>
-      </section>
-
       {/* ── How you pay ───────────────────────────────────────── */}
       <section className="mb-5">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-faint">
@@ -353,6 +335,24 @@ export function CheckoutView({
           hint="Hand this to the delivery person. Exact amount, please."
         />
       </Card>
+
+      {/* ── Phone (D7) ────────────────────────────────────────── */}
+      <section className="mb-5">
+        <Label htmlFor="phone">Phone number</Label>
+        <Input
+          id="phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="+91 98765 43210"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          aria-invalid={phone.length > 0 && !phoneValid}
+        />
+        <p className="mt-1.5 text-xs text-faint">
+          The restaurant calls this if they cannot find you at the gate. Saved for next time.
+        </p>
+      </section>
 
       {error ? (
         <div

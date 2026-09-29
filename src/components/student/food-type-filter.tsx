@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Apple, ChevronRight, CupSoda, UtensilsCrossed } from "lucide-react";
+import { ChevronRight, CupSoda, UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FoodTypeFilter } from "@/lib/restaurant-filter";
 
@@ -30,15 +30,15 @@ const CATEGORY_CARDS: CategoryCardItem[] = [
     selectedGlow: "shadow-orange-500/20",
   },
   {
-    id: "fruits",
-    label: "Fruits",
-    imageSrc: "/categories/fruits.jpg",
-    imageAlt: "Fresh farm fruits",
-    icon: Apple,
-    iconColor: "text-emerald-500",
-    selectedRing: "ring-emerald-500/80",
-    selectedBorder: "border-emerald-500",
-    selectedGlow: "shadow-emerald-500/20",
+    id: "dine_in",
+    label: "Dine In",
+    imageSrc: "/categories/dinein.jpg",
+    imageAlt: "Dine-in restaurants with seating on campus",
+    icon: UtensilsCrossed,
+    iconColor: "text-amber-500",
+    selectedRing: "ring-amber-500/80",
+    selectedBorder: "border-amber-500",
+    selectedGlow: "shadow-amber-500/20",
   },
   {
     id: "juice_shakes",

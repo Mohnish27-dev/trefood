@@ -148,6 +148,8 @@ export interface Restaurant {
   isOpen: boolean;
   /** When true, admin has forcibly closed the restaurant. Vendor cannot reopen it until admin re-enables it. */
   adminClosed?: boolean;
+  /** Admin toggle: when true, this restaurant is available for dine-in seating on campus. */
+  isDineInAvailable?: boolean;
   isApproved: boolean;
 
   rating: number | null;

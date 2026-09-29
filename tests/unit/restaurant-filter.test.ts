@@ -34,6 +34,7 @@ const MOCK_RESTAURANTS = [
       "Noodles",
     ],
     description: "CSB offers hot chai, shakes, burgers, pizzas, and snacks.",
+    isDineInAvailable: true,
   },
   {
     name: "Raj Darbar",
@@ -75,6 +76,7 @@ const MOCK_RESTAURANTS = [
       "Breads",
     ],
     description: "Authentic Bihari Dehati curries, Handi Mutton, Tandoori Kebabs.",
+    isDineInAvailable: true,
   },
   {
     name: "Sone Zone Cafe",
@@ -118,15 +120,15 @@ describe("matchesFoodType filter logic", () => {
     }
   });
 
-  it("fruits filter accurately matches fruit vendors", () => {
-    const fruitVendors = MOCK_RESTAURANTS.filter((r) => matchesFoodType(r, "fruits"));
-    const names = fruitVendors.map((r) => r.name);
+  it("dine_in filter accurately matches restaurants with isDineInAvailable = true", () => {
+    const dineInVendors = MOCK_RESTAURANTS.filter((r) => matchesFoodType(r, "dine_in"));
+    const names = dineInVendors.map((r) => r.name);
 
-    expect(names).toContain("Prince Juice & Shakes Corner");
-    expect(names).toContain("Raj Darbar");
+    expect(names).toContain("Chai Sutta Bar (CSB)");
+    expect(names).toContain("The Royal Bihar Restaurant");
+    expect(names).not.toContain("Prince Juice & Shakes Corner");
     expect(names).not.toContain("Kolkata Biryani Fast-Food Pizza House");
     expect(names).not.toContain("Wrapchik Pizza");
-    expect(names).not.toContain("Zaika Biryani & Rolls");
     expect(names).toHaveLength(2);
   });
 
@@ -168,14 +170,14 @@ describe("matchesFoodType filter logic", () => {
 
     expect(counts).toEqual({
       all: 8,
-      fruits: 2,
-      juice_shakes: 4,
       food: 7,
+      dine_in: 2,
+      juice_shakes: 4,
     });
   });
 
-  it("FOOD_TYPE_OPTIONS has the expected order: all, food, fruits, juices", () => {
+  it("FOOD_TYPE_OPTIONS has the expected order: all, food, dine_in, juices", () => {
     const ids = FOOD_TYPE_OPTIONS.map((opt) => opt.id);
-    expect(ids).toEqual(["all", "food", "fruits", "juice_shakes"]);
+    expect(ids).toEqual(["all", "food", "dine_in", "juice_shakes"]);
   });
 });
