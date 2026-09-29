@@ -85,6 +85,7 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
             ) : (
               " · nothing overdue"
             )}
+            {snapshot.deliveredCount > 0 ? ` · ${snapshot.deliveredCount} delivered today` : null}
           </p>
         </div>
 
@@ -119,8 +120,12 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
           <TBody>
             {snapshot.orders.map((order) => {
               const isStuck = order.stuck.length > 0;
+              const isDelivered = order.status === "DELIVERED";
               return (
-                <TR key={order.orderId} className={cn(isStuck && "bg-chili-wash/40")}>
+                <TR
+                  key={order.orderId}
+                  className={cn(isStuck && "bg-chili-wash/40", isDelivered && "opacity-60")}
+                >
                   <TD>
                     <p className="font-mono text-xs text-bone">{order.orderNumber}</p>
                     <p className="mt-0.5 text-[11px] text-faint">{order.campusName}</p>
@@ -165,14 +170,16 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
                       isStuck ? "font-semibold text-chili" : "text-muted",
                     )}
                   >
-                    {order.minutesInState} min
+                    {isDelivered ? `${order.minutesInState} min ago` : `${order.minutesInState} min`}
                   </TD>
                   <TD className="text-right">
-                    <CancelDialog
-                      orderId={order.orderId}
-                      orderNumber={order.orderNumber}
-                      onDone={refresh}
-                    />
+                    {isDelivered ? null : (
+                      <CancelDialog
+                        orderId={order.orderId}
+                        orderNumber={order.orderNumber}
+                        onDone={refresh}
+                      />
+                    )}
                   </TD>
                 </TR>
               );

@@ -651,6 +651,8 @@ export interface RadarOrder {
 export interface RadarSnapshot {
   orders: RadarOrder[];
   activeCount: number;
+  /** Orders delivered today — shown below the live ones for context. */
+  deliveredCount: number;
   stuckCount: number;
   serverTime: string;
 }
@@ -685,11 +687,21 @@ export async function getRadar(params: {
     },
   }));
   if (todayByCampus.length === 0) {
-    return { orders: [], activeCount: 0, stuckCount: 0, serverTime: now.toISOString() };
+    return {
+      orders: [],
+      activeCount: 0,
+      deliveredCount: 0,
+      stuckCount: 0,
+      serverTime: now.toISOString(),
+    };
   }
 
+  // Today's deliveries ride along as context, below the live ones, so the
+  // radar shows the whole day's order flow rather than only what's in flight.
   const filter = {
-    status: { $in: [ORDER_STATUS.PENDING_CONFIRMATION, ...VENDOR_ACTIVE_STATUSES] },
+    status: {
+      $in: [ORDER_STATUS.PENDING_CONFIRMATION, ...VENDOR_ACTIVE_STATUSES, ORDER_STATUS.DELIVERED],
+    },
     $or: todayByCampus,
   };
 
@@ -701,7 +713,8 @@ export async function getRadar(params: {
 
   const rows = orders.map((order) => {
     const campus = campusById.get(order.campusId);
-    const stuck = stuckReasons(order, campus, now);
+    const stuck =
+      order.status === ORDER_STATUS.DELIVERED ? [] : stuckReasons(order, campus, now);
 
     return {
       orderId: order._id,
@@ -722,14 +735,21 @@ export async function getRadar(params: {
   });
 
   // Stuck first, then oldest — the two orders of urgency, in that order.
+  // Delivered orders sink to the bottom, most recent first.
+  const isDelivered = (r: RadarOrder): boolean => r.status === ORDER_STATUS.DELIVERED;
   rows.sort((a, b) => {
+    if (isDelivered(a) !== isDelivered(b)) return isDelivered(a) ? 1 : -1;
+    if (isDelivered(a)) return a.minutesInState - b.minutesInState;
     if ((a.stuck.length > 0) !== (b.stuck.length > 0)) return a.stuck.length > 0 ? -1 : 1;
     return b.minutesInState - a.minutesInState;
   });
 
+  const deliveredCount = rows.filter(isDelivered).length;
+
   return {
     orders: rows,
-    activeCount: rows.length,
+    activeCount: rows.length - deliveredCount,
+    deliveredCount,
     stuckCount: rows.filter((r) => r.stuck.length > 0).length,
     serverTime: now.toISOString(),
   };
@@ -780,6 +800,6 @@ function stuckReasons(order: Order, campus: Campus | undefined, now: Date): Stuc
 function minutesSinceLastEvent(order: Order, now: Date): number {
   const t = order.timestamps;
   const last =
-    t.atGateAt ?? t.dispatchedAt ?? t.readyAt ?? t.acceptedAt ?? t.placedAt ?? t.createdAt;
+    t.deliveredAt ?? t.atGateAt ?? t.dispatchedAt ?? t.readyAt ?? t.acceptedAt ?? t.placedAt ?? t.createdAt;
   return Math.max(0, Math.trunc((now.getTime() - last.getTime()) / 60_000));
 }
