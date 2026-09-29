@@ -193,10 +193,13 @@ export function getRestaurantImages(restaurant: {
     name.includes("shwami") ||
     name.includes("swami")
   ) {
-    const customImgs = [restaurant.bannerUrl, restaurant.imageUrl].filter(
-      (url): url is string => Boolean(url),
-    );
-    if (customImgs.length > 0) return customImgs;
+    return [
+      "/shwami-ji/shwami1.png",
+      "/shwami-ji/shwami2.jpg",
+      "/shwami-ji/shwami3.jpg",
+      "/shwami-ji/shwami4.png",
+      "/shwami-ji/shwami5.png",
+    ];
   }
 
   // 11. Custom DB image or banner if provided
