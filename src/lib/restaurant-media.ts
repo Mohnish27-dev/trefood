@@ -186,6 +186,19 @@ export function getRestaurantImages(restaurant: {
     ];
   }
 
+  // 12. Shwami Ji
+  if (
+    slug.includes("shwami") ||
+    slug.includes("swami") ||
+    name.includes("shwami") ||
+    name.includes("swami")
+  ) {
+    const customImgs = [restaurant.bannerUrl, restaurant.imageUrl].filter(
+      (url): url is string => Boolean(url),
+    );
+    if (customImgs.length > 0) return customImgs;
+  }
+
   // 11. Custom DB image or banner if provided
   const dbImages = [restaurant.bannerUrl, restaurant.imageUrl].filter(
     (url): url is string => Boolean(url),

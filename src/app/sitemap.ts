@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "prince-juice",
     "mokila",
     "crave",
+    "shwami-ji",
   ];
 
   const restaurantUrls: MetadataRoute.Sitemap = restaurants.map((slug) => ({
