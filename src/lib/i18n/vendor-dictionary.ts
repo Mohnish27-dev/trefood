@@ -64,6 +64,8 @@ export const VENDOR_STRINGS = {
   couponValidTill: { en: "Valid till", hi: "कब तक" },
   couponAppliesTo: { en: "Applies to", hi: "किस पर लागू" },
   couponEntireMenu: { en: "Entire menu", hi: "पूरा मेन्यू" },
+  couponDineIn: { en: "Dine-in", hi: "डाइन-इन" },
+  couponAtCounter: { en: "Redeemed at counter", hi: "काउंटर पर लागू" },
   couponActivate: { en: "Activate", hi: "चालू करें" },
   couponDeactivate: { en: "Deactivate", hi: "बंद करें" },
   takingOrders: { en: "Taking orders", hi: "ऑर्डर चालू हैं" },

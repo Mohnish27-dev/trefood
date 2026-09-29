@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateCouponDiscount,
   couponEligibleSubtotal,
+  isDineInCoupon,
   isPersonLimitReached,
 } from "@/server/services/coupons";
 import type { Coupon } from "@/types/finance";
@@ -174,5 +175,16 @@ describe("Person limit", () => {
     const legacy: Coupon = { ...base };
     delete legacy.personLimit;
     expect(isPersonLimitReached(legacy, "u3")).toBe(false);
+  });
+});
+
+describe("Coupon channel", () => {
+  it("treats a coupon without a channel as delivery", () => {
+    expect(isDineInCoupon({})).toBe(false);
+    expect(isDineInCoupon({ channel: "DELIVERY" })).toBe(false);
+  });
+
+  it("recognises dine-in coupons", () => {
+    expect(isDineInCoupon({ channel: "DINE_IN" })).toBe(true);
   });
 });

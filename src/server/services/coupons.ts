@@ -5,7 +5,7 @@ import { ACTOR, DEFAULT_TIMEZONE, ORDER_STATUS } from "@/lib/constants";
 import { campusDateString, campusDayRange } from "@/lib/campus-time";
 import { newId } from "@/lib/ids";
 import { ceilRupeeOfBps, type Paise } from "@/lib/money";
-import type { Coupon } from "@/types/finance";
+import type { Coupon, CouponChannel } from "@/types/finance";
 import { writeAudit } from "./audit";
 import { getCampusById, getMenuItemsByIds, getRestaurantById } from "./catalog";
 
@@ -25,6 +25,8 @@ export interface CreateCouponParams {
   personLimit?: number | undefined;
   /** Restrict to these items of `restaurantId`. Empty or omitted = whole menu. */
   menuItemIds?: readonly string[] | undefined;
+  /** Omitted = DELIVERY. */
+  channel?: CouponChannel | undefined;
   validFrom?: Date | undefined;
   /** Omitted = the end of today, in the campus timezone. */
   validUntil?: Date | undefined;
@@ -53,6 +55,11 @@ export async function createCouponDirectly(
 
   const restaurant = params.restaurantId ? await getRestaurantById(params.restaurantId) : null;
   const campusId = params.campusId ?? restaurant?.campusId ?? null;
+
+  const channel = params.channel ?? "DELIVERY";
+  if (channel === "DINE_IN" && !restaurant?.isDineInAvailable) {
+    return { ok: false, message: "Turn on dine-in for this restaurant before adding a dine-in coupon." };
+  }
 
   const menuItemIds = [...new Set(params.menuItemIds ?? [])];
   let menuItemNames: string[] = [];
@@ -100,6 +107,7 @@ export async function createCouponDirectly(
     redeemedCustomerIds: [],
     menuItemIds,
     menuItemNames,
+    channel,
     validFrom: params.validFrom ?? new Date(),
     validUntil,
     isActive: true,
@@ -114,7 +122,7 @@ export async function createCouponDirectly(
     to: `COUPON_CREATED:${coupon.code}`,
     actorId: params.actorId,
     actorRole: ACTOR.ADMIN,
-    reason: `Created coupon ${coupon.code} (${coupon.type === "FLAT" ? `₹${coupon.valuePaise / 100} off` : `${coupon.valueBps / 100}% off`})`,
+    reason: `Created ${channel === "DINE_IN" ? "dine-in " : ""}coupon ${coupon.code} (${coupon.type === "FLAT" ? `₹${coupon.valuePaise / 100} off` : `${coupon.valueBps / 100}% off`})`,
   });
 
   return { ok: true, coupon };
@@ -123,6 +131,25 @@ export async function createCouponDirectly(
 export async function listAdminCouponsForRestaurant(restaurantId: string): Promise<Coupon[]> {
   const couponsColl = await db.coupons();
   return couponsColl.find({ restaurantId }).sort({ validUntil: -1 }).toArray();
+}
+
+export function isDineInCoupon(coupon: Pick<Coupon, "channel">): boolean {
+  return coupon.channel === "DINE_IN";
+}
+
+/** Live dine-in offers for the restaurant page. Students show the code at the counter. */
+export async function listActiveDineInCoupons(restaurantId: string): Promise<Coupon[]> {
+  const now = new Date();
+  return (await db.coupons())
+    .find({
+      restaurantId,
+      channel: "DINE_IN",
+      isActive: true,
+      validFrom: { $lte: now },
+      validUntil: { $gte: now },
+    })
+    .sort({ valuePaise: -1, valueBps: -1 })
+    .toArray();
 }
 
 export interface CouponEligibilityResult {
@@ -203,6 +230,8 @@ export async function listEligibleCouponsForCart(params: {
       isActive: true,
       validFrom: { $lte: now },
       validUntil: { $gte: now },
+      // Dine-in coupons are redeemed at the counter, never at checkout.
+      channel: { $ne: "DINE_IN" },
       $or: [
         { restaurantId: params.restaurantId },
         { campusId: params.campusId, restaurantId: null },
@@ -280,6 +309,13 @@ export async function validateCouponForOrder(params: {
 
   if (!coupon) {
     return { ok: false, message: `Coupon code "${normalizedCode}" does not exist.` };
+  }
+
+  if (isDineInCoupon(coupon)) {
+    return {
+      ok: false,
+      message: `Coupon "${normalizedCode}" is a dine-in offer. Show it at the counter when you eat in.`,
+    };
   }
 
   if (!coupon.isActive) {

@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Phone, ShieldCheck, Star } from "lucide-react";
+import { ArrowLeft, Clock, Phone, ShieldCheck, Star, Tag } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -15,6 +15,7 @@ import {
   getRestaurantBySlug,
   isRestaurantServing,
 } from "@/server/services/catalog";
+import { listActiveDineInCoupons } from "@/server/services/coupons";
 import { campusLocalMinutes, formatTime12h } from "@/server/services/curfew";
 import { getSession } from "@/server/auth/session";
 
@@ -43,7 +44,10 @@ export default async function MenuPage({
 
   if (!campus || !restaurant || restaurant.campusId !== campus._id) notFound();
 
-  const sections = await getMenu(restaurant._id);
+  const [sections, dineInCoupons] = await Promise.all([
+    getMenu(restaurant._id),
+    restaurant.isDineInAvailable ? listActiveDineInCoupons(restaurant._id) : [],
+  ]);
   const nowMinutes = campusLocalMinutes(new Date(), campus.timezone);
   const isServing = isRestaurantServing(restaurant, nowMinutes);
 
@@ -197,6 +201,37 @@ export default async function MenuPage({
             <p className="hero-card-chip mt-2.5 rounded-md border px-2.5 py-1 text-[11px] font-medium">
               {outOfStockCount} item{outOfStockCount === 1 ? " is" : "s are"} out of stock today
             </p>
+          ) : null}
+
+          {/* Dine-in offers: redeemed at the counter, never at checkout */}
+          {dineInCoupons.length > 0 ? (
+            <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-2.5">
+              <p className="text-xs font-semibold text-amber-400">🍽️ Dine-in offers today</p>
+              <ul className="mt-1.5 space-y-1.5">
+                {dineInCoupons.map((coupon) => {
+                  const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
+                  return (
+                    <li key={coupon._id} className="flex items-start gap-2 text-xs">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-saffron/40 bg-saffron-wash px-1.5 py-0.5 font-mono font-bold text-saffron">
+                        <Tag className="size-3" />
+                        {coupon.code}
+                      </span>
+                      <span className="hero-card-subtext leading-relaxed">
+                        {coupon.description ||
+                          (coupon.type === "FLAT"
+                            ? `₹${coupon.valuePaise / 100} off`
+                            : `${coupon.valueBps / 100}% off${coupon.maxDiscountPaise > 0 ? ` up to ₹${coupon.maxDiscountPaise / 100}` : ""}`)}
+                        {coupon.minOrderPaise > 0 ? ` · min bill ₹${coupon.minOrderPaise / 100}` : ""}
+                        {itemNames.length > 0 ? ` · on ${itemNames.join(", ")}` : ""}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="hero-card-subtext mt-1.5 text-[11px]">
+                Show the code at the counter when you eat in. Not valid on delivery orders.
+              </p>
+            </div>
           ) : null}
         </div>
       </section>
