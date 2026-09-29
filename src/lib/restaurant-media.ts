@@ -174,6 +174,18 @@ export function getRestaurantImages(restaurant: {
     ];
   }
 
+  // 11. Crave
+  if (
+    slug.includes("crave") ||
+    name.includes("crave")
+  ) {
+    return [
+      "/crave/crave1.png",
+      "/crave/crave2.png",
+      "/crave/crave3.png",
+    ];
+  }
+
   // 11. Custom DB image or banner if provided
   const dbImages = [restaurant.bannerUrl, restaurant.imageUrl].filter(
     (url): url is string => Boolean(url),
