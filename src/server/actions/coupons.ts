@@ -34,6 +34,8 @@ const createCouponSchema = z.object({
   personLimit: z.number().int().min(0, "Person limit cannot be negative").default(0),
   /** Empty = the whole menu. */
   menuItemIds: z.array(z.string().min(1)).max(200).default([]),
+  /** DINE_IN coupons are shown on the restaurant page and redeemed at the counter. */
+  channel: z.enum(["DELIVERY", "DINE_IN"]).default("DELIVERY"),
 });
 
 export async function createRestaurantCouponAction(input: unknown): Promise<ActionResponse> {
@@ -56,6 +58,7 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
     perStudentLimit,
     personLimit,
     menuItemIds,
+    channel,
   } = parsed.data;
 
   const valuePaise = type === "FLAT" ? rupeesToPaise(value) : 0;
@@ -77,8 +80,10 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
     maxDiscountPaise,
     minOrderPaise,
     perStudentLimit,
-    personLimit,
+    // Nothing claims a slot at the counter, so a dine-in person limit could never be enforced.
+    personLimit: channel === "DINE_IN" ? 0 : personLimit,
     menuItemIds,
+    channel,
     // No validUntil: every coupon closes at the end of the campus day it was made.
     actorId: session.user._id,
   });
@@ -89,7 +94,11 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
 
   revalidatePath("/admin/vendors");
   revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
-  return { status: "success", message: `Coupon "${code.toUpperCase()}" created successfully!` };
+  revalidatePath("/vendor/coupons");
+  return {
+    status: "success",
+    message: `${channel === "DINE_IN" ? "Dine-in coupon" : "Coupon"} "${code.toUpperCase()}" created successfully!`,
+  };
 }
 
 const toggleCouponSchema = z.object({

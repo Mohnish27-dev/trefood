@@ -70,6 +70,8 @@ export interface CommissionStatement {
   createdAt: Date;
 }
 
+export type CouponChannel = "DELIVERY" | "DINE_IN";
+
 export interface Coupon {
   _id: string;
   code: string;
@@ -98,6 +100,12 @@ export interface Coupon {
   menuItemIds?: string[];
   /** Names of `menuItemIds`, snapshotted at creation for labels. */
   menuItemNames?: string[];
+  /**
+   * Where the coupon is redeemed. DINE_IN coupons are shown on the restaurant
+   * page and honoured at the counter; checkout never accepts them. Absent on
+   * coupons created before this existed, which are all DELIVERY.
+   */
+  channel?: CouponChannel;
   validFrom: Date;
   validUntil: Date;
   isActive: boolean;

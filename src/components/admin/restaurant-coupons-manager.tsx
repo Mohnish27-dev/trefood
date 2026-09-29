@@ -10,6 +10,8 @@ import {
   Tag,
   Ticket,
   Trash2,
+  Truck,
+  UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +32,7 @@ import {
 import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
 import { VegMark } from "@/components/shared/veg-mark";
-import type { Coupon } from "@/types/finance";
+import type { Coupon, CouponChannel } from "@/types/finance";
 import type { Restaurant } from "@/types/restaurant";
 import {
   createRestaurantCouponAction,
@@ -56,6 +58,9 @@ export function RestaurantCouponsManager({
   coupons,
   menuSections,
 }: RestaurantCouponsManagerProps) {
+  const dineInCoupons = coupons.filter((c) => c.channel === "DINE_IN");
+  const deliveryCoupons = coupons.filter((c) => c.channel !== "DINE_IN");
+
   return (
     <div className="space-y-6 max-w-5xl">
       {/* ── Header ───────────────────────────────────────────────── */}
@@ -80,6 +85,7 @@ export function RestaurantCouponsManager({
         <CreateCouponDialog
           restaurantId={restaurant._id}
           restaurantName={restaurant.name}
+          isDineInAvailable={Boolean(restaurant.isDineInAvailable)}
           menuSections={menuSections}
         />
       </div>
@@ -94,17 +100,50 @@ export function RestaurantCouponsManager({
           />
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {coupons.map((coupon) => (
-            <CouponCard
-              key={coupon._id}
-              coupon={coupon}
-              restaurantId={restaurant._id}
-            />
-          ))}
-        </div>
+        <>
+          <CouponSection
+            title="Delivery Coupons"
+            icon={Truck}
+            coupons={deliveryCoupons}
+            restaurantId={restaurant._id}
+          />
+          <CouponSection
+            title="Dine-In Coupons"
+            icon={UtensilsCrossed}
+            coupons={dineInCoupons}
+            restaurantId={restaurant._id}
+          />
+        </>
       )}
     </div>
+  );
+}
+
+function CouponSection({
+  title,
+  icon: Icon,
+  coupons,
+  restaurantId,
+}: {
+  title: string;
+  icon: typeof Truck;
+  coupons: Coupon[];
+  restaurantId: string;
+}) {
+  if (coupons.length === 0) return null;
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-bone">
+        <Icon className="size-4 text-saffron" />
+        {title}
+        <span className="text-xs font-normal text-muted">({coupons.length})</span>
+      </h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        {coupons.map((coupon) => (
+          <CouponCard key={coupon._id} coupon={coupon} restaurantId={restaurantId} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -121,6 +160,7 @@ function CouponCard({
   const personLimit = coupon.personLimit ?? 0;
   const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
   const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
+  const isDineIn = coupon.channel === "DINE_IN";
 
   const handleToggle = async () => {
     setToggling(true);
@@ -164,6 +204,12 @@ function CouponCard({
             <Badge tone={coupon.isActive && !isExpired ? "success" : isExpired ? "danger" : "neutral"}>
               {isExpired ? "Expired" : coupon.isActive ? "Active" : "Inactive"}
             </Badge>
+            {isDineIn ? (
+              <Badge tone="accent" className="gap-1">
+                <UtensilsCrossed className="size-3" />
+                Dine-in
+              </Badge>
+            ) : null}
           </div>
 
         </div>
@@ -197,11 +243,13 @@ function CouponCard({
           <div>
             <span className="text-[10px] uppercase tracking-wider text-faint block">Customers</span>
             <span className="text-bone">
-              {personLimit > 0
-                ? `${customersUsed} / ${personLimit}`
-                : coupon.totalLimit
-                  ? `${coupon.usedCount} used / ${coupon.totalLimit}`
-                  : `${coupon.usedCount} used (no limit)`}
+              {isDineIn
+                ? "Redeemed at counter"
+                : personLimit > 0
+                  ? `${customersUsed} / ${personLimit}`
+                  : coupon.totalLimit
+                    ? `${coupon.usedCount} used / ${coupon.totalLimit}`
+                    : `${coupon.usedCount} used (no limit)`}
             </span>
           </div>
 
@@ -264,16 +312,19 @@ function CouponCard({
 function CreateCouponDialog({
   restaurantId,
   restaurantName,
+  isDineInAvailable,
   menuSections,
 }: {
   restaurantId: string;
   restaurantName: string;
+  isDineInAvailable: boolean;
   menuSections: CouponMenuSection[];
 }) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Form state
+  const [channel, setChannel] = useState<CouponChannel>("DELIVERY");
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"FLAT" | "PERCENT">("FLAT");
@@ -287,6 +338,7 @@ function CreateCouponDialog({
   const [itemFilter, setItemFilter] = useState("");
 
   const personLimitValue = parseInt(personLimit, 10) || 0;
+  const isDineIn = channel === "DINE_IN";
 
   const toggleItem = (id: string) =>
     setSelectedItemIds((current) =>
@@ -322,6 +374,7 @@ function CreateCouponDialog({
       perStudentLimit: perStudentLimit ? parseInt(perStudentLimit, 10) : 1,
       personLimit: personLimitValue,
       menuItemIds: appliesTo === "ITEMS" ? selectedItemIds : [],
+      channel,
     });
 
     setSubmitting(false);
@@ -334,6 +387,7 @@ function CreateCouponDialog({
     toast.success(res.message);
     setOpen(false);
     // Reset form
+    setChannel("DELIVERY");
     setCode("");
     setDescription("");
     setPersonLimit("0");
@@ -355,12 +409,49 @@ function CreateCouponDialog({
         <DialogHeader>
           <DialogTitle>Add Coupon for {restaurantName}</DialogTitle>
           <DialogDescription>
-            Create a promo code applicable exclusively when students order from this canteen.
+            {isDineIn
+              ? "Create an offer students show at the counter when they eat in at this canteen."
+              : "Create a promo code applicable exclusively when students order from this canteen."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={(e) => void handleSubmit(e)}>
           <DialogBody className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            {/* Coupon For */}
+            <div>
+              <Label>Coupon For</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 border border-line">
+                <button
+                  type="button"
+                  onClick={() => setChannel("DELIVERY")}
+                  className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    !isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  <Truck className="size-3.5" />
+                  Delivery Orders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChannel("DINE_IN")}
+                  disabled={!isDineInAvailable}
+                  className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  <UtensilsCrossed className="size-3.5" />
+                  Dine-In
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted">
+                {!isDineInAvailable
+                  ? "Dine-in is off for this restaurant. Turn it on from the vendors list to add dine-in coupons."
+                  : isDineIn
+                    ? "Shown on the restaurant page. Students show the code at the counter; it never applies at checkout."
+                    : "Applied by students at checkout on delivery orders."}
+              </p>
+            </div>
+
             {/* Coupon Code */}
             <div>
               <Label htmlFor="coupon-code">Coupon Code</Label>
@@ -458,35 +549,39 @@ function CreateCouponDialog({
               </div>
             </div>
 
-            {/* Per Student & Person Limit */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="coupon-per-student">Per Student Limit</Label>
-                <Input
-                  id="coupon-per-student"
-                  type="number"
-                  min={1}
-                  value={perStudentLimit}
-                  onChange={(e) => setPerStudentLimit(e.target.value)}
-                />
-              </div>
+            {/* Per Student & Person Limit: only checkout can enforce these */}
+            {isDineIn ? null : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="coupon-per-student">Per Student Limit</Label>
+                    <Input
+                      id="coupon-per-student"
+                      type="number"
+                      min={1}
+                      value={perStudentLimit}
+                      onChange={(e) => setPerStudentLimit(e.target.value)}
+                    />
+                  </div>
 
-              <div>
-                <Label htmlFor="coupon-person-limit">Person Limit</Label>
-                <Input
-                  id="coupon-person-limit"
-                  type="number"
-                  min={0}
-                  value={personLimit}
-                  onChange={(e) => setPersonLimit(e.target.value)}
-                />
-              </div>
-            </div>
-            <p className="-mt-2 text-[11px] text-muted">
-              {personLimitValue > 0
-                ? `Only the first ${personLimitValue} customers can use this coupon. After that it is hidden for everyone else.`
-                : "0 = available to every customer until the coupon closes."}
-            </p>
+                  <div>
+                    <Label htmlFor="coupon-person-limit">Person Limit</Label>
+                    <Input
+                      id="coupon-person-limit"
+                      type="number"
+                      min={0}
+                      value={personLimit}
+                      onChange={(e) => setPersonLimit(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="-mt-2 text-[11px] text-muted">
+                  {personLimitValue > 0
+                    ? `Only the first ${personLimitValue} customers can use this coupon. After that it is hidden for everyone else.`
+                    : "0 = available to every customer until the coupon closes."}
+                </p>
+              </>
+            )}
 
             {/* Applies To */}
             <div>

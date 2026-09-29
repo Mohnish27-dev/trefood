@@ -49,6 +49,7 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
   const personLimit = coupon.personLimit ?? 0;
   const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
   const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
+  const isDineIn = coupon.channel === "DINE_IN";
 
   const handleToggle = async () => {
     setToggling(true);
@@ -75,6 +76,7 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
           <Badge tone={coupon.isActive && !isExpired ? "success" : isExpired ? "danger" : "neutral"}>
             {isExpired ? t("couponExpired") : coupon.isActive ? t("couponActive") : t("couponInactive")}
           </Badge>
+          {isDineIn ? <Badge tone="accent">🍽️ {t("couponDineIn")}</Badge> : null}
         </div>
 
         {coupon.description ? (
@@ -105,11 +107,13 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
           <div>
             <span className="text-[10px] uppercase tracking-wider text-faint block">{t("couponCustomers")}</span>
             <span className="text-bone">
-              {personLimit > 0
-                ? `${customersUsed} / ${personLimit}`
-                : coupon.totalLimit
-                  ? `${coupon.usedCount} ${t("couponUsed")} / ${coupon.totalLimit}`
-                  : `${coupon.usedCount} ${t("couponUsed")} (${t("couponNoLimit")})`}
+              {isDineIn
+                ? t("couponAtCounter")
+                : personLimit > 0
+                  ? `${customersUsed} / ${personLimit}`
+                  : coupon.totalLimit
+                    ? `${coupon.usedCount} ${t("couponUsed")} / ${coupon.totalLimit}`
+                    : `${coupon.usedCount} ${t("couponUsed")} (${t("couponNoLimit")})`}
             </span>
           </div>
 
