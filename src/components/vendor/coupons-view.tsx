@@ -45,7 +45,7 @@ export function CouponsView({ coupons }: { coupons: Coupon[] }) {
 function CouponCard({ coupon }: { coupon: Coupon }) {
   const { t, lang } = useVendorLanguage();
   const [toggling, setToggling] = useState(false);
-  const isExpired = new Date(coupon.validUntil) < new Date();
+  const isActive = coupon.isActive;
   const personLimit = coupon.personLimit ?? 0;
   const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
   const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
@@ -73,8 +73,8 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
             <Tag className="size-3.5" />
             {coupon.code}
           </span>
-          <Badge tone={coupon.isActive && !isExpired ? "success" : isExpired ? "danger" : "neutral"}>
-            {isExpired ? t("couponExpired") : coupon.isActive ? t("couponActive") : t("couponInactive")}
+          <Badge tone={isActive ? "success" : "neutral"}>
+            {isActive ? t("couponActive") : t("couponInactive")}
           </Badge>
           {isDineIn ? <Badge tone="accent">🍽️ {t("couponDineIn")}</Badge> : null}
         </div>
@@ -117,17 +117,6 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
             </span>
           </div>
 
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-faint block">{t("couponValidTill")}</span>
-            <span className="text-bone">
-              {new Date(coupon.validUntil).toLocaleString(lang === "hi" ? "hi-IN" : "en-IN", {
-                day: "numeric",
-                month: "short",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
-          </div>
 
           <div className="col-span-2">
             <span className="text-[10px] uppercase tracking-wider text-faint block">{t("couponAppliesTo")}</span>
@@ -141,13 +130,13 @@ function CouponCard({ coupon }: { coupon: Coupon }) {
       <div className="mt-4 border-t border-line/60 pt-3">
         <Button
           size="sm"
-          variant={coupon.isActive ? "secondary" : "primary"}
-          disabled={toggling || isExpired}
+          variant={isActive ? "secondary" : "primary"}
+          disabled={toggling}
           onClick={() => void handleToggle()}
           className="gap-1.5 text-xs h-11"
         >
           {toggling ? <Loader2 className="size-3.5 animate-spin" /> : <Power className="size-3.5" />}
-          <span>{coupon.isActive ? t("couponDeactivate") : t("couponActivate")}</span>
+          <span>{isActive ? t("couponDeactivate") : t("couponActivate")}</span>
         </Button>
       </div>
     </Card>
