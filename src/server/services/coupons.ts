@@ -1,13 +1,12 @@
 import "server-only";
 
 import * as db from "@/server/db/collections";
-import { ACTOR, DEFAULT_TIMEZONE, ORDER_STATUS } from "@/lib/constants";
-import { campusDateString, campusDayRange } from "@/lib/campus-time";
+import { ACTOR, ORDER_STATUS } from "@/lib/constants";
 import { newId } from "@/lib/ids";
 import { ceilRupeeOfBps, type Paise } from "@/lib/money";
 import type { Coupon, CouponChannel } from "@/types/finance";
 import { writeAudit } from "./audit";
-import { getCampusById, getMenuItemsByIds, getRestaurantById } from "./catalog";
+import { getMenuItemsByIds, getRestaurantById } from "./catalog";
 
 export interface CreateCouponParams {
   code: string;
@@ -28,7 +27,7 @@ export interface CreateCouponParams {
   /** Omitted = DELIVERY. */
   channel?: CouponChannel | undefined;
   validFrom?: Date | undefined;
-  /** Omitted = the end of today, in the campus timezone. */
+  /** Omitted = far future (year 2100). Coupons no longer auto-expire; deactivate them manually. */
   validUntil?: Date | undefined;
   actorId: string;
 }
@@ -75,16 +74,10 @@ export async function createCouponDirectly(
     menuItemNames = menuItemIds.map((id) => items.get(id)?.name ?? "");
   }
 
-  // A coupon lives for the day it was created: it closes at campus-local
-  // midnight so nobody can carry it into tomorrow. Campus-local, not server
-  // UTC — see campus-time.ts.
-  let validUntil = params.validUntil;
-  if (!validUntil) {
-    const campus = campusId ? await getCampusById(campusId) : null;
-    const timezone = campus?.timezone ?? DEFAULT_TIMEZONE;
-    const { end } = campusDayRange(campusDateString(new Date(), timezone), timezone);
-    validUntil = new Date(end.getTime() - 1);
-  }
+  // Coupons no longer auto-expire. If no explicit validUntil is provided,
+  // we use a far-future date so the coupon stays live until manually
+  // deactivated by the admin or vendor.
+  const validUntil = params.validUntil ?? new Date("2100-01-01T00:00:00.000Z");
 
   const coupon: Coupon = {
     _id: newId("cpn"),

@@ -156,7 +156,7 @@ function CouponCard({
 }) {
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const isExpired = new Date(coupon.validUntil) < new Date();
+  const isActive = coupon.isActive;
   const personLimit = coupon.personLimit ?? 0;
   const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
   const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);
@@ -201,8 +201,8 @@ function CouponCard({
               <Tag className="size-3.5" />
               {coupon.code}
             </span>
-            <Badge tone={coupon.isActive && !isExpired ? "success" : isExpired ? "danger" : "neutral"}>
-              {isExpired ? "Expired" : coupon.isActive ? "Active" : "Inactive"}
+            <Badge tone={isActive ? "success" : "neutral"}>
+              {isActive ? "Active" : "Inactive"}
             </Badge>
             {isDineIn ? (
               <Badge tone="accent" className="gap-1">
@@ -253,17 +253,6 @@ function CouponCard({
             </span>
           </div>
 
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-faint block">Valid Till</span>
-            <span className="text-bone">
-              {new Date(coupon.validUntil).toLocaleString("en-IN", {
-                day: "numeric",
-                month: "short",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
-          </div>
 
           <div className="col-span-2">
             <span className="text-[10px] uppercase tracking-wider text-faint block">Applies To</span>
@@ -277,8 +266,8 @@ function CouponCard({
       <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3">
         <Button
           size="sm"
-          variant={coupon.isActive ? "secondary" : "primary"}
-          disabled={toggling || isExpired}
+          variant={isActive ? "secondary" : "primary"}
+          disabled={toggling}
           onClick={() => void handleToggle()}
           className="gap-1.5 text-xs h-9"
         >
@@ -287,7 +276,7 @@ function CouponCard({
           ) : (
             <Power className="size-3.5" />
           )}
-          <span>{coupon.isActive ? "Deactivate" : "Activate"}</span>
+          <span>{isActive ? "Deactivate" : "Activate"}</span>
         </Button>
 
         <Button
@@ -655,9 +644,7 @@ function CreateCouponDialog({
               ) : null}
             </div>
 
-            <p className="rounded-lg border border-line bg-surface px-3 py-2 text-[11px] text-muted">
-              Valid today only. The coupon closes automatically at 11:59 PM.
-            </p>
+
           </DialogBody>
 
           <DialogFooter className="mt-4">
