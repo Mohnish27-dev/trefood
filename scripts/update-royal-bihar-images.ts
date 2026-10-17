@@ -1,57 +1,49 @@
 /**
- * Update script to populate food item images for The Royal Bihar Restaurant
- * directly in the MongoDB database without wiping existing data or orders.
+ * Points every Royal Bihar menu item at its photo in public/menu/royalBihar/,
+ * without reseeding (orders and availability toggles are kept). Overwrites
+ * whatever imageUrl is stored, including the wrong stock photos written by
+ * the earlier version of this script.
  *
  * Usage:
- *   node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-royal-bihar-images.ts
+ *   npm run db:update-royal-images
  */
 
-import { getDishImage } from "@/lib/dish-media";
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import { getMongoClient } from "@/server/db/client";
 import * as db from "@/server/db/collections";
+import { royalBiharItemImage } from "./seed-royal-bihar";
 
 const RESTAURANT_ID = "rest_royal_bihar_nitp";
 
 async function updateRoyalBiharImages(): Promise<void> {
-  console.log("=== Updating Food Item Images for The Royal Bihar Restaurant ===\n");
-
   const itemsCollection = await db.menuItems();
-  const items = await itemsCollection.find({ restaurantId: RESTAURANT_ID }).toArray();
+  const items = await itemsCollection
+    .find({ restaurantId: RESTAURANT_ID }, { projection: { _id: 1, name: 1 } })
+    .toArray();
 
   if (items.length === 0) {
-    console.log(`[!] No menu items found for restaurant "${RESTAURANT_ID}".`);
-    console.log("    Run \"npm run seed:royal\" to onboard and seed the restaurant first.");
+    console.log(`[!] No menu items for "${RESTAURANT_ID}". Run "npm run seed:royal" first.`);
     return;
   }
 
-  console.log(`Found ${items.length} items for Royal Bihar Restaurant in database.`);
-
-  let updatedCount = 0;
+  let updated = 0;
+  const missing: string[] = [];
   for (const item of items) {
-    const imageUrl = getDishImage({
-      id: item._id,
-      name: item.name,
-      categoryId: item.categoryId,
-      isVeg: item.isVeg,
-      imageUrl: item.imageUrl,
-    });
-
-    if (imageUrl) {
-      await itemsCollection.updateOne(
-        { _id: item._id },
-        { $set: { imageUrl } },
-      );
-      updatedCount++;
+    const imageUrl = royalBiharItemImage(item._id);
+    if (!existsSync(path.join(process.cwd(), "public", imageUrl))) {
+      missing.push(`${item._id} (${item.name})`);
+      continue;
     }
+    await itemsCollection.updateOne({ _id: item._id }, { $set: { imageUrl } });
+    updated++;
   }
 
-  console.log(`\n[x] Successfully updated ${updatedCount} / ${items.length} food items with high-resolution images!`);
-  
-  // Print a few sample items to verify
-  const sample = await itemsCollection.find({ restaurantId: RESTAURANT_ID }).limit(5).toArray();
-  console.log("\nSample updated items:");
-  for (const s of sample) {
-    console.log(`  - ${s.name} (${s.isVeg ? "Veg" : "Non-Veg"}): ${s.imageUrl?.slice(0, 60)}...`);
+  console.log(`[x] ${updated} / ${items.length} items now use their own photo.`);
+  if (missing.length > 0) {
+    console.log(`[!] No photo on disk for ${missing.length} item(s), left unchanged:`);
+    for (const m of missing) console.log(`    - ${m}`);
   }
 }
 
@@ -59,7 +51,7 @@ async function main() {
   try {
     await updateRoyalBiharImages();
   } catch (err) {
-    console.error("Failed to update Royal Bihar food images:", err);
+    console.error("Failed to update Royal Bihar images:", err);
     process.exit(1);
   } finally {
     const client = await getMongoClient();

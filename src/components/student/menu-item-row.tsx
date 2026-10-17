@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/money";
 import { VegMark } from "@/components/shared/veg-mark";
 import { useCart } from "@/hooks/use-cart";
-import { getDishImage } from "@/lib/dish-media";
 import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/restaurant";
@@ -41,10 +40,8 @@ export function MenuItemRow({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<string[] | null>(null);
-  const [imageError, setImageError] = useState(false);
-
-  const imageUrl = getDishImage(item);
-  const showImage = Boolean(imageUrl) && !imageError;
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = imageFailed ? null : item.imageUrl;
 
   const hasChoices = item.addOnGroups.length > 0;
   const canOrder = item.isAvailable && restaurantIsOpen;
@@ -135,34 +132,33 @@ export function MenuItemRow({
           ) : null}
         </div>
 
-        <div className="shrink-0 flex flex-col items-center">
-          {showImage && imageUrl ? (
-            <div className="relative h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-xl bg-surface border border-line shadow-xs">
+        <div className="flex shrink-0 flex-col items-center">
+          {imageUrl ? (
+            <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-line bg-surface sm:h-28 sm:w-28">
               <Image
                 src={imageUrl}
                 alt={item.name}
                 fill
                 sizes="(max-width: 640px) 96px, 112px"
-                className={cn(
-                  "object-cover transition-transform duration-300 hover:scale-105",
-                  !item.isAvailable && "grayscale opacity-50",
-                )}
-                unoptimized={imageUrl.startsWith("http")}
-                onError={() => setImageError(true)}
+                className={cn("object-cover", !item.isAvailable && "opacity-50 grayscale")}
+                // Vendor-supplied URLs may point at any host; only our own
+                // files go through the optimizer.
+                unoptimized={!imageUrl.startsWith("/")}
+                onError={() => setImageFailed(true)}
               />
             </div>
           ) : null}
 
-          <div className={cn(showImage ? "-mt-3.5 z-10" : "pt-1")}>
+          <div className={cn(imageUrl ? "z-10 -mt-4" : "pt-1")}>
             {canOrder ? (
               <Button
                 size="sm"
                 variant="primary"
                 onClick={() => (hasChoices ? setSheetOpen(true) : commit([]))}
                 aria-label={`Add ${item.name}`}
-                className={cn(showImage && "shadow-md px-3.5 h-8 text-xs font-semibold uppercase")}
+                className={cn(imageUrl && "shadow-md")}
               >
-                <Plus className="size-3.5" />
+                <Plus />
                 Add
               </Button>
             ) : (
@@ -170,7 +166,7 @@ export function MenuItemRow({
                 size="sm"
                 variant="ghost"
                 disabled
-                className={cn(showImage && "bg-surface/90 shadow-sm border border-line/60")}
+                className={cn(imageUrl && "border border-line bg-surface shadow-sm")}
               >
                 {item.isAvailable ? "Closed" : "Out"}
               </Button>
