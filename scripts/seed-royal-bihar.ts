@@ -12,6 +12,7 @@
 
 import { ROLE } from "@/lib/constants";
 import { rupeesToPaise, type Paise } from "@/lib/money";
+import { getDishImage } from "@/lib/dish-media";
 import { hashPassword } from "@/server/auth/passwords";
 import { getMongoClient } from "@/server/db/client";
 import * as db from "@/server/db/collections";
@@ -70,6 +71,7 @@ interface ItemDef {
   description: string;
   isVeg: boolean;
   pricePaise: Paise;
+  imageUrl?: string | null;
   isPopular?: boolean;
   addOnGroups?: AddOnGroup[];
   sortOrder: number;
@@ -1914,7 +1916,7 @@ export async function seedRoyalBihar(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: item.imageUrl ?? getDishImage(item),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],
