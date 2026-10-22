@@ -1,4 +1,4 @@
-import { ROLE, type Role } from "@/lib/constants";
+import { ROLE, isStaff, type Role } from "@/lib/constants";
 
 /**
  * Where a signed-in person belongs.
@@ -25,7 +25,7 @@ export const ADMIN_HOME = "/admin/orders";
 /** The post-sign-in destination for a role. */
 export function landingForRole(role: string | null | undefined): string {
   if (role === ROLE.VENDOR_OWNER || role === ROLE.VENDOR_STAFF) return VENDOR_HOME;
-  if (role === ROLE.ADMIN || role === ROLE.SUPER_ADMIN) return ADMIN_HOME;
+  if (isStaff(role)) return ADMIN_HOME;
   return CAMPUS_HOME;
 }
 

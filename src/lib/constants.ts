@@ -108,9 +108,28 @@ export const ROLE = {
   VENDOR_OWNER: "VENDOR_OWNER",
   ADMIN: "ADMIN",
   SUPER_ADMIN: "SUPER_ADMIN",
+  /**
+   * Day-to-day operations without the money or the people: radar, vendors
+   * (minus KYC, commission and payout) and a read-only view of campuses.
+   */
+  CO_ADMIN: "CO_ADMIN",
 } as const;
 
 export type Role = (typeof ROLE)[keyof typeof ROLE];
+
+/** Full admins: everything in the console, including earnings and settlements. */
+export const ADMIN_ROLES: readonly Role[] = [ROLE.ADMIN, ROLE.SUPER_ADMIN];
+
+/** Everyone allowed into the admin console at all. */
+export const STAFF_ROLES: readonly Role[] = [...ADMIN_ROLES, ROLE.CO_ADMIN];
+
+export function isFullAdmin(role: string | null | undefined): boolean {
+  return ADMIN_ROLES.includes(role as Role);
+}
+
+export function isStaff(role: string | null | undefined): boolean {
+  return STAFF_ROLES.includes(role as Role);
+}
 
 /** Who fired a transition. Broader than Role: the cron sweeps act too. */
 export const ACTOR = {

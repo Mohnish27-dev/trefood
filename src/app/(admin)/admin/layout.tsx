@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getSession } from "@/server/auth/session";
-import { ROLE } from "@/lib/constants";
+import { ROLE, isStaff } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: { default: "Admin console", template: "%s · TREFOOD admin" },
@@ -21,9 +21,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await getSession();
 
   if (!session) redirect("/signin?next=/admin/orders");
-  if (session.role !== ROLE.ADMIN && session.role !== ROLE.SUPER_ADMIN) {
+  if (!isStaff(session.role)) {
     redirect("/signin?next=/admin/orders&reason=admin");
   }
 
-  return <AdminShell adminName={session.user.name}>{children}</AdminShell>;
+  return (
+    <AdminShell adminName={session.user.name} isCoAdmin={session.role === ROLE.CO_ADMIN}>
+      {children}
+    </AdminShell>
+  );
 }

@@ -38,7 +38,16 @@ function createClient(): { client: MongoClient; promise: Promise<MongoClient> } 
     appName: "trefood",
   });
 
-  return { client, promise: client.connect() };
+  const promise = client.connect().catch((error: unknown) => {
+    // A failed connect must not be cached: otherwise one network blip leaves
+    // every later request rejecting instantly with the stale error until the
+    // process restarts. Forget it so the next request dials again.
+    if (globalThis.__trefoodMongo?.client === client) globalThis.__trefoodMongo = undefined;
+    void client.close().catch(() => undefined);
+    throw error;
+  });
+
+  return { client, promise };
 }
 
 function holder(): { client: MongoClient; promise: Promise<MongoClient> } {

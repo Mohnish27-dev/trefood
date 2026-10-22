@@ -66,12 +66,15 @@ export function ZoneEditor({
   center,
   zones: initialZones,
   geofence,
+  readOnly = false,
 }: {
   campusId: string;
   campusName: string;
   center: { lat: number; lng: number };
   zones: EditorZone[];
   geofence: [number, number][] | null;
+  /** Co-admins see the map and the gates but cannot change either. */
+  readOnly?: boolean;
 }) {
   const [zones, setZones] = useState(initialZones);
   const [editing, setEditing] = useState<EditorZone | null>(null);
@@ -206,8 +209,9 @@ export function ZoneEditor({
           polygon={drawing ? null : geofence}
           drawing={drawing}
           draftPoints={draft}
-          onMapClick={onMapClick}
+          onMapClick={readOnly ? () => undefined : onMapClick}
           onZoneClick={(zoneId) => {
+            if (readOnly) return;
             const zone = zones.find((z) => z.id === zoneId);
             if (zone) setEditing(zone);
           }}
@@ -244,10 +248,12 @@ export function ZoneEditor({
             </>
           ) : (
             <>
-              <Button size="sm" variant="secondary" onClick={() => setDrawing(true)}>
-                <Pencil />
-                {geofence ? "Redraw boundary" : "Draw boundary"}
-              </Button>
+              {readOnly ? null : (
+                <Button size="sm" variant="secondary" onClick={() => setDrawing(true)}>
+                  <Pencil />
+                  {geofence ? "Redraw boundary" : "Draw boundary"}
+                </Button>
+              )}
               {editing ? (
                 <span className="text-xs text-muted">
                   Click the map to place {editing.name || "this gate"}.
@@ -269,10 +275,14 @@ export function ZoneEditor({
             {campusName} gates
             <span className="ml-2 text-xs font-normal text-faint">{zones.length}</span>
           </h2>
-          <Button size="sm" onClick={startNew}>
-            <Plus />
-            Add a gate
-          </Button>
+          {readOnly ? (
+            <span className="text-xs text-faint">View only</span>
+          ) : (
+            <Button size="sm" onClick={startNew}>
+              <Plus />
+              Add a gate
+            </Button>
+          )}
         </div>
 
         {editing ? (
@@ -308,18 +318,24 @@ export function ZoneEditor({
 
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   {zone.isFallback ? <Badge tone="success">Fallback</Badge> : null}
-                  <Switch
-                    checked={zone.isActive}
-                    onCheckedChange={() => void toggleActive(zone)}
-                    aria-label={`${zone.name} accepting deliveries`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setEditing(zone)}
-                    className="text-xs text-muted hover:text-bone"
-                  >
-                    Edit
-                  </button>
+                  {readOnly ? (
+                    <Badge tone="neutral">{zone.isActive ? "Open" : "Closed"}</Badge>
+                  ) : (
+                    <>
+                      <Switch
+                        checked={zone.isActive}
+                        onCheckedChange={() => void toggleActive(zone)}
+                        aria-label={`${zone.name} accepting deliveries`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditing(zone)}
+                        className="text-xs text-muted hover:text-bone"
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </Card>

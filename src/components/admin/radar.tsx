@@ -42,7 +42,17 @@ import { cn } from "@/lib/utils";
  * miserable way to work a support queue — and because it makes the entire
  * failure suite demonstrable without a stopwatch.
  */
-export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
+export function LiveRadar({
+  initial,
+  canIntervene = true,
+}: {
+  initial: RadarSnapshot;
+  /**
+   * False for co-admins: they watch the radar but cannot cancel or run sweeps,
+   * and their snapshot arrives without student details, so the column goes too.
+   */
+  canIntervene?: boolean;
+}) {
   const [sweeping, setSweeping] = useState(false);
 
   const { data, connectionLost, lastSyncedAt, refresh } = usePoll<RadarSnapshot>(
@@ -89,10 +99,12 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
           </p>
         </div>
 
-        <Button variant="secondary" disabled={sweeping} onClick={() => void sweep()}>
-          {sweeping ? <Loader2 className="animate-spin" /> : <PlayCircle />}
-          Run timers now
-        </Button>
+        {canIntervene ? (
+          <Button variant="secondary" disabled={sweeping} onClick={() => void sweep()}>
+            {sweeping ? <Loader2 className="animate-spin" /> : <PlayCircle />}
+            Run timers now
+          </Button>
+        ) : null}
       </header>
 
       {snapshot.orders.length === 0 ? (
@@ -110,7 +122,7 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
               <TH>Order</TH>
               <TH>Status</TH>
               <TH>Restaurant</TH>
-              <TH>Student</TH>
+              {canIntervene ? <TH>Student</TH> : null}
               <TH>Gate</TH>
               <TH className="text-right">Value</TH>
               <TH className="text-right">Waiting</TH>
@@ -147,16 +159,18 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
                     <StatusBadge status={order.status} />
                   </TD>
                   <TD className="max-w-40 truncate">{order.restaurantName}</TD>
-                  <TD>
-                    <p className="max-w-36 truncate">{order.customerName}</p>
-                    <a
-                      href={`tel:${order.customerPhone}`}
-                      className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted hover:text-saffron"
-                    >
-                      <Phone className="size-2.5" />
-                      {order.customerPhone}
-                    </a>
-                  </TD>
+                  {canIntervene ? (
+                    <TD>
+                      <p className="max-w-36 truncate">{order.customerName}</p>
+                      <a
+                        href={`tel:${order.customerPhone}`}
+                        className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted hover:text-saffron"
+                      >
+                        <Phone className="size-2.5" />
+                        {order.customerPhone}
+                      </a>
+                    </TD>
+                  ) : null}
                   <TD className="max-w-36 truncate text-muted">{order.zoneName}</TD>
                   <TD className="text-right">
                     <Money paise={order.grandTotalPaise} />
@@ -173,7 +187,7 @@ export function LiveRadar({ initial }: { initial: RadarSnapshot }) {
                     {isDelivered ? `${order.minutesInState} min ago` : `${order.minutesInState} min`}
                   </TD>
                   <TD className="text-right">
-                    {isDelivered ? null : (
+                    {isDelivered || !canIntervene ? null : (
                       <CancelDialog
                         orderId={order.orderId}
                         orderNumber={order.orderNumber}

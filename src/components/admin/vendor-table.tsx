@@ -82,9 +82,16 @@ export interface AdminVendorRow {
 export function AdminVendorTable({
   vendors,
   campuses = [],
+  canManage = true,
 }: {
   vendors: AdminVendorRow[];
   campuses?: CampusOption[];
+  /**
+   * False for co-admins, who get a view-only list. Their rows arrive with KYC,
+   * commission, fee and bank fields already blanked by the server; this hides
+   * the empty slots and every control, whose actions would refuse them anyway.
+   */
+  canManage?: boolean;
 }) {
   const pending = vendors.filter((vendor) => vendor.kycStatus === "PENDING");
   const rest = vendors.filter((vendor) => vendor.kycStatus !== "PENDING");
@@ -110,10 +117,10 @@ export function AdminVendorTable({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {reorderableRestaurants.length > 0 ? (
+          {canManage && reorderableRestaurants.length > 0 ? (
             <ReorderRestaurantsDialog restaurants={reorderableRestaurants} />
           ) : null}
-          {campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
+          {canManage && campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
         </div>
       </div>
 
@@ -135,7 +142,7 @@ export function AdminVendorTable({
               </h2>
               <div className="grid gap-3 lg:grid-cols-2">
                 {pending.map((vendor) => (
-                  <VendorCard key={vendor.restaurantId} vendor={vendor} />
+                  <VendorCard key={vendor.restaurantId} vendor={vendor} canManage={canManage} />
                 ))}
               </div>
             </section>
@@ -147,7 +154,7 @@ export function AdminVendorTable({
             </h2>
             <div className="grid gap-3 lg:grid-cols-2">
               {rest.map((vendor) => (
-                <VendorCard key={vendor.restaurantId} vendor={vendor} />
+                <VendorCard key={vendor.restaurantId} vendor={vendor} canManage={canManage} />
               ))}
             </div>
           </section>
@@ -157,7 +164,7 @@ export function AdminVendorTable({
   );
 }
 
-function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
+function VendorCard({ vendor, canManage }: { vendor: AdminVendorRow; canManage: boolean }) {
   const effectiveBps = vendor.commissionBpsOverride ?? vendor.campusCommissionBps;
   const [isOpen, setIsOpen] = useState(vendor.isOpen);
   const [isAdminClosed, setIsAdminClosed] = useState(Boolean(vendor.adminClosed));
@@ -238,26 +245,35 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        <Field label="Owner" value={`${vendor.ownerName} · ${vendor.ownerPhone}`} />
+        <Field
+          label="Owner"
+          value={canManage ? `${vendor.ownerName} · ${vendor.ownerPhone}` : vendor.ownerName}
+        />
         <Field
           label={vendor.phones.length === 1 ? "Phone" : `Phones (${vendor.phones.length})`}
           value={vendor.phones.length > 0 ? vendor.phones.join(", ") : "None"}
         />
-        <Field label="FSSAI" value={vendor.fssai ?? "Not supplied"} />
-        <Field label="GSTIN" value={vendor.gstin ?? "Not registered"} />
-        <Field
-          label="Commission"
-          value={`${bpsToPct(effectiveBps)}%${vendor.commissionBpsOverride === null ? " (campus rate)" : " (override)"}`}
-        />
-        <Field label="Bank" value={vendor.payout.accountNumber ? `${vendor.payout.ifsc} ····${vendor.payout.accountNumber.slice(-4)}` : "Not captured"} />
+        {canManage ? (
+          <>
+            <Field label="FSSAI" value={vendor.fssai ?? "Not supplied"} />
+            <Field label="GSTIN" value={vendor.gstin ?? "Not registered"} />
+            <Field
+              label="Commission"
+              value={`${bpsToPct(effectiveBps)}%${vendor.commissionBpsOverride === null ? " (campus rate)" : " (override)"}`}
+            />
+            <Field label="Bank" value={vendor.payout.accountNumber ? `${vendor.payout.ifsc} ····${vendor.payout.accountNumber.slice(-4)}` : "Not captured"} />
+          </>
+        ) : null}
         <Field
           label="Minimum order"
           value={<Money paise={vendor.minOrderPaise} />}
         />
-        <Field
-          label="Platform fee"
-          value={vendor.platformFeePaise > 0 ? <Money paise={vendor.platformFeePaise} /> : "None"}
-        />
+        {canManage ? (
+          <Field
+            label="Platform fee"
+            value={vendor.platformFeePaise > 0 ? <Money paise={vendor.platformFeePaise} /> : "None"}
+          />
+        ) : null}
       </dl>
 
       {vendor.kycStatus === "REJECTED" && vendor.rejectionReason ? (
@@ -266,74 +282,76 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
         </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={togglingOpen}
-            onClick={handleToggleOpen}
-            className={cn(
-              "gap-1.5 transition-colors",
-              isOpen
-                ? "text-chili border-chili/30 hover:bg-chili/10 hover:border-chili/50"
-                : "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50",
-            )}
-            title={
-              isOpen
-                ? "Turn off canteen (vendor will not be able to turn it on)"
-                : "Turn on canteen"
-            }
-          >
-            {togglingOpen ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : isOpen ? (
-              <PowerOff className="size-3.5 text-chili" />
-            ) : (
-              <Power className="size-3.5 text-mint" />
-            )}
-            {isOpen ? "Turn Off" : "Turn On"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={togglingDineIn}
-            onClick={handleToggleDineIn}
-            className={cn(
-              "gap-1.5 transition-colors",
-              isDineIn
-                ? "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50"
-                : "text-muted border-line hover:bg-surface-raised",
-            )}
-            title={isDineIn ? "Disable Dine-in for this restaurant" : "Enable Dine-in for this restaurant"}
-          >
-            {togglingDineIn ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <UtensilsCrossed className={cn("size-3.5", isDineIn ? "text-mint" : "text-muted")} />
-            )}
-            {isDineIn ? "Dine In: ON" : "Dine In: OFF"}
-          </Button>
-          <KycDialog vendor={vendor} />
-          <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
-          <PlatformFeeDialog vendor={vendor} />
-          <PayoutDialog vendor={vendor} />
-          <PhonesDialog vendor={vendor} />
-          <Button asChild size="sm" variant="secondary" className="gap-1.5">
-            <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
-              <UtensilsCrossed className="size-3.5 text-saffron" />
-              Manage Menu
-            </Link>
-          </Button>
-          <Button asChild size="sm" variant="secondary" className="gap-1.5">
-            <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
-              <Ticket className="size-3.5 text-saffron" />
-              Add Coupon
-            </Link>
-          </Button>
+      {canManage ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={togglingOpen}
+              onClick={handleToggleOpen}
+              className={cn(
+                "gap-1.5 transition-colors",
+                isOpen
+                  ? "text-chili border-chili/30 hover:bg-chili/10 hover:border-chili/50"
+                  : "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50",
+              )}
+              title={
+                isOpen
+                  ? "Turn off canteen (vendor will not be able to turn it on)"
+                  : "Turn on canteen"
+              }
+            >
+              {togglingOpen ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : isOpen ? (
+                <PowerOff className="size-3.5 text-chili" />
+              ) : (
+                <Power className="size-3.5 text-mint" />
+              )}
+              {isOpen ? "Turn Off" : "Turn On"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={togglingDineIn}
+              onClick={handleToggleDineIn}
+              className={cn(
+                "gap-1.5 transition-colors",
+                isDineIn
+                  ? "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50"
+                  : "text-muted border-line hover:bg-surface-raised",
+              )}
+              title={isDineIn ? "Disable Dine-in for this restaurant" : "Enable Dine-in for this restaurant"}
+            >
+              {togglingDineIn ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <UtensilsCrossed className={cn("size-3.5", isDineIn ? "text-mint" : "text-muted")} />
+              )}
+              {isDineIn ? "Dine In: ON" : "Dine In: OFF"}
+            </Button>
+            <KycDialog vendor={vendor} />
+            <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
+            <PlatformFeeDialog vendor={vendor} />
+            <PayoutDialog vendor={vendor} />
+            <PhonesDialog vendor={vendor} />
+            <Button asChild size="sm" variant="secondary" className="gap-1.5">
+              <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
+                <UtensilsCrossed className="size-3.5 text-saffron" />
+                Manage Menu
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="secondary" className="gap-1.5">
+              <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
+                <Ticket className="size-3.5 text-saffron" />
+                Add Coupon
+              </Link>
+            </Button>
+          </div>
+          <DeleteVendorDialog vendor={vendor} />
         </div>
-        <DeleteVendorDialog vendor={vendor} />
-      </div>
+      ) : null}
     </Card>
   );
 }
