@@ -40,7 +40,8 @@ import type { DeliveryZone } from "@/types/campus";
 /**
  * Admin Server Actions.
  *
- * `requireAdmin()` is the first line of every one of them. The admin route
+ * `requireAdmin()` is the first line of every one of them — co-admins can
+ * view parts of the console but call none of these. The admin route
  * group is also gated in `proxy.ts`, but that is a redirect for humans, not
  * authorisation: a Server Action is reachable by a direct POST and has to
  * defend itself (PRD Part 4.9).

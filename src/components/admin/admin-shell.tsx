@@ -22,33 +22,40 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { signOut } from "@/server/actions/session";
 import { cn } from "@/lib/utils";
 
-const SECTIONS: { heading: string; links: { href: string; label: string; icon: typeof Radar }[] }[] =
-  [
-    {
-      heading: "Operations",
-      links: [
-        { href: "/admin/orders", label: "Live radar", icon: Radar },
-        { href: "/admin/issues", label: "Issue Desk", icon: ShieldAlert },
-        { href: "/admin/students", label: "Students", icon: Users },
-      ],
-    },
-    {
-      heading: "Money",
-      links: [
-        { href: "/admin/earnings", label: "Earnings", icon: TrendingUp },
-        { href: "/admin/settlements", label: "Settlements", icon: Banknote },
-        { href: "/admin/pricing", label: "Pricing & timers", icon: SlidersHorizontal },
-      ],
-    },
-    {
-      heading: "Platform",
-      links: [
-        { href: "/admin/vendors", label: "Vendors & KYC", icon: Store },
-        { href: "/admin/campuses", label: "Campuses & gates", icon: MapPinned },
-        { href: "/admin/audit", label: "Audit log", icon: FileClock },
-      ],
-    },
-  ];
+/**
+ * `coAdmin: true` marks the links a co-admin also gets. Hiding the rest here
+ * is only for tidiness — the pages and actions behind them check the role
+ * themselves.
+ */
+const SECTIONS: {
+  heading: string;
+  links: { href: string; label: string; icon: typeof Radar; coAdmin?: boolean }[];
+}[] = [
+  {
+    heading: "Operations",
+    links: [
+      { href: "/admin/orders", label: "Live radar", icon: Radar, coAdmin: true },
+      { href: "/admin/issues", label: "Issue Desk", icon: ShieldAlert },
+      { href: "/admin/students", label: "Students", icon: Users },
+    ],
+  },
+  {
+    heading: "Money",
+    links: [
+      { href: "/admin/earnings", label: "Earnings", icon: TrendingUp },
+      { href: "/admin/settlements", label: "Settlements", icon: Banknote },
+      { href: "/admin/pricing", label: "Pricing & timers", icon: SlidersHorizontal },
+    ],
+  },
+  {
+    heading: "Platform",
+    links: [
+      { href: "/admin/vendors", label: "Vendors & KYC", icon: Store, coAdmin: true },
+      { href: "/admin/campuses", label: "Campuses & gates", icon: MapPinned, coAdmin: true },
+      { href: "/admin/audit", label: "Audit log", icon: FileClock },
+    ],
+  },
+];
 
 /**
  * The admin console shell. Desktop-only, and it says so rather than pretending
@@ -61,11 +68,19 @@ const SECTIONS: { heading: string; links: { href: string; label: string; icon: t
 export function AdminShell({
   children,
   adminName,
+  isCoAdmin = false,
 }: {
   children: ReactNode;
   adminName: string;
+  isCoAdmin?: boolean;
 }) {
   const pathname = usePathname();
+  const sections = isCoAdmin
+    ? SECTIONS.map((section) => ({
+        ...section,
+        links: section.links.filter((link) => link.coAdmin),
+      })).filter((section) => section.links.length > 0)
+    : SECTIONS;
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -83,14 +98,16 @@ export function AdminShell({
             </div>
             <div className="min-w-0">
               <p className="font-display text-sm font-semibold leading-none text-bone">TREFOOD</p>
-              <p className="mt-1 text-[11px] leading-none text-faint">Admin console</p>
+              <p className="mt-1 text-[11px] leading-none text-faint">
+                {isCoAdmin ? "Co-admin console" : "Admin console"}
+              </p>
             </div>
           </div>
           <ThemeToggle />
         </div>
 
         <nav className="flex gap-4 overflow-x-auto px-2 pb-3 lg:block lg:overflow-visible lg:px-2">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <div key={section.heading} className="lg:mb-4">
               <p className="hidden px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint lg:block">
                 {section.heading}

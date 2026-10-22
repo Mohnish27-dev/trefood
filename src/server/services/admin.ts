@@ -696,6 +696,17 @@ export interface RadarSnapshot {
 }
 
 /**
+ * The radar as a co-admin receives it: no student names or phone numbers.
+ * Applied before the snapshot leaves the server, on the page and the poll.
+ */
+export function withoutStudents(snapshot: RadarSnapshot): RadarSnapshot {
+  return {
+    ...snapshot,
+    orders: snapshot.orders.map((order) => ({ ...order, customerName: "", customerPhone: "" })),
+  };
+}
+
+/**
  * Every live order across every campus, with the stuck ones called out.
  *
  * The point of this screen is not to watch healthy orders — the sweeps handle

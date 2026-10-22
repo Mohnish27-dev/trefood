@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Card } from "@/components/ui/card";
 import { PricingForm } from "@/components/admin/pricing-form";
 import { EmptyState } from "@/components/shared/states";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { listAllCampuses } from "@/server/services/admin";
 import { MapPinned } from "lucide-react";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Pricing & timers" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminPricingPage() {
-  await requireAdmin();
+  await requireAdminPage();
   const campuses = await listAllCampuses();
 
   return (
