@@ -69,31 +69,31 @@ export default async function SignInPage({
           : "student";
 
   return (
-    <main className="min-h-dvh bg-ink text-bone">
+    <main className="min-h-dvh bg-tf-maroon-deep">
       {/* ── Customer & Vendor Authentication Screen ─────────── */}
       <StudentAuthForm
         redirectTo={next ?? null}
         initialType={initialType}
         quickUnlockDevice={quickUnlockDevice}
         reason={reason}
-      />
-
-      {/* ── Demo accounts (Stub mode only, collapsible) ─────────── */}
-      {isStub && accounts.length > 0 ? (
-        <div className="mx-auto w-full max-w-md px-5 pb-12 pt-2">
-          <details className="group rounded-2xl border border-line bg-surface/70 backdrop-blur-md p-4 text-xs">
-            <summary className="cursor-pointer font-semibold text-muted hover:text-bone transition-colors flex items-center justify-between select-none">
-              <span>Demo &amp; Staff Accounts (Test Mode)</span>
-              <span className="text-faint text-[10px] group-open:rotate-180 transition-transform">
-                ▼
-              </span>
-            </summary>
-            <div className="mt-4 pt-4 border-t border-line">
-              <SignInPicker accounts={accounts} redirectTo={next ?? null} />
-            </div>
-          </details>
-        </div>
-      ) : null}
+      >
+        {/* ── Demo accounts (Stub mode only, collapsible) ─────────── */}
+        {isStub && accounts.length > 0 ? (
+          <div className="w-full px-7 pb-6 pt-2">
+            <details className="group rounded-2xl border border-line bg-surface/70 backdrop-blur-md p-4 text-xs">
+              <summary className="cursor-pointer font-semibold text-muted hover:text-bone transition-colors flex items-center justify-between select-none">
+                <span>Demo &amp; Staff Accounts (Test Mode)</span>
+                <span className="text-faint text-[10px] group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <div className="mt-4 pt-4 border-t border-line">
+                <SignInPicker accounts={accounts} redirectTo={next ?? null} />
+              </div>
+            </details>
+          </div>
+        ) : null}
+      </StudentAuthForm>
     </main>
   );
 }

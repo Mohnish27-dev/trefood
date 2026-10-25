@@ -54,6 +54,15 @@
   --font-mono: var(--font-mono-code), ui-monospace, "Cascadia Code", monospace;
   --font-handwriting: var(--font-caveat), "Caveat", cursive;
 
+  /* ── Sign-in brand palette (fixed, never themed) ──────────────────
+     Sampled from the campus sign-in artwork so the HTML around the
+     hero and footer images meets them without a visible seam. */
+  --color-tf-maroon: #830020;
+  --color-tf-maroon-deep: #540018;
+  --color-tf-cream: #fef4f0;
+  --color-tf-yellow: #fcb51a;
+  --color-tf-ink: #1f201f;
+
   /* ── Radii ──────────────────────────────────────────────────────── */
   --radius-card: 1rem;
   --radius-sheet: 1.5rem;
@@ -277,6 +286,33 @@
 
   --theme-sky: #0284c7;
   --theme-sky-wash: rgba(2, 132, 199, 0.08);
+}
+
+/*
+ * The sign-in screens. Always the light set (pair with `.light`), with the
+ * action colour moved from saffron to the campus maroon and the ground moved
+ * to the artwork's cream, so shared pieces rendered inside — the code boxes,
+ * the PIN pad, the demo picker — pick up the palette without knowing about it.
+ *
+ * These set the `--color-*` tokens, not `--theme-*`: the @theme aliases are
+ * resolved once on :root, so a `--theme-*` override on a descendant never
+ * reaches the utilities. `--color-line` also feeds the unlayered `*` border
+ * rule below, which outranks any border-colour utility.
+ */
+.auth-theme {
+  --color-ink: #fef4f0;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbe9e3;
+  --color-surface-hover: #f6dcd4;
+  --color-line: #c4bdbb;
+  --color-bone: #1f201f;
+  --color-muted: #5f5a58;
+  --color-faint: #9a918e;
+
+  --color-saffron: #830020;
+  --color-saffron-glow: #a3123a;
+  --color-saffron-deep: #5e0017;
+  --color-saffron-wash: rgba(131, 0, 32, 0.07);
 }
 
 * {

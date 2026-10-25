@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  GraduationCap,
   KeyRound,
   Loader2,
   Lock,
@@ -18,10 +17,9 @@ import {
   MailCheck,
   RotateCcw,
   User,
+  type LucideIcon,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import {
   requestPasswordReset,
   resendCode,
@@ -50,6 +48,8 @@ interface StudentAuthFormProps {
    */
   quickUnlockDevice?: QuickUnlockDeviceState | null;
   reason?: string | null | undefined;
+  /** Rendered between the form and the campus footer (the stub-mode picker). */
+  children?: ReactNode;
 }
 
 type UserType = "student" | "vendor";
@@ -87,6 +87,7 @@ export function StudentAuthForm({
   initialType = "student",
   quickUnlockDevice = null,
   reason,
+  children,
 }: StudentAuthFormProps) {
   const [userType, setUserType] = useState<UserType>(initialType);
   const [studentMode, setStudentMode] = useState<StudentAuthMode>("signin");
@@ -388,7 +389,7 @@ export function StudentAuthForm({
 
   if (showQuickUnlock && storedProfile) {
     return (
-      <div className="w-full max-w-md mx-auto min-h-dvh flex flex-col justify-center px-4 py-8">
+      <div className="light auth-theme w-full max-w-md mx-auto min-h-dvh flex flex-col justify-center px-4 py-8 bg-tf-cream text-tf-ink">
         <QuickUnlockScreen
           profile={storedProfile}
           redirectTo={redirectTo}
@@ -403,125 +404,84 @@ export function StudentAuthForm({
 
   const isAdminRedirect = Boolean(redirectTo && /^\/admin(\/|$)/.test(redirectTo));
 
+  const switchStudentMode = (mode: StudentAuthMode) => {
+    setStudentMode(mode);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  const switchUserType = (type: UserType) => {
+    setUserType(type);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  /** The two-tone headline under the artwork: plain lead, maroon accent. */
+  const heading: { lead: string; accent: string; sub: string } =
+    userType === "vendor"
+      ? { lead: "Welcome, ", accent: "Partner!", sub: "Manage live orders and your menu." }
+      : codeStep
+        ? { lead: "Check your ", accent: "email", sub: "Enter the 6-digit code we just sent." }
+        : studentMode === "signup"
+          ? { lead: "Join ", accent: "TreFood!", sub: "Create your account in under a minute." }
+          : studentMode === "forgot"
+            ? { lead: "Reset your ", accent: "password", sub: "We will email you a 6-digit code." }
+            : {
+                lead: "Welcome to ",
+                accent: "TreFood!",
+                sub: isAdminRedirect
+                  ? "Sign in with your admin account to continue."
+                  : "Good Food. More Choices. Closer to You.",
+              };
+
   return (
-    <div className="relative w-full max-w-md mx-auto min-h-dvh bg-ink text-bone flex flex-col justify-between overflow-hidden shadow-2xl">
-      {/* ── Background Photo Layer ── */}
-      <div className="absolute inset-x-0 top-0 h-[480px] sm:h-[520px] w-full overflow-hidden pointer-events-none z-0">
+    <div className="light auth-theme relative w-full max-w-md mx-auto min-h-dvh flex flex-col bg-tf-cream text-tf-ink shadow-2xl">
+      {/* ── Hero artwork: wordmark, tagline, categories and the food spread ── */}
+      <header className="relative">
         <Image
-          src="/images/auth-hero.jpg"
-          alt="TREFOOD Food and Drinks"
-          fill
+          src="/images/auth/login-hero.webp"
+          alt="TreFood, the campus commerce platform. Everything you need in one place: food, fruits, groceries, snacks and dine-out."
+          width={1376}
+          height={1602}
           priority
-          className="object-cover object-[82%_24%]"
-          unoptimized
+          sizes="(max-width: 448px) 100vw, 448px"
+          className="block w-full h-auto select-none"
         />
-        {/* Soft top gradient for header legibility */}
-        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-ink/60 via-ink/20 to-transparent" />
+        <Link
+          href="/"
+          className="absolute top-3 right-3 inline-flex items-center gap-0.5 rounded-full ring-1 ring-white/25 bg-black/25 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold text-white/90 hover:bg-black/40 transition-colors"
+        >
+          <span>Skip</span>
+          <ChevronRight className="size-3" />
+        </Link>
+      </header>
 
-        {/* Left-to-right gradient protecting text while keeping the food crisp and bright on the right */}
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/95 via-ink/80 via-40% to-transparent to-70%" />
+      {/* ── Form ── */}
+      <section className="flex-1 px-7 pt-1 pb-4">
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-tf-ink">
+          {heading.lead}
+          <span className="text-tf-maroon">{heading.accent}</span>
+        </h1>
+        <p className="mt-1 text-[15px] text-[#5a5655]">{heading.sub}</p>
 
-        {/* Bottom gradient blending smoothly into the ink background above Continue with Google */}
-        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-ink via-ink/80 via-30% to-transparent" />
-      </div>
-
-      {/* ── Content Layer ── */}
-      <div className="relative z-10 flex flex-col flex-1 px-5 pt-4 pb-6 justify-between">
-        {/* Top bar: Brand + Skip button */}
-        <div>
-          <div className="flex items-center justify-between pb-3">
-            <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-              <div className="relative size-10 overflow-hidden rounded-xl border border-saffron/30 shadow-md">
-                <Image
-                  src="/logo.png"
-                  alt="TREFOOD Logo"
-                  width={40}
-                  height={40}
-                  className="size-full object-cover"
-                  priority
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-display text-lg font-black tracking-tight text-bone leading-none">
-                  TREFOOD
-                </span>
-                <span className="text-[9px] font-semibold tracking-[0.22em] text-muted uppercase mt-0.5">
-                  FOOD • FRUITS • JUICES
-                </span>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1 rounded-full border border-line/90 bg-surface/70 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold text-bone hover:border-white/40 hover:bg-surface-raised transition-all"
-              >
-                <span>Skip</span>
-                <ChevronRight className="size-3.5" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Script Callout */}
-          <div className="relative inline-block select-none rotate-[-4deg] self-start mt-2 mb-1">
-            <span className="font-handwriting text-2xl text-bone/95 leading-[1.1] block">
-              Good<br />Food<br />Brighter<br />Campus Days
-            </span>
-            <svg className="w-28 h-2 text-saffron mt-0.5" viewBox="0 0 100 10" fill="none">
-              <path
-                d="M2 5 Q 50 9 98 4"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-
-          {/* Hero Headline */}
-          <div className="mt-1 mb-4">
-            <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-bone leading-[1.12]">
-              {userType === "student" ? (
-                <>
-                  Food, Fruits,<br />
-                  Juices for<br />
-                  <span className="text-saffron">every student.</span>
-                </>
-              ) : (
-                <>
-                  Partner with,<br />
-                  Cook &amp; deliver to<br />
-                  <span className="text-saffron">every hostel.</span>
-                </>
-              )}
-            </h1>
-            <p className="mt-2 text-xs sm:text-sm text-muted leading-relaxed max-w-[300px]">
-              {userType === "student"
-                ? "Order from your favourite campus restaurants in a few taps."
-                : "Sign in to your restaurant dashboard to manage orders and menu."}
-            </p>
-          </div>
-        </div>
-
-        {/* Form Container */}
-        <div className="space-y-3.5 my-auto">
+        <div className="mt-5 space-y-3">
           {/* Reason Alert if redirected */}
           {reason && REASONS[reason] ? (
-            <p className="rounded-xl border border-amber/30 bg-amber-wash/90 p-3 text-xs text-amber">
+            <p className="rounded-xl ring-1 ring-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
               {REASONS[reason]}
             </p>
           ) : null}
 
           {/* Error / Success Alerts */}
           {error ? (
-            <div className="flex items-start gap-2.5 rounded-xl border border-chili/30 bg-chili-wash/90 p-3 text-xs text-chili">
+            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-red-200 bg-red-50 p-3 text-xs text-red-700">
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           ) : null}
 
           {successMessage ? (
-            <div className="flex items-start gap-2.5 rounded-xl border border-mint/30 bg-mint-wash/90 p-3 text-xs text-mint">
+            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
               <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
               <span>{successMessage}</span>
             </div>
@@ -529,522 +489,365 @@ export function StudentAuthForm({
 
           {/* Stale Profile Alert */}
           {staleProfile ? (
-            <div className="flex items-start gap-2.5 rounded-2xl border border-amber/30 bg-amber-wash/90 p-3 text-xs text-amber shadow-sm">
+            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
               <KeyRound className="size-4 shrink-0 mt-0.5" />
-              <span>
-                Sign in once below to switch your 4-digit PIN back on for this phone.
-              </span>
+              <span>Sign in once below to switch your 4-digit PIN back on for this phone.</span>
             </div>
           ) : null}
 
           {/* Quick PIN Banner */}
           {storedProfile && (deviceIsVendor ? userType === "vendor" : userType === "student") ? (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-saffron/40 bg-saffron-wash/90 backdrop-blur-md p-3.5 text-xs shadow-md">
+            <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-tf-maroon/25 bg-white p-3 text-xs shadow-sm">
               <div className="flex items-center gap-2.5 min-w-0">
-                <KeyRound className="size-4 shrink-0 text-saffron" />
-                <span className="truncate text-bone">
+                <KeyRound className="size-4 shrink-0 text-tf-maroon" />
+                <span className="truncate">
                   {deviceIsVendor ? "Unlock the dashboard for " : "Quick PIN is ready for "}
-                  <strong className="text-saffron">
+                  <strong className="text-tf-maroon">
                     {storedProfile.name || storedProfile.email}
                   </strong>
                 </span>
               </div>
-              <Button
+              <button
                 type="button"
-                variant="secondary"
-                size="sm"
                 onClick={() => setShowQuickUnlock(true)}
-                className="shrink-0 text-xs border-saffron/50 font-semibold bg-surface hover:bg-surface-raised cursor-pointer"
+                className="shrink-0 rounded-lg bg-tf-maroon px-3 py-1.5 font-semibold text-white hover:bg-tf-maroon-deep transition-colors cursor-pointer"
               >
                 {deviceIsVendor ? "Enter PIN" : "Use PIN"}
-              </Button>
-            </div>
-          ) : null}
-
-          {/* ── Code step: shown instead of the whole student form ── */}
-          {userType === "student" && codeStep ? (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-2xl border border-saffron/30 bg-saffron-wash/80 backdrop-blur-md p-3.5">
-                <MailCheck className="size-5 shrink-0 text-saffron mt-0.5" />
-                <div className="min-w-0 text-xs leading-relaxed">
-                  <p className="font-semibold text-bone">Check your email</p>
-                  <p className="text-muted">
-                    We sent a 6-digit code to{" "}
-                    <strong className="text-bone break-all">{codeStep.email}</strong>.
-                  </p>
-                </div>
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void submitCode(code);
-                }}
-                className="space-y-3.5"
-              >
-                <OtpCodeInput
-                  value={code}
-                  onChange={setCode}
-                  disabled={loading}
-                  // A reset needs a password too, so completing the code must
-                  // not fire the request before that field has been filled in.
-                  onComplete={codeStep.kind === "signup" ? (v) => void submitCode(v) : undefined}
-                />
-
-                {codeStep.kind === "reset" ? (
-                  <div className="space-y-1.5">
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-4 size-4 text-muted pointer-events-none" />
-                      <input
-                        id="new-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Choose a new password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                        disabled={loading}
-                        className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-11 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="absolute right-3.5 text-muted hover:text-bone focus:outline-none p-1 cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                    <p className="pl-2 text-[11px] text-muted/70">
-                      At least 8 characters, with a letter and a number.
-                    </p>
-                  </div>
-                ) : null}
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  block
-                  size="lg"
-                  disabled={loading || code.length !== 6}
-                  className="rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-saffron/20 active:scale-[0.99] transition-all cursor-pointer"
-                >
-                  {loading ? (
-                    <Loader2 className="size-5 animate-spin" />
-                  ) : (
-                    <>
-                      <span>
-                        {codeStep.kind === "signup" ? "Verify and continue" : "Set password and sign in"}
-                      </span>
-                      <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => void handleResend()}
-                  disabled={resendIn > 0 || loading}
-                  className="inline-flex items-center gap-1.5 font-semibold text-saffron hover:underline disabled:text-muted disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <RotateCcw className="size-3.5" />
-                  <span>{resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={leaveCodeStep}
-                  className="font-medium text-muted hover:text-bone cursor-pointer"
-                >
-                  Use a different email
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Student Auth: Google OAuth */}
-          {userType === "student" && !codeStep ? (
-            <>
-              {/* Rendered only when a Google client is actually configured.
-                  A button that always shows and sometimes dead-ends on
-                  Google's own error page is worse than no button. */}
-              {googleEnabled ? (
-                <>
-                  <a
-                    href={googleHref}
-                    className="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-white text-zinc-900 font-semibold text-sm shadow-md hover:bg-zinc-100 active:scale-[0.99] transition-all border border-zinc-200 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <GoogleIcon className="size-5 shrink-0" />
-                      <span className="font-semibold text-zinc-900 text-[14px]">
-                        Continue with Google
-                      </span>
-                    </div>
-                    <ArrowRight className="size-4 text-zinc-700" />
-                  </a>
-
-                  {/* OR Divider */}
-                  <div className="relative flex items-center justify-center my-3">
-                    <div className="w-full border-t border-line/60" />
-                    <span className="absolute bg-ink px-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
-                      OR
-                    </span>
-                  </div>
-                </>
-              ) : null}
-
-              {/* Sign in / Sign up / Reset tabs */}
-              <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface/80 backdrop-blur-md p-1 border border-line">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStudentMode("signin");
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className={cn(
-                    "rounded-lg py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer",
-                    studentMode === "signin"
-                      ? "bg-surface-raised text-bone shadow-sm"
-                      : "text-muted hover:text-bone",
-                  )}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStudentMode("signup");
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className={cn(
-                    "rounded-lg py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer",
-                    studentMode === "signup"
-                      ? "bg-surface-raised text-bone shadow-sm"
-                      : "text-muted hover:text-bone",
-                  )}
-                >
-                  Sign up
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStudentMode("forgot");
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className={cn(
-                    "rounded-lg py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer",
-                    studentMode === "forgot"
-                      ? "bg-surface-raised text-bone shadow-sm"
-                      : "text-muted hover:text-bone",
-                  )}
-                >
-                  Reset
-                </button>
-              </div>
-
-              {/* Student Auth Form */}
-              <form onSubmit={(e) => void handleStudentSubmit(e)} className="space-y-3 pt-1">
-                {studentMode === "signup" ? (
-                  <div className="relative flex items-center">
-                    <User className="absolute left-4 size-4 text-muted pointer-events-none" />
-                    <input
-                      id="student-name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      disabled={loading}
-                      className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                    />
-                  </div>
-                ) : null}
-
-                <div>
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-4 size-4 text-muted pointer-events-none" />
-                    <input
-                      id="student-email"
-                      type="email"
-                      placeholder={
-                        isAdminRedirect ? "Enter admin email" : "Enter your college email"
-                      }
-                      value={studentEmail}
-                      onChange={(e) => setStudentEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                      className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                    />
-                  </div>
-                  {!isAdminRedirect && (
-                    <p className="mt-1 text-[11px] text-muted/70 pl-2">
-                      e.g. student@nitp.ac.in
-                    </p>
-                  )}
-                </div>
-
-                {studentMode !== "forgot" ? (
-                  <div className="space-y-1.5">
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-4 size-4 text-muted pointer-events-none" />
-                      <input
-                        id="student-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder={
-                          studentMode === "signup" ? "Create a password" : "Enter your password"
-                        }
-                        value={studentPassword}
-                        onChange={(e) => setStudentPassword(e.target.value)}
-                        required
-                        minLength={studentMode === "signup" ? 8 : 1}
-                        autoComplete={
-                          studentMode === "signup" ? "new-password" : "current-password"
-                        }
-                        disabled={loading}
-                        className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-11 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="absolute right-3.5 text-muted hover:text-bone focus:outline-none p-1 cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-
-                    {studentMode === "signup" ? (
-                      <p className="pl-2 text-[11px] text-muted/70">
-                        At least 8 characters, with a letter and a number.
-                      </p>
-                    ) : null}
-
-                    {studentMode === "signin" ? (
-                      <div className="flex justify-end pr-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStudentMode("forgot");
-                            setError(null);
-                          }}
-                          className="text-xs font-medium text-saffron hover:underline cursor-pointer"
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  block
-                  size="lg"
-                  disabled={loading}
-                  className="rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-saffron/20 active:scale-[0.99] transition-all mt-1 cursor-pointer"
-                >
-                  {loading ? (
-                    <Loader2 className="size-5 animate-spin" />
-                  ) : (
-                    <>
-                      <span>
-                        {studentMode === "signin"
-                          ? (isAdminRedirect ? "Sign in to Admin Console" : "Sign in")
-                          : studentMode === "signup"
-                            ? "Create account"
-                            : "Email me a reset code"}
-                      </span>
-                      <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-
-              {/* Bottom toggle between sign in and sign up */}
-              <div className="text-center text-xs text-muted pt-1">
-                {studentMode === "signin" ? (
-                  <span>
-                    New to TreFood?{" "}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentMode("signup");
-                        setError(null);
-                      }}
-                      className="font-semibold text-saffron hover:underline cursor-pointer"
-                    >
-                      Create an account
-                    </button>
-                  </span>
-                ) : studentMode === "signup" ? (
-                  <span>
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentMode("signin");
-                        setError(null);
-                      }}
-                      className="font-semibold text-saffron hover:underline cursor-pointer"
-                    >
-                      Sign in
-                    </button>
-                  </span>
-                ) : (
-                  <span>
-                    Remember your password?{" "}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudentMode("signin");
-                        setError(null);
-                      }}
-                      className="font-semibold text-saffron hover:underline cursor-pointer"
-                    >
-                      Sign in
-                    </button>
-                  </span>
-                )}
-              </div>
-            </>
-          ) : userType === "vendor" ? (
-            /* ── Vendor View ── */
-            <div className="space-y-4">
-              <div className="rounded-xl border border-line bg-surface/80 backdrop-blur p-3.5 text-xs text-muted leading-relaxed">
-                <p className="font-semibold text-bone mb-0.5">
-                  Vendor &amp; Restaurant Partner Console
-                </p>
-                Sign in using the email and password provided by the campus administrator when your
-                restaurant was onboarded.
-              </div>
-
-              <form onSubmit={(e) => void handleVendorSubmit(e)} className="space-y-3">
-                <div className="space-y-1">
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-4 size-4 text-muted pointer-events-none" />
-                    <input
-                      id="vendor-auth-email"
-                      type="email"
-                      placeholder="Enter vendor email"
-                      value={vendorEmail}
-                      onChange={(e) => setVendorEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                      className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-4 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted/70 pl-2">e.g. owner@canteen.in</p>
-                </div>
-
-                <div className="relative flex items-center">
-                  <Lock className="absolute left-4 size-4 text-muted pointer-events-none" />
-                  <input
-                    id="vendor-auth-password"
-                    type={showVendorPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={vendorPassword}
-                    onChange={(e) => setVendorPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                    className="w-full rounded-2xl border border-line/80 bg-surface/90 backdrop-blur-sm pl-11 pr-11 py-3.5 text-sm text-bone placeholder:text-muted/60 focus:border-saffron focus:outline-none focus:ring-1 focus:ring-saffron transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowVendorPassword(!showVendorPassword)}
-                    aria-label={showVendorPassword ? "Hide password" : "Show password"}
-                    className="absolute right-3.5 text-muted hover:text-bone focus:outline-none p-1 cursor-pointer"
-                  >
-                    {showVendorPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  block
-                  size="lg"
-                  disabled={loading}
-                  className="rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-saffron/20 active:scale-[0.99] transition-all mt-1 cursor-pointer"
-                >
-                  {loading ? (
-                    <Loader2 className="size-5 animate-spin" />
-                  ) : (
-                    <>
-                      <span>Sign in to Vendor Console</span>
-                      <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
+              </button>
             </div>
           ) : null}
         </div>
 
-        {/* ── Food / Fruits / Juices Category Badges (from photo 2) ── */}
-        <div className="mt-4">
-          <div className="grid grid-cols-3 divide-x divide-line/60 py-4 my-2 border-y border-line/40">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex size-9 items-center justify-center text-saffron">
-                <BurgerIcon className="size-6" />
-              </div>
-              <span className="text-xs font-semibold text-bone">Food</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex size-9 items-center justify-center text-chili">
-                <AppleIcon className="size-6" />
-              </div>
-              <span className="text-xs font-semibold text-bone">Fruits</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex size-9 items-center justify-center text-amber">
-                <JuiceCupIcon className="size-6" />
-              </div>
-              <span className="text-xs font-semibold text-bone">Juices</span>
-            </div>
-          </div>
-
-          {/* ── Footer: Built for students + Restaurant partner (down right corner) ── */}
-          <div className="flex items-center justify-between gap-3 pt-2 text-xs">
-            {/* Left: Built for Students */}
-            <div className="flex items-center gap-2.5 text-left">
-              <GraduationCap className="size-6 text-muted shrink-0" />
-              <div className="leading-tight">
-                <p className="font-semibold text-bone text-xs">Built for Students.</p>
-                <p className="text-[10px] text-muted">Powered for Every Campus.</p>
-              </div>
-            </div>
-
-            {/* Right: Restaurant partner down right corner */}
-            <div className="text-right leading-tight">
-              <p className="text-xs text-muted">
-                {userType === "student" ? "Restaurant partner?" : "Student ordering?"}
+        {/* ── Code step: shown instead of the whole student form ── */}
+        {userType === "student" && codeStep ? (
+          <div className="mt-4 space-y-4">
+            <div className="flex items-start gap-3 rounded-xl ring-1 ring-tf-maroon/20 bg-white p-3.5">
+              <MailCheck className="size-5 shrink-0 text-tf-maroon mt-0.5" />
+              <p className="min-w-0 text-xs leading-relaxed text-[#5a5655]">
+                We sent a 6-digit code to{" "}
+                <strong className="text-tf-ink break-all">{codeStep.email}</strong>.
               </p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitCode(code);
+              }}
+              className="space-y-3.5"
+            >
+              <OtpCodeInput
+                value={code}
+                onChange={setCode}
+                disabled={loading}
+                // A reset needs a password too, so completing the code must
+                // not fire the request before that field has been filled in.
+                onComplete={codeStep.kind === "signup" ? (v) => void submitCode(v) : undefined}
+              />
+
+              {codeStep.kind === "reset" ? (
+                <div className="space-y-1.5">
+                  <AuthInput
+                    icon={Lock}
+                    id="new-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Choose a new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    disabled={loading}
+                    reveal={{ shown: showPassword, toggle: () => setShowPassword(!showPassword) }}
+                  />
+                  <p className="pl-1 text-[11px] text-[#7a7472]">
+                    At least 8 characters, with a letter and a number.
+                  </p>
+                </div>
+              ) : null}
+
+              <PrimaryButton loading={loading} disabled={code.length !== 6}>
+                {codeStep.kind === "signup" ? "Verify and continue" : "Set password and login"}
+              </PrimaryButton>
+            </form>
+
+            <div className="flex items-center justify-between gap-3 text-sm">
               <button
                 type="button"
-                onClick={() => {
-                  setUserType(userType === "student" ? "vendor" : "student");
-                  setError(null);
-                  setSuccessMessage(null);
-                }}
-                className="inline-flex items-center gap-1 font-semibold text-saffron hover:underline mt-0.5 cursor-pointer"
+                onClick={() => void handleResend()}
+                disabled={resendIn > 0 || loading}
+                className="inline-flex items-center gap-1.5 font-semibold text-tf-maroon hover:underline disabled:text-[#9a918e] disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
               >
-                <span>{userType === "student" ? "Sign in here" : "Sign in here"}</span>
-                <ArrowRight className="size-3" />
+                <RotateCcw className="size-3.5" />
+                <span>{resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={leaveCodeStep}
+                className="font-medium text-[#5a5655] hover:text-tf-ink cursor-pointer"
+              >
+                Use a different email
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        ) : null}
+
+        {/* ── Student: sign in / sign up / reset ── */}
+        {userType === "student" && !codeStep ? (
+          <>
+            <form onSubmit={(e) => void handleStudentSubmit(e)} className="mt-4 space-y-3">
+              {studentMode === "signup" ? (
+                <AuthInput
+                  icon={User}
+                  id="student-name"
+                  type="text"
+                  placeholder="Full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoComplete="name"
+                  disabled={loading}
+                />
+              ) : null}
+
+              <AuthInput
+                icon={Mail}
+                id="student-email"
+                type="email"
+                placeholder={isAdminRedirect ? "Admin email ID" : "Email ID"}
+                value={studentEmail}
+                onChange={(e) => setStudentEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={loading}
+              />
+
+              {studentMode !== "forgot" ? (
+                <AuthInput
+                  icon={Lock}
+                  id="student-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder={studentMode === "signup" ? "Create a password" : "Password"}
+                  value={studentPassword}
+                  onChange={(e) => setStudentPassword(e.target.value)}
+                  required
+                  minLength={studentMode === "signup" ? 8 : 1}
+                  autoComplete={studentMode === "signup" ? "new-password" : "current-password"}
+                  disabled={loading}
+                  reveal={{ shown: showPassword, toggle: () => setShowPassword(!showPassword) }}
+                />
+              ) : null}
+
+              {studentMode === "signup" ? (
+                <p className="pl-1 text-[11px] text-[#7a7472]">
+                  At least 8 characters, with a letter and a number.
+                </p>
+              ) : null}
+
+              {studentMode === "signin" ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => switchStudentMode("forgot")}
+                    className="text-[15px] font-medium text-tf-maroon hover:underline cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="pt-1">
+                <PrimaryButton loading={loading}>
+                  {studentMode === "signin"
+                    ? isAdminRedirect
+                      ? "Login to Admin Console"
+                      : "Login"
+                    : studentMode === "signup"
+                      ? "Create account"
+                      : "Email me a reset code"}
+                </PrimaryButton>
+              </div>
+            </form>
+
+            {/* Rendered only when a Google client is actually configured.
+                A button that always shows and sometimes dead-ends on
+                Google's own error page is worse than no button. */}
+            {googleEnabled && studentMode !== "forgot" ? (
+              <>
+                <div className="my-5 flex items-center gap-4">
+                  <div className="h-px flex-1 bg-[#d9cdc9]" />
+                  <span className="text-sm font-medium text-tf-ink/80">OR</span>
+                  <div className="h-px flex-1 bg-[#d9cdc9]" />
+                </div>
+
+                <a
+                  href={googleHref}
+                  className="flex h-13 w-full items-center justify-center gap-3 rounded-xl border bg-white text-[15px] font-medium text-tf-ink shadow-[0_4px_14px_rgba(84,0,24,0.08)] hover:bg-[#fffaf8] active:scale-[0.99] transition-all"
+                >
+                  <GoogleIcon className="size-6 shrink-0" />
+                  <span>Continue with Google</span>
+                </a>
+              </>
+            ) : null}
+
+            <p className="mt-6 text-center text-[15px] text-[#4f4a49]">
+              {studentMode === "signin" ? "Don't have an account? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => switchStudentMode(studentMode === "signin" ? "signup" : "signin")}
+                className="inline-flex items-center gap-1 font-bold text-tf-maroon hover:underline cursor-pointer"
+              >
+                <span>{studentMode === "signin" ? "Sign Up" : "Login"}</span>
+                <ArrowRight className="size-4" />
+              </button>
+            </p>
+          </>
+        ) : null}
+
+        {/* ── Vendor ── */}
+        {userType === "vendor" ? (
+          <>
+            <p className="mt-4 rounded-xl border bg-white p-3 text-xs leading-relaxed text-[#5a5655]">
+              Use the email and password the campus administrator gave you when your restaurant
+              was onboarded.
+            </p>
+
+            <form onSubmit={(e) => void handleVendorSubmit(e)} className="mt-3 space-y-3">
+              <AuthInput
+                icon={Mail}
+                id="vendor-auth-email"
+                type="email"
+                placeholder="Vendor email ID"
+                value={vendorEmail}
+                onChange={(e) => setVendorEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={loading}
+              />
+
+              <AuthInput
+                icon={Lock}
+                id="vendor-auth-password"
+                type={showVendorPassword ? "text" : "password"}
+                placeholder="Password"
+                value={vendorPassword}
+                onChange={(e) => setVendorPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                disabled={loading}
+                reveal={{
+                  shown: showVendorPassword,
+                  toggle: () => setShowVendorPassword(!showVendorPassword),
+                }}
+              />
+
+              <div className="pt-1">
+                <PrimaryButton loading={loading}>Login to Vendor Console</PrimaryButton>
+              </div>
+            </form>
+          </>
+        ) : null}
+
+        {/* ── Switch between student and restaurant partner sign-in ── */}
+        <p className="mt-4 text-center text-sm text-[#6b6563]">
+          {userType === "student" ? "Restaurant partner? " : "Ordering food? "}
+          <button
+            type="button"
+            onClick={() => switchUserType(userType === "student" ? "vendor" : "student")}
+            className="font-semibold text-tf-maroon hover:underline cursor-pointer"
+          >
+            {userType === "student" ? "Partner login" : "Student login"}
+          </button>
+        </p>
+      </section>
+
+      {children}
+
+      {/* ── Campus skyline footer ── */}
+      <footer className="mt-auto">
+        <Image
+          src="/images/auth/login-footer.webp"
+          alt="Powered for campuses"
+          width={1376}
+          height={318}
+          sizes="(max-width: 448px) 100vw, 448px"
+          className="block w-full h-auto select-none"
+        />
+      </footer>
     </div>
+  );
+}
+
+/** The bordered, icon-led field from the campus sign-in design. */
+function AuthInput({
+  icon: Icon,
+  reveal,
+  className,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  icon: LucideIcon;
+  /** Adds the show/hide eye for password fields. */
+  reveal?: { shown: boolean; toggle: () => void };
+}) {
+  return (
+    <div className="relative flex items-center">
+      <Icon
+        className="absolute left-4 size-5 text-[#3d3a39] pointer-events-none"
+        strokeWidth={1.75}
+      />
+      <input
+        {...props}
+        aria-label={props.placeholder}
+        className={cn(
+          "h-13 w-full rounded-xl border bg-white pl-13 text-[15px] text-tf-ink placeholder:text-[#7a7472] focus:outline-none focus:ring-1 focus:ring-tf-maroon disabled:opacity-60 transition-all",
+          reveal ? "pr-12" : "pr-4",
+          className,
+        )}
+      />
+      {reveal ? (
+        <button
+          type="button"
+          onClick={reveal.toggle}
+          aria-label={reveal.shown ? "Hide password" : "Show password"}
+          className="absolute right-3 p-1 text-[#3d3a39] hover:text-tf-ink focus:outline-none cursor-pointer"
+        >
+          {reveal.shown ? (
+            <Eye className="size-5" strokeWidth={1.75} />
+          ) : (
+            <EyeOff className="size-5" strokeWidth={1.75} />
+          )}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The full-width maroon submit button, label centred and arrow on the right. */
+function PrimaryButton({
+  loading,
+  disabled,
+  children,
+}: {
+  loading: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="submit"
+      disabled={loading || disabled}
+      className="relative flex h-13 w-full items-center justify-center rounded-xl bg-tf-maroon text-lg font-semibold text-white shadow-lg shadow-tf-maroon/25 hover:bg-[#6e001b] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer"
+    >
+      {loading ? (
+        <Loader2 className="size-5 animate-spin" />
+      ) : (
+        <>
+          <span>{children}</span>
+          <ArrowRight className="absolute right-5 size-6" />
+        </>
+      )}
+    </button>
   );
 }
 
@@ -1067,63 +870,6 @@ function GoogleIcon({ className }: { className?: string }) {
         fill="#EA4335"
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
       />
-    </svg>
-  );
-}
-
-function BurgerIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 11c0-4.4 3.6-8 8-8s8 3.6 8 8H4z" />
-      <circle cx="8" cy="7" r="0.75" fill="currentColor" />
-      <circle cx="12" cy="6" r="0.75" fill="currentColor" />
-      <circle cx="16" cy="7.5" r="0.75" fill="currentColor" />
-      <path d="M3 13.5c1 0 1.5.7 2.5.7s1.5-.7 2.5-.7 1.5.7 2.5.7 1.5-.7 2.5-.7 1.5.7 2.5.7 1.5-.7 2.5-.7 1.5.7 2.5.7" />
-      <path d="M4 17h16a1 1 0 0 1 1 1c0 1.7-2 3-9 3s-9-1.3-9-3a1 1 0 0 1 1-1z" />
-    </svg>
-  );
-}
-
-function AppleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 21c-2.5 0-4.5-1.5-6.5-1.5-2.2 0-3.5 2-3.5-5 0-4.4 3.4-7.5 7.5-7.5 1.5 0 2.5.5 2.5.5s1-.5 2.5-.5c4.1 0 7.5 3.1 7.5 7.5 0 7-1.3 5-3.5 5-2 0-4 1.5-6.5 1.5z" />
-      <path d="M12 7c0-2.5 1.5-4 3-4" />
-      <path d="M15 3c-.5 1.5-1.8 2.2-3 2.5" />
-    </svg>
-  );
-}
-
-function JuiceCupIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6.5 8.5l1.6 11.2c.2 1.3 1.3 2.3 2.6 2.3h2.6c1.3 0 2.4-1 2.6-2.3l1.6-11.2" />
-      <path d="M5 8.5h14" />
-      <path d="M11 8.5V4l4-2" />
     </svg>
   );
 }
