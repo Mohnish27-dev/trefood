@@ -1,7 +1,8 @@
 /**
  * Generate Google-compliant favicons, PWA icons, and OpenGraph social card.
  *
- * Uses public/logo.png as the high-resolution source.
+ * Uses public/logo-source.png (the brand artwork) to build public/logo.png,
+ * which is then the high-resolution source for everything else.
  * Run: node scripts/generate-favicons.mjs
  */
 
@@ -15,10 +16,33 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.join(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const ICONS_DIR = path.join(PUBLIC_DIR, 'icons');
+const BRAND_ARTWORK = path.join(PUBLIC_DIR, 'logo-source.png');
 const SOURCE_LOGO = path.join(PUBLIC_DIR, 'logo.png');
+
+/** Brand maroon, sampled from the artwork's background. */
+const BRAND_MAROON = { r: 131, g: 17, b: 50, alpha: 1 };
 
 if (!fs.existsSync(ICONS_DIR)) {
   fs.mkdirSync(ICONS_DIR, { recursive: true });
+}
+
+// 0. Re-centre the wordmark on a full-bleed maroon square. The artwork's
+// wordmark spans ~90% of the width, so Android's circular mask would crop the
+// "T" and the "d"; at 76% it sits inside the maskable 80% safe circle.
+async function buildSquareLogo() {
+  const SIZE = 1024;
+  const wordmark = await sharp(BRAND_ARTWORK)
+    .trim({ threshold: 40 })
+    .resize({ width: Math.round(SIZE * 0.76) })
+    .png()
+    .toBuffer();
+
+  await sharp({ create: { width: SIZE, height: SIZE, channels: 4, background: BRAND_MAROON } })
+    .composite([{ input: wordmark, gravity: 'center' }])
+    .png({ compressionLevel: 9 })
+    .toFile(SOURCE_LOGO);
+  fs.copyFileSync(SOURCE_LOGO, path.join(ICONS_DIR, 'logo.png'));
+  console.log('✓ Generated public/logo.png and public/icons/logo.png (1024x1024)');
 }
 
 // 1. Multi-resolution ICO builder (16, 32, 48)
@@ -177,6 +201,7 @@ async function generateOgImage() {
 
 async function run() {
   try {
+    await buildSquareLogo();
     await generateIcons();
     await generateOgImage();
     console.log('\nAll icon and OG assets generated successfully!');
