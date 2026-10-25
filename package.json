@@ -30,6 +30,7 @@
     "db:update-csb-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-csb-images.ts",
     "db:update-sone-zone-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-sone-zone-images.ts",
     "db:update-wrapchik-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-wrapchik-images.ts",
+    "db:update-vrindavan-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-vrindavan-bhog-images.ts",
     "seed:vrindavan":"node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-vrindavan-bhog.ts",
     "db:indexes": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/ensure-indexes.ts",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",

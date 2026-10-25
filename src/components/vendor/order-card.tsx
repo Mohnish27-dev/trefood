@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  Ban,
   Banknote,
   Check,
   Loader2,
@@ -41,7 +40,6 @@ import {
   dispatchRider,
   raiseStockoutForOrder,
   rejectOrder,
-  reportNoShow,
   rerouteToFallbackGate,
 } from "@/server/actions/vendor";
 import { useVendorLanguage } from "@/context/vendor-language-context";
@@ -148,6 +146,24 @@ export function VendorOrderCard({
               ) : null}
             </div>
 
+            {/* Line total includes add-ons; the per-unit hint only matters when
+                the quantity is more than one. */}
+            <div className="shrink-0 text-right">
+              <Money
+                paise={item.lineTotalPaise}
+                className={cn(
+                  "text-sm font-semibold text-bone",
+                  !item.isAvailable && "text-faint line-through",
+                )}
+              />
+              {item.quantity > 1 && item.lineTotalPaise % item.quantity === 0 ? (
+                <p className="mt-0.5 text-[11px] text-faint">
+                  <Money paise={item.lineTotalPaise / item.quantity} />{" "}
+                  {language === "hi" ? "प्रति" : "each"}
+                </p>
+              ) : null}
+            </div>
+
             {/* One tap to 86 a line mid-cook. Only while the kitchen still has
                 the order — after READY the packet is already closed. */}
             {(order.status === ORDER_STATUS.ACCEPTED ||
@@ -164,7 +180,7 @@ export function VendorOrderCard({
                 className="shrink-0 rounded-lg border border-line px-2 py-1 text-[11px] font-medium text-muted hover:border-chili/40 hover:text-chili"
                 title="Tell the student this ran out"
               >
-                86
+                Out of stock
               </button>
             ) : null}
           </li>
@@ -317,32 +333,6 @@ export function VendorOrderCard({
                   <Banknote />
                   {t("confirmCashReceived")} — <Money paise={order.cashDuePaise} />
                 </Button>
-                <div className="flex gap-2">
-                  <Button
-                    block
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() => reportNoShow({ orderId: order.orderId, refused: false }))
-                    }
-                  >
-                    <Ban />
-                    {t("noShowAction")}
-                  </Button>
-                  <Button
-                    block
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() => reportNoShow({ orderId: order.orderId, refused: true }))
-                    }
-                  >
-                    <Ban />
-                    {t("cashRefusedAction")}
-                  </Button>
-                </div>
             </div>
           </div>
         )}

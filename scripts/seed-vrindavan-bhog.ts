@@ -39,6 +39,14 @@ const VENDOR_EMAIL = "vrindavanamzone@gmail.com";
 
 const R = rupeesToPaise;
 
+/**
+ * Every item has a photo at public/menu/vrindavanBhog/<item id>.jpg (sources
+ * and licences in CREDITS.json next to them).
+ */
+export function vrindavanBhogItemImage(itemId: string): string {
+  return `/menu/vrindavanBhog/${itemId}.jpg`;
+}
+
 function portionGroup(halfPaise: Paise, fullPaise: Paise, label1 = "Half", label2 = "Full"): AddOnGroup {
   return {
     id: "grp_portion",
@@ -1346,7 +1354,7 @@ export async function seedVrindavanBhog(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: vrindavanBhogItemImage(item.id),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],
