@@ -17,7 +17,7 @@
  * anyway.
  */
 
-const VERSION = "trefood-v3";
+const VERSION = "trefood-v4";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 
