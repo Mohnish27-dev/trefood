@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  Camera,
+  Check,
   Edit2,
   Filter,
   Layers,
@@ -12,6 +14,7 @@ import {
   Plus,
   Search,
   Trash2,
+  UploadCloud,
   UtensilsCrossed,
   X,
 } from "lucide-react";
@@ -43,8 +46,10 @@ import {
   setItemAvailability,
   updateVendorCategory,
   updateVendorMenuItem,
+  updateVendorMenuItemImage,
   type AffectedOrder,
 } from "@/server/actions/vendor";
+import { uploadMenuItemImage } from "@/lib/client-image";
 import { packingFeePaiseOf } from "@/lib/packing-fee";
 import { cn } from "@/lib/utils";
 import { useVendorLanguage } from "@/context/vendor-language-context";
@@ -57,6 +62,7 @@ export interface MenuManagerItem {
   description: string;
   isVeg: boolean;
   pricePaise: number;
+  imageUrl?: string | null;
   isAvailable: boolean;
   isPopular?: boolean;
   packingFeeEnabled?: boolean;
@@ -345,60 +351,63 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
                         !isOn && "opacity-60 bg-surface/40",
                       )}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <VegMark isVeg={item.isVeg} />
-                          <span
-                            className={cn(
-                              "truncate text-sm font-medium",
-                              isOn ? "text-bone" : "text-faint line-through",
-                            )}
-                          >
-                            {item.name}
-                          </span>
-                          {item.isPopular ? (
-                            <span className="rounded bg-amber-wash px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber">
-                              {t("popularTag")}
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <QuickPhotoDialog item={item} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <VegMark isVeg={item.isVeg} />
+                            <span
+                              className={cn(
+                                "truncate text-sm font-medium",
+                                isOn ? "text-bone" : "text-faint line-through",
+                              )}
+                            >
+                              {item.name}
                             </span>
-                          ) : null}
-                        </div>
+                            {item.isPopular ? (
+                              <span className="rounded bg-amber-wash px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber">
+                                {t("popularTag")}
+                              </span>
+                            ) : null}
+                          </div>
 
-                        {item.description ? (
-                          <p className="mt-0.5 line-clamp-2 text-xs text-muted">
-                            {item.description}
-                          </p>
-                        ) : null}
+                          {item.description ? (
+                            <p className="mt-0.5 line-clamp-2 text-xs text-muted">
+                              {item.description}
+                            </p>
+                          ) : null}
 
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
-                          <Money paise={item.pricePaise} className="font-semibold text-bone" />
-                          {packingFeePaiseOf(item) > 0 ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px] text-muted">
-                              <Package className="size-2.5" />
-                              +<Money paise={packingFeePaiseOf(item)} /> {t("packingTag")}
-                            </span>
-                          ) : null}
-                          {item.addOnGroups && item.addOnGroups.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {item.addOnGroups.map((grp) => (
-                                <span
-                                  key={grp.id}
-                                  className="inline-flex items-center gap-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px] text-faint"
-                                >
-                                  <Layers className="size-2.5" />
-                                  {grp.name} ({grp.options.length})
-                                </span>
-                              ))}
-                            </div>
-                          ) : item.addOnGroupCount > 0 ? (
-                            <span className="text-faint">
-                              · {item.addOnGroupCount}{" "}
-                              {item.addOnGroupCount === 1 ? t("addOnGroup") : t("addOnGroups")}
-                            </span>
-                          ) : null}
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
+                            <Money paise={item.pricePaise} className="font-semibold text-bone" />
+                            {packingFeePaiseOf(item) > 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px] text-muted">
+                                <Package className="size-2.5" />
+                                +<Money paise={packingFeePaiseOf(item)} /> {t("packingTag")}
+                              </span>
+                            ) : null}
+                            {item.addOnGroups && item.addOnGroups.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {item.addOnGroups.map((grp) => (
+                                  <span
+                                    key={grp.id}
+                                    className="inline-flex items-center gap-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px] text-faint"
+                                  >
+                                    <Layers className="size-2.5" />
+                                    {grp.name} ({grp.options.length})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : item.addOnGroupCount > 0 ? (
+                              <span className="text-faint">
+                                · {item.addOnGroupCount}{" "}
+                                {item.addOnGroupCount === 1 ? t("addOnGroup") : t("addOnGroups")}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Right side controls: On/86 toggle + Edit / Delete */}
+                      {/* Right side controls: On/86 toggle + Photo / Edit / Delete */}
                       <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/40">
                         <div className="flex items-center gap-2">
                           <span
@@ -424,6 +433,18 @@ export function MenuManager({ sections }: { sections: MenuManagerSection[] }) {
                         </div>
 
                         <div className="flex items-center gap-1">
+                          <QuickPhotoDialog
+                            item={item}
+                            trigger={
+                              <button
+                                type="button"
+                                className="flex size-7 items-center justify-center rounded-lg text-muted hover:bg-surface-raised hover:text-bone"
+                                title={item.imageUrl ? t("changePhoto") : t("addPhoto")}
+                              >
+                                <Camera className="size-3.5" />
+                              </button>
+                            }
+                          />
                           <EditMenuItemDialog item={item} categories={categories} />
                           <DeleteMenuItemDialog item={item} />
                         </div>
@@ -674,6 +695,418 @@ interface AddOnGroupFormItem {
   }[];
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Food Image Field & Quick Photo Dialog
+   ══════════════════════════════════════════════════════════════════════ */
+
+function FoodImageField({
+  previewUrl,
+  urlValue,
+  onFileSelect,
+  onUrlChange,
+  onClear,
+}: {
+  previewUrl: string | null;
+  urlValue: string;
+  onFileSelect: (file: File) => void;
+  onUrlChange: (url: string) => void;
+  onClear: () => void;
+}) {
+  const { t } = useVendorLanguage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [useLink, setUseLink] = useState(
+    Boolean(urlValue && !urlValue.startsWith("data:") && !urlValue.startsWith("/api/")),
+  );
+
+  return (
+    <div className="space-y-2 rounded-xl border border-line bg-surface p-3 sm:col-span-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-saffron">
+          {t("foodPhoto")}
+        </Label>
+        <button
+          type="button"
+          onClick={() => setUseLink(!useLink)}
+          className="text-[11px] text-muted hover:text-bone underline underline-offset-2"
+        >
+          {useLink ? t("useFile") : t("orUseWebLink")}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {/* Preview Thumbnail */}
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-raised flex items-center justify-center">
+          {previewUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl} alt="Preview" className="size-full object-cover" />
+              <button
+                type="button"
+                onClick={onClear}
+                className="absolute right-1 top-1 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"
+                title={t("removePhoto")}
+              >
+                <X className="size-3" />
+              </button>
+            </>
+          ) : (
+            <Camera className="size-6 text-faint" />
+          )}
+        </div>
+
+        {/* Input / Upload triggers */}
+        <div className="flex-1 min-w-0">
+          {useLink ? (
+            <Input
+              type="text"
+              placeholder={t("imageUrlOptional")}
+              value={urlValue}
+              onChange={(e) => onUrlChange(e.target.value)}
+              className="text-xs"
+            />
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onFileSelect(file);
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <UploadCloud className="size-3.5" />
+                  <span>{previewUrl ? t("changePhoto") : t("uploadPhoto")}</span>
+                </Button>
+                {previewUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClear}
+                    className="h-8 text-xs text-chili hover:bg-chili/10"
+                  >
+                    {t("removePhoto")}
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] text-muted">{t("photoUploadLimits")}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickPhotoDialog({
+  item,
+  trigger,
+}: {
+  item: MenuManagerItem;
+  trigger?: React.ReactNode;
+}) {
+  const { t } = useVendorLanguage();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [useLink, setUseLink] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(item.imageUrl ?? null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [urlInput, setUrlInput] = useState<string>(item.imageUrl ?? "");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setPreviewUrl(item.imageUrl ?? null);
+      setSelectedFile(null);
+      setUrlInput(item.imageUrl ?? "");
+      setUseLink(false);
+    }
+    setOpen(nextOpen);
+  };
+
+  const handleFilePicked = (file: File) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Please select a JPG, PNG, or WebP image.");
+      return;
+    }
+    setSelectedFile(file);
+    const objUrl = URL.createObjectURL(file);
+    setPreviewUrl(objUrl);
+    setUrlInput("");
+  };
+
+  const handleUrlChanged = (val: string) => {
+    setUrlInput(val);
+    setSelectedFile(null);
+    setPreviewUrl(val.trim() ? val.trim() : null);
+  };
+
+  const handleRemovePhoto = async () => {
+    setSubmitting(true);
+    try {
+      const res = await updateVendorMenuItemImage({ itemId: item.itemId, imageUrl: null });
+      if (res.status === "error") {
+        toast.error(res.message);
+      } else {
+        toast.success(res.message || t("photoRemoved"));
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setUrlInput("");
+        setOpen(false);
+        router.refresh();
+      }
+    } catch {
+      toast.error("Failed to remove photo.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSubmitting(true);
+    try {
+      if (selectedFile) {
+        const uploadRes = await uploadMenuItemImage(selectedFile, item.itemId);
+        if (!uploadRes.ok) {
+          toast.error(uploadRes.error || "Failed to upload image.");
+          setSubmitting(false);
+          return;
+        }
+        toast.success(t("photoSaved"));
+        setOpen(false);
+        router.refresh();
+      } else if (useLink) {
+        const finalUrl = urlInput.trim();
+        const res = await updateVendorMenuItemImage({
+          itemId: item.itemId,
+          imageUrl: finalUrl || null,
+        });
+        if (res.status === "error") {
+          toast.error(res.message);
+        } else {
+          toast.success(res.message || t("photoSaved"));
+          setOpen(false);
+          router.refresh();
+        }
+      } else if (!previewUrl && item.imageUrl) {
+        await handleRemovePhoto();
+      } else {
+        setOpen(false);
+      }
+    } catch {
+      toast.error("Failed to update photo.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const defaultTrigger = item.imageUrl ? (
+    <button
+      type="button"
+      className="group relative size-14 shrink-0 overflow-hidden rounded-xl border border-line bg-surface hover:border-saffron transition-all"
+      title={t("changePhoto")}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.imageUrl}
+        alt={item.name}
+        className="size-full object-cover transition-transform group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+        <Camera className="size-4 text-white" />
+      </div>
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="group flex size-14 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line hover:border-saffron/60 bg-surface/50 hover:bg-saffron/5 text-muted hover:text-saffron transition-all"
+      title={t("addPhoto")}
+    >
+      <Camera className="size-4" />
+      <span className="text-[9px] font-medium leading-none">{t("addPhoto")}</span>
+    </button>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Camera className="size-5 text-saffron" />
+            <span>
+              {t("quickPhotoTitle")}: {item.name}
+            </span>
+          </DialogTitle>
+          <DialogDescription>{t("quickPhotoSubtitle")}</DialogDescription>
+        </DialogHeader>
+
+        <DialogBody className="space-y-4">
+          {/* Large Preview */}
+          <div className="relative mx-auto flex h-48 w-full max-w-xs items-center justify-center overflow-hidden rounded-2xl border-2 border-line bg-surface-raised">
+            {previewUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt={item.name}
+                  className="size-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewUrl(null);
+                    setSelectedFile(null);
+                    setUrlInput("");
+                  }}
+                  className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white hover:bg-black transition-colors"
+                  title={t("removePhoto")}
+                >
+                  <X className="size-4" />
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-muted">
+                <UtensilsCrossed className="size-8 text-faint" />
+                <span className="text-xs font-medium">{t("noPhotoYet")}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Toggle between Upload File and Web Link */}
+          <div className="flex items-center justify-between border-b border-line pb-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setUseLink(false)}
+                className={cn(
+                  "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+                  !useLink
+                    ? "bg-surface-raised text-bone border border-line"
+                    : "text-muted hover:text-bone",
+                )}
+              >
+                {t("useFile")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseLink(true)}
+                className={cn(
+                  "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+                  useLink
+                    ? "bg-surface-raised text-bone border border-line"
+                    : "text-muted hover:text-bone",
+                )}
+              >
+                {t("useUrl")}
+              </button>
+            </div>
+
+            {item.imageUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={submitting}
+                className="text-xs text-chili hover:underline"
+              >
+                {t("removePhoto")}
+              </button>
+            )}
+          </div>
+
+          {!useLink ? (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleFilePicked(file);
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors",
+                isDragOver
+                  ? "border-saffron bg-saffron/10 text-saffron"
+                  : "border-line hover:border-saffron/60 bg-surface/50 text-muted hover:text-bone",
+              )}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFilePicked(file);
+                }}
+              />
+              <UploadCloud className="size-8 text-saffron" />
+              <div>
+                <p className="text-xs font-medium text-bone">{t("dropPhotoHere")}</p>
+                <p className="mt-1 text-[11px] text-muted">{t("photoUploadLimits")}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor={`image-url-input-${item.itemId}`}>{t("orUseWebLink")}</Label>
+              <Input
+                id={`image-url-input-${item.itemId}`}
+                type="text"
+                placeholder={t("imageUrlPlaceholder")}
+                value={urlInput}
+                onChange={(e) => handleUrlChanged(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+          )}
+        </DialogBody>
+
+        <DialogFooter className="mt-4 flex items-center justify-between border-t border-line pt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={submitting}
+          >
+            {t("cancel")}
+          </Button>
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSave}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            <span>{submitting ? t("saving") : t("applyPhoto")}</span>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AddMenuItemDialog({
   categories,
   defaultCategoryId,
@@ -693,6 +1126,9 @@ function AddMenuItemDialog({
   const [description, setDescription] = useState("");
   const [isVeg, setIsVeg] = useState(true);
   const [priceRupees, setPriceRupees] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPopular, setIsPopular] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   const [packingFeeEnabled, setPackingFeeEnabled] = useState(false);
@@ -705,6 +1141,9 @@ function AddMenuItemDialog({
     setDescription("");
     setIsVeg(true);
     setPriceRupees("");
+    setImageUrl("");
+    setPreviewUrl(null);
+    setSelectedFile(null);
     setIsPopular(false);
     setIsAvailable(true);
     setPackingFeeEnabled(false);
@@ -741,12 +1180,24 @@ function AddMenuItemDialog({
 
     setSubmitting(true);
     try {
+      let finalImageUrl: string | null | undefined = imageUrl.trim() || undefined;
+      if (selectedFile) {
+        const uploadRes = await uploadMenuItemImage(selectedFile);
+        if (!uploadRes.ok) {
+          toast.error(uploadRes.error || "Failed to upload image.");
+          setSubmitting(false);
+          return;
+        }
+        finalImageUrl = uploadRes.imageUrl;
+      }
+
       const res = await createVendorMenuItem({
         categoryId,
         name,
         description: description || undefined,
         isVeg,
         priceRupees: Number(priceRupees) || 0,
+        imageUrl: finalImageUrl,
         isPopular,
         isAvailable,
         packingFeeEnabled,
@@ -839,6 +1290,26 @@ function AddMenuItemDialog({
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+
+              <FoodImageField
+                previewUrl={previewUrl}
+                urlValue={imageUrl}
+                onFileSelect={(file) => {
+                  setSelectedFile(file);
+                  setPreviewUrl(URL.createObjectURL(file));
+                  setImageUrl("");
+                }}
+                onUrlChange={(url) => {
+                  setImageUrl(url);
+                  setSelectedFile(null);
+                  setPreviewUrl(url.trim() ? url.trim() : null);
+                }}
+                onClear={() => {
+                  setImageUrl("");
+                  setSelectedFile(null);
+                  setPreviewUrl(null);
+                }}
+              />
             </div>
 
             {/* Toggles: Veg / Popular / Available */}
@@ -957,6 +1428,9 @@ function EditMenuItemDialog({
   const [description, setDescription] = useState(item.description);
   const [isVeg, setIsVeg] = useState(item.isVeg);
   const [priceRupees, setPriceRupees] = useState((item.pricePaise / 100).toString());
+  const [imageUrl, setImageUrl] = useState(item.imageUrl ?? "");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(item.imageUrl ?? null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPopular, setIsPopular] = useState(item.isPopular ?? false);
   const [isAvailable, setIsAvailable] = useState(item.isAvailable);
   const [packingFeeEnabled, setPackingFeeEnabled] = useState(item.packingFeeEnabled ?? false);
@@ -977,6 +1451,26 @@ function EditMenuItemDialog({
       })),
     })),
   );
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setCategoryId(item.categoryId ?? categories[0]?._id ?? "");
+      setName(item.name);
+      setDescription(item.description);
+      setIsVeg(item.isVeg);
+      setPriceRupees((item.pricePaise / 100).toString());
+      setImageUrl(item.imageUrl ?? "");
+      setPreviewUrl(item.imageUrl ?? null);
+      setSelectedFile(null);
+      setIsPopular(item.isPopular ?? false);
+      setIsAvailable(item.isAvailable);
+      setPackingFeeEnabled(item.packingFeeEnabled ?? false);
+      setPackingFeeRupees(
+        item.packingFeePaise ? (item.packingFeePaise / 100).toString() : "",
+      );
+    }
+    setOpen(nextOpen);
+  };
 
   const handleAddGroup = () => {
     setAddOnGroups((prev) => [
@@ -1007,6 +1501,19 @@ function EditMenuItemDialog({
 
     setSubmitting(true);
     try {
+      let finalImageUrl: string | null | undefined = imageUrl.trim() || null;
+      if (selectedFile) {
+        const uploadRes = await uploadMenuItemImage(selectedFile, item.itemId);
+        if (!uploadRes.ok) {
+          toast.error(uploadRes.error || "Failed to upload image.");
+          setSubmitting(false);
+          return;
+        }
+        finalImageUrl = uploadRes.imageUrl;
+      } else if (!previewUrl && item.imageUrl) {
+        finalImageUrl = null;
+      }
+
       const res = await updateVendorMenuItem({
         itemId: item.itemId,
         categoryId,
@@ -1014,6 +1521,7 @@ function EditMenuItemDialog({
         description: description || undefined,
         isVeg,
         priceRupees: Number(priceRupees) || 0,
+        imageUrl: finalImageUrl,
         isPopular,
         isAvailable,
         packingFeeEnabled,
@@ -1036,7 +1544,7 @@ function EditMenuItemDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -1103,6 +1611,26 @@ function EditMenuItemDialog({
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+
+              <FoodImageField
+                previewUrl={previewUrl}
+                urlValue={imageUrl}
+                onFileSelect={(file) => {
+                  setSelectedFile(file);
+                  setPreviewUrl(URL.createObjectURL(file));
+                  setImageUrl("");
+                }}
+                onUrlChange={(url) => {
+                  setImageUrl(url);
+                  setSelectedFile(null);
+                  setPreviewUrl(url.trim() ? url.trim() : null);
+                }}
+                onClear={() => {
+                  setImageUrl("");
+                  setSelectedFile(null);
+                  setPreviewUrl(null);
+                }}
+              />
             </div>
 
             {/* Toggles: Veg / Popular / Available */}

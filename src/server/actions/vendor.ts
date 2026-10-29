@@ -523,13 +523,29 @@ const vendorAddOnGroupSchema = z.object({
   options: z.array(vendorAddOnOptionSchema),
 });
 
+export const menuItemImageUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (val) =>
+      val === "" ||
+      val.startsWith("/") ||
+      val.startsWith("http://") ||
+      val.startsWith("https://") ||
+      val.startsWith("data:image/"),
+    { message: "Image URL must be a valid web URL or a path starting with '/'" },
+  )
+  .transform((val) => (val === "" ? null : val))
+  .nullable()
+  .optional();
+
 const createVendorItemSchema = z.object({
   categoryId: z.string().min(1, "Select a category"),
   name: z.string().trim().min(1, "Item name is required").max(100),
   description: z.string().trim().optional(),
   isVeg: z.boolean().default(true),
   priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: menuItemImageUrlSchema,
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
   packingFeeEnabled: z.boolean().default(false),
@@ -598,7 +614,7 @@ const updateVendorItemSchema = z.object({
   description: z.string().trim().optional(),
   isVeg: z.boolean().default(true),
   priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: menuItemImageUrlSchema,
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
   packingFeeEnabled: z.boolean().default(false),
@@ -658,7 +674,65 @@ export async function updateVendorMenuItem(input: unknown): Promise<VendorAction
 
   revalidatePath("/vendor/menu");
   revalidatePath(`/admin/vendors/${restaurantId}/menu`);
-  return { status: "ok", message: `Item "${result.item.name}" updated` };
+  return { status: "ok", message: `Saved changes to "${result.item.name}"` };
+}
+
+export async function updateVendorMenuItemImage(input: unknown): Promise<VendorActionState> {
+  const schema = z.object({
+    itemId: z.string().min(1, "Item ID is required"),
+    imageUrl: menuItemImageUrlSchema,
+  });
+
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid image data." };
+  }
+
+  const { restaurantId, user } = await requireVendor();
+  const { itemId, imageUrl } = parsed.data;
+
+  const itemsCollection = await db.menuItems();
+  const item = await itemsCollection.findOne({ _id: itemId, restaurantId });
+  if (!item) {
+    return { status: "error", message: "Menu item not found in your restaurant menu." };
+  }
+
+  const newImageUrl = imageUrl ?? null;
+
+  // Clean up old uploaded image from GridFS if replaced or removed
+  if (
+    item.imageUrl &&
+    item.imageUrl !== newImageUrl &&
+    item.imageUrl.startsWith("/api/menu-images/")
+  ) {
+    const { deleteMenuImage } = await import("@/server/services/menu-image-storage");
+    const oldFileId = item.imageUrl.replace("/api/menu-images/", "");
+    void deleteMenuImage(oldFileId);
+  }
+
+  await itemsCollection.updateOne(
+    { _id: itemId, restaurantId },
+    { $set: { imageUrl: newImageUrl } },
+  );
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: restaurantId,
+    from: item.imageUrl ?? "NONE",
+    to: newImageUrl ?? "NONE",
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+    reason: newImageUrl
+      ? `Updated photo for item "${item.name}"`
+      : `Removed photo for item "${item.name}"`,
+  });
+
+  revalidatePath("/vendor/menu");
+  revalidatePath(`/admin/vendors/${restaurantId}/menu`);
+  return {
+    status: "ok",
+    message: newImageUrl ? `Photo updated for "${item.name}"` : `Photo removed from "${item.name}"`,
+  };
 }
 
 const deleteVendorItemSchema = z.object({

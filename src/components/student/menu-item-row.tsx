@@ -141,9 +141,9 @@ export function MenuItemRow({
                 fill
                 sizes="(max-width: 640px) 96px, 112px"
                 className={cn("object-cover", !item.isAvailable && "opacity-50 grayscale")}
-                // Vendor-supplied URLs may point at any host; only our own
-                // files go through the optimizer.
-                unoptimized={!imageUrl.startsWith("/")}
+                // Vendor-supplied URLs may point at any host; only static
+                // asset files go through the optimizer.
+                unoptimized={!imageUrl.startsWith("/") || imageUrl.startsWith("/api/")}
                 onError={() => setImageFailed(true)}
               />
             </div>

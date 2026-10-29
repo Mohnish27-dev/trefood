@@ -389,6 +389,33 @@ export const VENDOR_STRINGS = {
   totalItems: { en: "Total Items", hi: "कुल आइटम्स" },
   emptyCategoryHint: { en: "No items in this category yet.", hi: "इस कैटेगरी में अभी कोई आइटम नहीं है।" },
 
+  // ── Food Photo Management ─────────────────────────────────────────
+  foodPhoto: { en: "Food photo", hi: "खाने की फोटो" },
+  addPhoto: { en: "Add photo", hi: "फोटो जोड़ें" },
+  changePhoto: { en: "Change photo", hi: "फोटो बदलें" },
+  removePhoto: { en: "Remove photo", hi: "फोटो हटाएं" },
+  uploadPhoto: { en: "Upload photo", hi: "फोटो अपलोड करें" },
+  uploadingPhoto: { en: "Uploading photo…", hi: "फोटो अपलोड हो रही है…" },
+  dropPhotoHere: { en: "Click to upload or drag photo here", hi: "फोटो अपलोड करने के लिए क्लिक करें या यहाँ खींचें" },
+  photoUploadLimits: {
+    en: "PNG, JPG, or WebP up to 5 MB. Photos are automatically optimized.",
+    hi: "PNG, JPG या WebP (अधिकतम 5 MB)। फोटो अपने आप कंप्रेस होगी।",
+  },
+  orUseWebLink: { en: "Or enter web image URL", hi: "या फोटो का वेब लिंक डालें" },
+  imageUrlOptional: { en: "Image link (optional)", hi: "फोटो का लिंक (वैकल्पिक)" },
+  imageUrlPlaceholder: { en: "https://... or /menu/...", hi: "https://... या /menu/..." },
+  quickPhotoTitle: { en: "Dish Photo", hi: "खाने की फोटो" },
+  quickPhotoSubtitle: {
+    en: "Set or update the photo displayed to students for this dish.",
+    hi: "छात्रों को दिखने वाली इस डिश की फोटो सेट या अपडेट करें।",
+  },
+  photoSaved: { en: "Photo saved successfully", hi: "फोटो सफलतापूर्वक सेव हो गई" },
+  photoRemoved: { en: "Photo removed successfully", hi: "फोटो हटा दी गई" },
+  useFile: { en: "Upload File", hi: "फ़ाइल अपलोड करें" },
+  useUrl: { en: "Web Link", hi: "वेब लिंक" },
+  applyPhoto: { en: "Apply Photo", hi: "फोटो लगाएं" },
+  noPhotoYet: { en: "No photo yet", hi: "अभी कोई फोटो नहीं है" },
+
   // ── Earnings View ────────────────────────────────────────────────
   todayGross: { en: "Today, gross", hi: "आज की कुल बिक्री" },
   deliveredOrders: { en: "delivered orders", hi: "डिलीवर किए गए ऑर्डर" },

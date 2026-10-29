@@ -15,6 +15,7 @@ import {
   updateMenuCategoryAdmin,
   updateMenuItemAdmin,
 } from "@/server/services/admin-menu";
+import { menuItemImageUrlSchema } from "./vendor";
 import type { AddOnGroup } from "@/types/restaurant";
 
 export type AdminMenuActionState =
@@ -135,7 +136,7 @@ const createItemSchema = z.object({
   description: z.string().trim().optional(),
   isVeg: z.boolean().default(true),
   priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: menuItemImageUrlSchema,
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
   packingFeeEnabled: z.boolean().default(false),
@@ -204,7 +205,7 @@ const updateItemSchema = z.object({
   description: z.string().trim().optional(),
   isVeg: z.boolean().default(true),
   priceRupees: z.coerce.number().min(0, "Price cannot be negative"),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: menuItemImageUrlSchema,
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
   packingFeeEnabled: z.boolean().default(false),
