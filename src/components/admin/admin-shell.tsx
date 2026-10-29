@@ -50,7 +50,7 @@ const SECTIONS: {
   {
     heading: "Platform",
     links: [
-      { href: "/admin/vendors", label: "Vendors & KYC", icon: Store, coAdmin: true },
+      { href: "/admin/vendors", label: "Restaurants & Vendors", icon: Store, coAdmin: true },
       { href: "/admin/campuses", label: "Campuses & gates", icon: MapPinned, coAdmin: true },
       { href: "/admin/audit", label: "Audit log", icon: FileClock },
     ],

@@ -555,7 +555,7 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
   const now = new Date();
 
   // Auto-serve all campus gates by default
-  const servedZoneIds = campus.zones.map((z) => z.id);
+  const servedZoneIds = (campus.zones || []).map((z) => z.id);
 
   const restaurant: Restaurant = {
     _id: restaurantId,
@@ -611,8 +611,10 @@ export async function createVendorDirectly(params: CreateVendorDirectParams): Pr
     role: ROLE.VENDOR_OWNER,
     name: params.ownerName.trim(),
     email: normalizedEmail,
+    emailVerified: true,
     phone: params.phone.trim(),
     passwordHash: hashPassword(params.password),
+    passwordChangedAt: now,
     campusId: params.campusId,
     restaurantId,
     strikes: 0,
@@ -662,6 +664,125 @@ export async function deleteVendor(params: {
   });
 
   return { ok: true };
+}
+
+export async function listVendorUsers(): Promise<
+  Pick<User, "_id" | "email" | "name" | "phone" | "restaurantId" | "role">[]
+> {
+  const users = await db.users();
+  return users
+    .find({
+      role: { $in: [ROLE.VENDOR_OWNER, ROLE.VENDOR_STAFF] },
+      restaurantId: { $ne: null },
+    })
+    .project<Pick<User, "_id" | "email" | "name" | "phone" | "restaurantId" | "role">>({
+      _id: 1,
+      email: 1,
+      name: 1,
+      phone: 1,
+      restaurantId: 1,
+      role: 1,
+    })
+    .toArray();
+}
+
+export async function resetVendorPasswordByAdmin(params: {
+  restaurantId: string;
+  newPassword: string;
+  actorId: string;
+}): Promise<{ ok: true; email: string } | { ok: false; message: string }> {
+  const usersCollection = await db.users();
+  const vendorUser = await usersCollection.findOne({
+    restaurantId: params.restaurantId,
+    role: { $in: [ROLE.VENDOR_OWNER, ROLE.VENDOR_STAFF] },
+  });
+
+  if (!vendorUser) {
+    return { ok: false, message: "No vendor user account found for this restaurant." };
+  }
+
+  const now = new Date();
+  await usersCollection.updateOne(
+    { _id: vendorUser._id },
+    {
+      $set: {
+        passwordHash: hashPassword(params.newPassword),
+        passwordChangedAt: now,
+        loginLock: null,
+        updatedAt: now,
+      },
+    },
+  );
+
+  await writeAudit({
+    entity: "USER",
+    entityId: vendorUser._id,
+    from: "password",
+    to: "reset",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Password reset for vendor user ${vendorUser.email}`,
+  });
+
+  return { ok: true, email: vendorUser.email };
+}
+
+export async function createVendorLoginForExistingRestaurant(params: {
+  restaurantId: string;
+  email: string;
+  password: string;
+  ownerName?: string | undefined;
+  phone?: string | undefined;
+  actorId: string;
+}): Promise<{ ok: true; user: User } | { ok: false; message: string }> {
+  const restaurantsCollection = await db.restaurants();
+  const restaurant = await restaurantsCollection.findOne({ _id: params.restaurantId });
+  if (!restaurant) {
+    return { ok: false, message: "That restaurant does not exist." };
+  }
+
+  const usersCollection = await db.users();
+  const normalizedEmail = params.email.toLowerCase().trim();
+
+  const existingUser = await usersCollection.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    return { ok: false, message: "A user with this email address already exists." };
+  }
+
+  const now = new Date();
+  const userId = newId("usr");
+  const user: User = {
+    _id: userId,
+    authId: null,
+    role: ROLE.VENDOR_OWNER,
+    name: (params.ownerName || restaurant.kyc.ownerName || restaurant.name).trim(),
+    email: normalizedEmail,
+    emailVerified: true,
+    phone: (params.phone || restaurant.phone || "").trim(),
+    passwordHash: hashPassword(params.password),
+    passwordChangedAt: now,
+    campusId: restaurant.campusId,
+    restaurantId: restaurant._id,
+    strikes: 0,
+    ordersBlocked: false,
+    ordersBlockedReason: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await usersCollection.insertOne(user);
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: restaurant._id,
+    from: "NO_VENDOR_ACCOUNT",
+    to: normalizedEmail,
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Vendor login credentials created for ${restaurant.name} (${normalizedEmail})`,
+  });
+
+  return { ok: true, user };
 }
 
 /* ══════════════════════════════════════════════════════════════════════
