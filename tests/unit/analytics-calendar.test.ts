@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computePeakHour,
   datesOfMonth,
+  datesOfWeek,
+  dayOfWeekName,
   emptyBucket,
+  formatHourRange,
   lastNDates,
+  shiftDate,
   shiftMonth,
   sumBuckets,
   weekendOf,
   type EarningsBucket,
+  type HourlyStat,
 } from "@/server/services/analytics";
 
 /**
@@ -135,5 +141,115 @@ describe("sumBuckets", () => {
 
     expect(Number.isSafeInteger(total.cashCollectedPaise)).toBe(true);
     expect(Number.isSafeInteger(total.commissionPaise)).toBe(true);
+  });
+});
+
+describe("datesOfWeek", () => {
+  it("returns 7 days from Monday to Sunday for any day of the week", () => {
+    // 2026-10-31 is a Saturday
+    const days = datesOfWeek("2026-10-31");
+    expect(days).toHaveLength(7);
+    expect(days[0]).toBe("2026-10-26"); // Monday
+    expect(days[1]).toBe("2026-10-27"); // Tuesday
+    expect(days[2]).toBe("2026-10-28"); // Wednesday
+    expect(days[3]).toBe("2026-10-29"); // Thursday
+    expect(days[4]).toBe("2026-10-30"); // Friday
+    expect(days[5]).toBe("2026-10-31"); // Saturday
+    expect(days[6]).toBe("2026-11-01"); // Sunday
+  });
+
+  it("returns the exact same week when called with Monday or Sunday of that week", () => {
+    const fromMonday = datesOfWeek("2026-10-26");
+    const fromWednesday = datesOfWeek("2026-10-28");
+    const fromSunday = datesOfWeek("2026-11-01");
+
+    expect(fromMonday).toEqual(fromWednesday);
+    expect(fromSunday).toEqual(fromWednesday);
+  });
+
+  it("crosses a year boundary correctly", () => {
+    // 2026-01-01 is Thursday. Monday is 2025-12-29.
+    const days = datesOfWeek("2026-01-01");
+    expect(days[0]).toBe("2025-12-29");
+    expect(days[3]).toBe("2026-01-01");
+    expect(days[6]).toBe("2026-01-04");
+  });
+});
+
+describe("shiftDate", () => {
+  it("steps forward and backward by days", () => {
+    expect(shiftDate("2026-10-26", 1)).toBe("2026-10-27");
+    expect(shiftDate("2026-10-26", -7)).toBe("2026-10-19");
+  });
+
+  it("walks across month boundaries", () => {
+    expect(shiftDate("2026-11-01", -1)).toBe("2026-10-31");
+    expect(shiftDate("2026-10-31", 1)).toBe("2026-11-01");
+  });
+
+  it("walks across year boundaries", () => {
+    expect(shiftDate("2026-01-01", -1)).toBe("2025-12-31");
+    expect(shiftDate("2025-12-31", 1)).toBe("2026-01-01");
+  });
+});
+
+describe("dayOfWeekName", () => {
+  it("resolves full and short names correctly", () => {
+    expect(dayOfWeekName("2026-10-26")).toEqual({ full: "Monday", short: "Mon" });
+    expect(dayOfWeekName("2026-10-31")).toEqual({ full: "Saturday", short: "Sat" });
+    expect(dayOfWeekName("2026-11-01")).toEqual({ full: "Sunday", short: "Sun" });
+  });
+});
+
+describe("formatHourRange", () => {
+  it("formats standard clock hours in 12-hour AM/PM notation", () => {
+    expect(formatHourRange(0)).toBe("12:00 AM – 1:00 AM");
+    expect(formatHourRange(11)).toBe("11:00 AM – 12:00 PM");
+    expect(formatHourRange(12)).toBe("12:00 PM – 1:00 PM");
+    expect(formatHourRange(20)).toBe("8:00 PM – 9:00 PM");
+    expect(formatHourRange(23)).toBe("11:00 PM – 12:00 AM");
+  });
+});
+
+describe("computePeakHour", () => {
+  it("returns no orders when map is empty or undefined", () => {
+    expect(computePeakHour(undefined)).toEqual({
+      hour: null,
+      label: "No orders",
+      orderCount: 0,
+      billedPaise: 0,
+    });
+    expect(computePeakHour(new Map())).toEqual({
+      hour: null,
+      label: "No orders",
+      orderCount: 0,
+      billedPaise: 0,
+    });
+  });
+
+  it("selects the hour with highest order count as rush hour", () => {
+    const map = new Map<number, HourlyStat>([
+      [12, { orderCount: 5, billedPaise: 50_000 }],
+      [13, { orderCount: 15, billedPaise: 120_000 }],
+      [20, { orderCount: 25, billedPaise: 200_000 }],
+      [21, { orderCount: 10, billedPaise: 80_000 }],
+    ]);
+
+    const peak = computePeakHour(map);
+    expect(peak.hour).toBe(20);
+    expect(peak.label).toBe("8:00 PM – 9:00 PM");
+    expect(peak.orderCount).toBe(25);
+    expect(peak.billedPaise).toBe(200_000);
+  });
+
+  it("breaks ties with higher billed revenue", () => {
+    const map = new Map<number, HourlyStat>([
+      [13, { orderCount: 12, billedPaise: 80_000 }],
+      [20, { orderCount: 12, billedPaise: 110_000 }],
+    ]);
+
+    const peak = computePeakHour(map);
+    expect(peak.hour).toBe(20);
+    expect(peak.billedPaise).toBe(110_000);
   });
 });

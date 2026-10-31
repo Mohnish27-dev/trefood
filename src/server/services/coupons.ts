@@ -30,6 +30,7 @@ export interface CreateCouponParams {
   /** Omitted = far future (year 2100). Coupons no longer auto-expire; deactivate them manually. */
   validUntil?: Date | undefined;
   actorId: string;
+  actorRole?: typeof ACTOR.ADMIN | typeof ACTOR.VENDOR | undefined;
 }
 
 /** One cart line, as priced by `previewCart`. */
@@ -114,7 +115,7 @@ export async function createCouponDirectly(
     from: null,
     to: `COUPON_CREATED:${coupon.code}`,
     actorId: params.actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: params.actorRole ?? ACTOR.ADMIN,
     reason: `Created ${channel === "DINE_IN" ? "dine-in " : ""}coupon ${coupon.code} (${coupon.type === "FLAT" ? `₹${coupon.valuePaise / 100} off` : `${coupon.valueBps / 100}% off`})`,
   });
 
@@ -460,17 +461,151 @@ export async function toggleCouponStatus(
   return { ok: true, coupon: updated };
 }
 
+export interface UpdateCouponParams {
+  couponId: string;
+  code?: string | undefined;
+  description?: string | null | undefined;
+  type?: "FLAT" | "PERCENT" | undefined;
+  valuePaise?: Paise | undefined;
+  valueBps?: number | undefined;
+  maxDiscountPaise?: Paise | undefined;
+  minOrderPaise?: Paise | undefined;
+  perStudentLimit?: number | undefined;
+  personLimit?: number | undefined;
+  menuItemIds?: readonly string[] | undefined;
+  channel?: CouponChannel | undefined;
+  isActive?: boolean | undefined;
+  actorId: string;
+  scope?: { restaurantId?: string; actorRole?: typeof ACTOR.ADMIN | typeof ACTOR.VENDOR } | undefined;
+}
+
+export async function updateCoupon(
+  params: UpdateCouponParams,
+): Promise<{ ok: true; coupon: Coupon } | { ok: false; message: string }> {
+  const couponsColl = await db.coupons();
+  const query = params.scope?.restaurantId
+    ? { _id: params.couponId, restaurantId: params.scope.restaurantId }
+    : { _id: params.couponId };
+
+  const existing = await couponsColl.findOne(query);
+  if (!existing) {
+    return { ok: false, message: "Coupon not found." };
+  }
+
+  if (params.code !== undefined) {
+    const normalizedCode = params.code.trim().toUpperCase();
+    if (!normalizedCode || normalizedCode.length < 3) {
+      return { ok: false, message: "Coupon code must be at least 3 characters." };
+    }
+    if (normalizedCode !== existing.code) {
+      if ((existing.usedCount ?? 0) > 0 || (existing.redeemedCustomerIds?.length ?? 0) > 0) {
+        return { ok: false, message: "Cannot change coupon code after it has been used." };
+      }
+      const conflict = await couponsColl.findOne({ code: normalizedCode, _id: { $ne: existing._id } });
+      if (conflict) {
+        return { ok: false, message: `Coupon code "${normalizedCode}" already exists.` };
+      }
+    }
+  }
+
+  const targetChannel = params.channel ?? existing.channel ?? "DELIVERY";
+  if (targetChannel === "DINE_IN" && existing.restaurantId) {
+    const restaurant = await getRestaurantById(existing.restaurantId);
+    if (!restaurant?.isDineInAvailable) {
+      return { ok: false, message: "Turn on dine-in for this restaurant before setting a dine-in coupon." };
+    }
+  }
+
+  let menuItemIds = existing.menuItemIds ?? [];
+  let menuItemNames = existing.menuItemNames ?? [];
+  if (params.menuItemIds !== undefined) {
+    menuItemIds = [...new Set(params.menuItemIds)];
+    if (menuItemIds.length > 0) {
+      if (!existing.restaurantId) {
+        return { ok: false, message: "Item-specific coupons need a restaurant." };
+      }
+      const items = await getMenuItemsByIds(menuItemIds);
+      const valid = menuItemIds.every((id) => items.get(id)?.restaurantId === existing.restaurantId);
+      if (!valid) {
+        return { ok: false, message: "One of the selected items is not on this restaurant's menu." };
+      }
+      menuItemNames = menuItemIds.map((id) => items.get(id)?.name ?? "");
+    } else {
+      menuItemNames = [];
+    }
+  }
+
+  const targetType = params.type ?? existing.type;
+  const updateFields: Record<string, unknown> = {};
+
+  if (params.code !== undefined) updateFields.code = params.code.trim().toUpperCase();
+  if (params.description !== undefined) updateFields.description = params.description || null;
+  if (params.type !== undefined) updateFields.type = params.type;
+
+  if (params.valuePaise !== undefined || params.type !== undefined) {
+    updateFields.valuePaise = targetType === "FLAT" ? (params.valuePaise ?? existing.valuePaise) : 0;
+  }
+  if (params.valueBps !== undefined || params.type !== undefined) {
+    updateFields.valueBps = targetType === "PERCENT" ? (params.valueBps ?? existing.valueBps) : 0;
+  }
+  if (params.maxDiscountPaise !== undefined || params.valuePaise !== undefined || params.type !== undefined) {
+    if (targetType === "PERCENT") {
+      updateFields.maxDiscountPaise = params.maxDiscountPaise ?? existing.maxDiscountPaise ?? 0;
+    } else {
+      updateFields.maxDiscountPaise = params.valuePaise ?? existing.valuePaise;
+    }
+  }
+  if (params.minOrderPaise !== undefined) updateFields.minOrderPaise = params.minOrderPaise;
+  if (params.perStudentLimit !== undefined) updateFields.perStudentLimit = params.perStudentLimit;
+  if (params.personLimit !== undefined || params.channel !== undefined) {
+    updateFields.personLimit = targetChannel === "DINE_IN" ? 0 : (params.personLimit ?? existing.personLimit ?? 0);
+  }
+  if (params.channel !== undefined) updateFields.channel = params.channel;
+  if (params.menuItemIds !== undefined) {
+    updateFields.menuItemIds = menuItemIds;
+    updateFields.menuItemNames = menuItemNames;
+  }
+  if (params.isActive !== undefined) updateFields.isActive = params.isActive;
+
+  const updated = await couponsColl.findOneAndUpdate(
+    { _id: existing._id },
+    { $set: updateFields },
+    { returnDocument: "after" },
+  );
+
+  if (!updated) {
+    return { ok: false, message: "Failed to update coupon." };
+  }
+
+  await writeAudit({
+    entity: "RESTAURANT",
+    entityId: existing.restaurantId ?? existing._id,
+    from: existing.code,
+    to: `COUPON_UPDATED:${updated.code}`,
+    actorId: params.actorId,
+    actorRole: params.scope?.actorRole ?? ACTOR.ADMIN,
+    reason: `Updated coupon ${updated.code}`,
+  });
+
+  return { ok: true, coupon: updated };
+}
+
 export async function deleteCoupon(
   couponId: string,
   actorId: string,
+  scope: { restaurantId?: string; actorRole?: typeof ACTOR.ADMIN | typeof ACTOR.VENDOR } = {},
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const couponsColl = await db.coupons();
-  const coupon = await couponsColl.findOne({ _id: couponId });
+  const query = scope.restaurantId
+    ? { _id: couponId, restaurantId: scope.restaurantId }
+    : { _id: couponId };
+
+  const coupon = await couponsColl.findOne(query);
   if (!coupon) {
     return { ok: false, message: "Coupon not found." };
   }
 
-  await couponsColl.deleteOne({ _id: couponId });
+  await couponsColl.deleteOne({ _id: coupon._id });
 
   await writeAudit({
     entity: "RESTAURANT",
@@ -478,7 +613,7 @@ export async function deleteCoupon(
     from: coupon.code,
     to: "DELETED",
     actorId,
-    actorRole: ACTOR.ADMIN,
+    actorRole: scope.actorRole ?? ACTOR.ADMIN,
     reason: `Deleted coupon ${coupon.code}`,
   });
 

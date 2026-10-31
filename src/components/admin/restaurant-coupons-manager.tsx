@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
+  Pencil,
   Plus,
   Power,
   Tag,
@@ -38,6 +39,7 @@ import {
   createRestaurantCouponAction,
   deleteCouponAction,
   toggleCouponStatusAction,
+  updateRestaurantCouponAction,
 } from "@/server/actions/coupons";
 
 export interface CouponMenuSection {
@@ -106,12 +108,16 @@ export function RestaurantCouponsManager({
             icon={Truck}
             coupons={deliveryCoupons}
             restaurantId={restaurant._id}
+            isDineInAvailable={Boolean(restaurant.isDineInAvailable)}
+            menuSections={menuSections}
           />
           <CouponSection
             title="Dine-In Coupons"
             icon={UtensilsCrossed}
             coupons={dineInCoupons}
             restaurantId={restaurant._id}
+            isDineInAvailable={Boolean(restaurant.isDineInAvailable)}
+            menuSections={menuSections}
           />
         </>
       )}
@@ -124,11 +130,15 @@ function CouponSection({
   icon: Icon,
   coupons,
   restaurantId,
+  isDineInAvailable,
+  menuSections,
 }: {
   title: string;
   icon: typeof Truck;
   coupons: Coupon[];
   restaurantId: string;
+  isDineInAvailable: boolean;
+  menuSections: CouponMenuSection[];
 }) {
   if (coupons.length === 0) return null;
   return (
@@ -140,7 +150,13 @@ function CouponSection({
       </h2>
       <div className="grid gap-4 md:grid-cols-2">
         {coupons.map((coupon) => (
-          <CouponCard key={coupon._id} coupon={coupon} restaurantId={restaurantId} />
+          <CouponCard
+            key={coupon._id}
+            coupon={coupon}
+            restaurantId={restaurantId}
+            isDineInAvailable={isDineInAvailable}
+            menuSections={menuSections}
+          />
         ))}
       </div>
     </section>
@@ -150,12 +166,17 @@ function CouponSection({
 function CouponCard({
   coupon,
   restaurantId,
+  isDineInAvailable,
+  menuSections,
 }: {
   coupon: Coupon;
   restaurantId: string;
+  isDineInAvailable: boolean;
+  menuSections: CouponMenuSection[];
 }) {
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const isActive = coupon.isActive;
   const personLimit = coupon.personLimit ?? 0;
   const customersUsed = coupon.redeemedCustomerIds?.length ?? 0;
@@ -263,13 +284,13 @@ function CouponCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3">
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-line/60 pt-3">
         <Button
           size="sm"
           variant={isActive ? "secondary" : "primary"}
           disabled={toggling}
           onClick={() => void handleToggle()}
-          className="gap-1.5 text-xs h-9"
+          className="gap-1.5 text-xs h-9 flex-1"
         >
           {toggling ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -281,10 +302,20 @@ function CouponCard({
 
         <Button
           size="sm"
+          variant="secondary"
+          onClick={() => setEditOpen(true)}
+          className="gap-1.5 text-xs h-9 px-3"
+        >
+          <Pencil className="size-3.5" />
+          <span>Edit</span>
+        </Button>
+
+        <Button
+          size="sm"
           variant="danger"
           disabled={deleting}
           onClick={() => void handleDelete()}
-          className="gap-1.5 text-xs h-9"
+          className="gap-1.5 text-xs h-9 px-3"
         >
           {deleting ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -294,6 +325,17 @@ function CouponCard({
           <span>Delete</span>
         </Button>
       </div>
+
+      {editOpen && (
+        <EditCouponDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          coupon={coupon}
+          restaurantId={restaurantId}
+          isDineInAvailable={isDineInAvailable}
+          menuSections={menuSections}
+        />
+      )}
     </Card>
   );
 }
@@ -659,6 +701,362 @@ function CreateCouponDialog({
             <Button type="submit" variant="primary" disabled={submitting}>
               {submitting ? <Loader2 className="size-4 animate-spin" /> : <Tag className="size-4" />}
               <span>{submitting ? "Creating..." : "Save Coupon"}</span>
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditCouponDialog({
+  open,
+  onOpenChange,
+  coupon,
+  restaurantId,
+  isDineInAvailable,
+  menuSections,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  coupon: Coupon;
+  restaurantId: string;
+  isDineInAvailable: boolean;
+  menuSections: CouponMenuSection[];
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [channel, setChannel] = useState<CouponChannel>(coupon.channel ?? "DELIVERY");
+  const [code, setCode] = useState(coupon.code);
+  const [description, setDescription] = useState(coupon.description ?? "");
+  const [type, setType] = useState<"FLAT" | "PERCENT">(coupon.type);
+  const [value, setValue] = useState(
+    coupon.type === "FLAT" ? String(coupon.valuePaise / 100) : String(coupon.valueBps / 100),
+  );
+  const [maxDiscountRupees, setMaxDiscountRupees] = useState(
+    coupon.maxDiscountPaise ? String(coupon.maxDiscountPaise / 100) : "100",
+  );
+  const [minOrderRupees, setMinOrderRupees] = useState(String(coupon.minOrderPaise / 100));
+  const [perStudentLimit, setPerStudentLimit] = useState(String(coupon.perStudentLimit ?? 1));
+  const [personLimit, setPersonLimit] = useState(String(coupon.personLimit ?? 0));
+  const [appliesTo, setAppliesTo] = useState<"ALL" | "ITEMS">(
+    (coupon.menuItemIds?.length ?? 0) > 0 ? "ITEMS" : "ALL",
+  );
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(coupon.menuItemIds ?? []);
+  const [itemFilter, setItemFilter] = useState("");
+
+  const personLimitValue = parseInt(personLimit, 10) || 0;
+  const isDineIn = channel === "DINE_IN";
+  const isUsed = (coupon.usedCount ?? 0) > 0 || (coupon.redeemedCustomerIds?.length ?? 0) > 0;
+
+  const toggleItem = (id: string) =>
+    setSelectedItemIds((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+
+  const filterText = itemFilter.trim().toLowerCase();
+  const visibleSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: filterText
+        ? section.items.filter((item) => item.name.toLowerCase().includes(filterText))
+        : section.items,
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (appliesTo === "ITEMS" && selectedItemIds.length === 0) {
+      toast.error("Select at least one item, or apply the coupon to the entire menu.");
+      return;
+    }
+    setSubmitting(true);
+
+    const res = await updateRestaurantCouponAction({
+      couponId: coupon._id,
+      code: isUsed ? undefined : code.trim().toUpperCase(),
+      description: description.trim() || undefined,
+      restaurantId,
+      type,
+      value: parseFloat(value),
+      maxDiscountRupees:
+        type === "PERCENT" && maxDiscountRupees ? parseFloat(maxDiscountRupees) : undefined,
+      minOrderRupees: minOrderRupees ? parseFloat(minOrderRupees) : 0,
+      perStudentLimit: perStudentLimit ? parseInt(perStudentLimit, 10) : 1,
+      personLimit: personLimitValue,
+      menuItemIds: appliesTo === "ITEMS" ? selectedItemIds : [],
+      channel,
+    });
+
+    setSubmitting(false);
+
+    if (res.status === "error") {
+      toast.error(res.message);
+      return;
+    }
+
+    toast.success(res.message);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Coupon: {coupon.code}</DialogTitle>
+          <DialogDescription>
+            {isDineIn
+              ? "Offer students show at the counter when they eat in at this canteen."
+              : "Promo code applicable when students order from this canteen."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <DialogBody className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            {/* Coupon For */}
+            <div>
+              <Label>Coupon For</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 border border-line">
+                <button
+                  type="button"
+                  onClick={() => setChannel("DELIVERY")}
+                  className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    !isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  <Truck className="size-3.5" />
+                  Delivery Orders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChannel("DINE_IN")}
+                  disabled={!isDineInAvailable}
+                  className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  <UtensilsCrossed className="size-3.5" />
+                  Dine-In
+                </button>
+              </div>
+            </div>
+
+            {/* Coupon Code */}
+            <div>
+              <Label htmlFor="edit-coupon-code">Coupon Code</Label>
+              <Input
+                id="edit-coupon-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                required
+                disabled={isUsed}
+                maxLength={20}
+                className="font-mono uppercase tracking-wider disabled:opacity-60"
+              />
+              {isUsed && (
+                <p className="mt-1 text-[11px] text-muted">
+                  Code cannot be changed because this coupon has already been redeemed.
+                </p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div>
+              <Label htmlFor="edit-coupon-desc">Description / Offer Text</Label>
+              <Input
+                id="edit-coupon-desc"
+                placeholder="e.g. ₹30 off on all meal combos above ₹120"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+
+            {/* Discount Type */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>Discount Type</Label>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 border border-line">
+                  <button
+                    type="button"
+                    onClick={() => setType("FLAT")}
+                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      type === "FLAT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    }`}
+                  >
+                    Flat ₹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setType("PERCENT")}
+                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      type === "PERCENT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    }`}
+                  >
+                    Percentage %
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-coupon-value">
+                  {type === "FLAT" ? "Discount Amount (₹)" : "Discount Percentage (%)"}
+                </Label>
+                <Input
+                  id="edit-coupon-value"
+                  type="number"
+                  min={1}
+                  max={type === "PERCENT" ? 100 : 1000}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Max Discount & Min Order */}
+            <div className="grid grid-cols-2 gap-3">
+              {type === "PERCENT" ? (
+                <div>
+                  <Label htmlFor="edit-coupon-max-cap">Max Discount Cap (₹)</Label>
+                  <Input
+                    id="edit-coupon-max-cap"
+                    type="number"
+                    min={1}
+                    value={maxDiscountRupees}
+                    onChange={(e) => setMaxDiscountRupees(e.target.value)}
+                    placeholder="e.g. 100"
+                  />
+                </div>
+              ) : null}
+
+              <div className={type === "FLAT" ? "col-span-2" : ""}>
+                <Label htmlFor="edit-coupon-min-order">Min Order Value (₹)</Label>
+                <Input
+                  id="edit-coupon-min-order"
+                  type="number"
+                  min={0}
+                  value={minOrderRupees}
+                  onChange={(e) => setMinOrderRupees(e.target.value)}
+                  placeholder="0 for no minimum"
+                />
+              </div>
+            </div>
+
+            {/* Per Student & Person Limit */}
+            {isDineIn ? null : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="edit-coupon-per-student">Per Student Limit</Label>
+                    <Input
+                      id="edit-coupon-per-student"
+                      type="number"
+                      min={1}
+                      value={perStudentLimit}
+                      onChange={(e) => setPerStudentLimit(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-coupon-person-limit">Person Limit</Label>
+                    <Input
+                      id="edit-coupon-person-limit"
+                      type="number"
+                      min={0}
+                      value={personLimit}
+                      onChange={(e) => setPersonLimit(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="-mt-2 text-[11px] text-muted">
+                  {personLimitValue > 0
+                    ? `Only the first ${personLimitValue} customers can use this coupon.`
+                    : "0 = available to every customer until deactivated."}
+                </p>
+              </>
+            )}
+
+            {/* Applies To */}
+            <div>
+              <Label>Applies To</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface p-1 border border-line">
+                <button
+                  type="button"
+                  onClick={() => setAppliesTo("ALL")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    appliesTo === "ALL" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  Entire Menu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppliesTo("ITEMS")}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    appliesTo === "ITEMS" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                  }`}
+                >
+                  Selected Items
+                </button>
+              </div>
+
+              {appliesTo === "ITEMS" ? (
+                <div className="mt-2 space-y-2">
+                  <Input
+                    placeholder="Search items"
+                    value={itemFilter}
+                    onChange={(e) => setItemFilter(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <div className="max-h-52 overflow-y-auto rounded-xl border border-line divide-y divide-line/60">
+                    {visibleSections.length === 0 ? (
+                      <p className="p-3 text-xs text-muted">No items match.</p>
+                    ) : (
+                      visibleSections.map((section) => (
+                        <div key={section.categoryName} className="p-2">
+                          <p className="px-1 pb-1 text-[10px] uppercase tracking-wider text-faint">
+                            {section.categoryName}
+                          </p>
+                          {section.items.map((item) => (
+                            <label
+                              key={item.id}
+                              className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs hover:bg-surface-raised"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedItemIds.includes(item.id)}
+                                onChange={() => toggleItem(item.id)}
+                                className="size-4 accent-saffron"
+                              />
+                              <VegMark isVeg={item.isVeg} />
+                              <span className="flex-1 text-bone">{item.name}</span>
+                              <Money paise={item.pricePaise} className="text-muted" />
+                            </label>
+                          ))}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted">
+                    {selectedItemIds.length} selected.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </DialogBody>
+
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onOpenChange(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={submitting}>
+              {submitting ? <Loader2 className="size-4 animate-spin" /> : <Tag className="size-4" />}
+              <span>{submitting ? "Saving..." : "Save Changes"}</span>
             </Button>
           </DialogFooter>
         </form>
