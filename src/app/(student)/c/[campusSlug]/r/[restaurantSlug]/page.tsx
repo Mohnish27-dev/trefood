@@ -66,7 +66,7 @@ export default async function MenuPage({
   return (
     <>
       {/* ── Header ───────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-[#0b0f19] text-white pt-safe">
+      <header className="sticky top-0 z-30 bg-tf-maroon text-white pt-safe">
         <div className="flex min-h-14 items-center gap-2 px-3">
           <Link
             href={`/c/${campusSlug}`}
@@ -98,7 +98,7 @@ export default async function MenuPage({
       </header>
 
       {/* ── Swiggy-Style Hero Container (Dark Backdrop) ──────────── */}
-      <section className="bg-[#0b0f19] px-4 sm:px-5 pt-1 pb-7 sm:pb-8 rounded-b-[2.5rem] shadow-2xl">
+      <section className="bg-tf-maroon px-4 sm:px-5 pt-1 pb-7 sm:pb-8 rounded-b-[2.5rem] shadow-2xl">
         {/* ── Floating Box (White in Light Mode, Dark in Dark Mode) ── */}
         <div className="restaurant-hero-card rounded-[1.35rem] p-4 sm:p-5 border transition-colors duration-200">
           {/* Top Tag & Serving Status Row */}

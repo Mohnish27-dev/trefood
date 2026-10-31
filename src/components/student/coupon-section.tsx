@@ -69,7 +69,7 @@ export function CouponSection({
       {appliedCoupon ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-mint/40 bg-mint-wash p-3 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-mint text-ink font-bold font-mono">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-mint text-white font-bold font-mono">
               <Check className="size-4" />
             </span>
             <div className="min-w-0">

@@ -219,7 +219,7 @@ export function VendorAuthForm({
               <button
                 type="button"
                 onClick={() => setShowQuickUnlock(true)}
-                className="shrink-0 rounded-lg bg-saffron px-3 py-1.5 font-semibold text-ink hover:bg-saffron-glow transition-colors cursor-pointer"
+                className="shrink-0 rounded-lg bg-saffron px-3 py-1.5 font-semibold text-white hover:bg-saffron-glow transition-colors cursor-pointer"
               >
                 Enter PIN
               </button>
@@ -274,7 +274,7 @@ export function VendorAuthForm({
           <button
             type="submit"
             disabled={loading}
-            className="relative flex h-13 w-full items-center justify-center rounded-xl bg-saffron text-base font-semibold text-ink shadow-lg shadow-saffron/20 hover:bg-saffron-glow active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer mt-2"
+            className="relative flex h-13 w-full items-center justify-center rounded-xl bg-saffron text-base font-semibold text-white shadow-lg shadow-saffron/20 hover:bg-saffron-glow active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer mt-2"
           >
             {loading ? (
               <Loader2 className="size-5 animate-spin" />

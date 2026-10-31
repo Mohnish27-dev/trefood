@@ -210,6 +210,15 @@ export function CampusRestaurantFeed({
       // 3. Category box filter
       if (selectedCategory) {
         switch (selectedCategory) {
+          case "food":
+            return matchesFoodType(r, "food");
+          case "juice_shakes":
+            return matchesFoodType(r, "juice_shakes");
+          case "groceries":
+            return (
+              r.cuisines.some((c) => ["Groceries", "Fruits", "Snacks", "Beverages"].includes(c)) ||
+              /prince|fruit|juice/i.test(r.name)
+            );
           case "senior":
             // Senior Recommends: 4.2+ rating or top campus legends
             return r.rating !== null && r.rating >= 4.2;
@@ -325,7 +334,7 @@ export function CampusRestaurantFeed({
         {hasActiveFilters ? (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {activeFoodTypeObj ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron/15 text-saffron px-3 py-1 text-xs font-semibold border border-saffron/30">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-tf-maroon/10 text-tf-maroon dark:bg-rose-950/30 dark:text-rose-400 px-3 py-1 text-xs font-semibold border border-tf-maroon/20 dark:border-rose-900/40">
                 <span>{activeFoodTypeObj.emoji}</span>
                 <span>{activeFoodTypeObj.label}</span>
                 <button
@@ -340,7 +349,7 @@ export function CampusRestaurantFeed({
             ) : null}
 
             {activeCategoryObj ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron/15 text-saffron px-3 py-1 text-xs font-semibold border border-saffron/30">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-tf-maroon/10 text-tf-maroon dark:bg-rose-950/30 dark:text-rose-400 px-3 py-1 text-xs font-semibold border border-tf-maroon/20 dark:border-rose-900/40">
                 <span>{activeCategoryObj.badgeEmoji}</span>
                 <span>{activeCategoryObj.title}</span>
                 <button
@@ -355,7 +364,7 @@ export function CampusRestaurantFeed({
             ) : null}
 
             {dishFilter ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-saffron/15 text-saffron px-3 py-1 text-xs font-semibold border border-saffron/30">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-tf-maroon/10 text-tf-maroon dark:bg-rose-950/30 dark:text-rose-400 px-3 py-1 text-xs font-semibold border border-tf-maroon/20 dark:border-rose-900/40">
                 <span>🍽️</span>
                 <span>{dishFilter.name}</span>
                 <button
@@ -387,7 +396,7 @@ export function CampusRestaurantFeed({
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-xs font-semibold text-saffron hover:underline"
+              className="text-xs font-semibold text-tf-maroon dark:text-rose-400 hover:underline"
             >
               Reset all
             </button>

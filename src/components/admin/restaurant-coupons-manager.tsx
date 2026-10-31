@@ -456,7 +456,7 @@ function CreateCouponDialog({
                   type="button"
                   onClick={() => setChannel("DELIVERY")}
                   className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    !isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    !isDineIn ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   <Truck className="size-3.5" />
@@ -467,7 +467,7 @@ function CreateCouponDialog({
                   onClick={() => setChannel("DINE_IN")}
                   disabled={!isDineInAvailable}
                   className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    isDineIn ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   <UtensilsCrossed className="size-3.5" />
@@ -518,7 +518,7 @@ function CreateCouponDialog({
                     type="button"
                     onClick={() => setType("FLAT")}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      type === "FLAT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                      type === "FLAT" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                     }`}
                   >
                     Flat ₹
@@ -527,7 +527,7 @@ function CreateCouponDialog({
                     type="button"
                     onClick={() => setType("PERCENT")}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      type === "PERCENT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                      type === "PERCENT" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                     }`}
                   >
                     Percentage %
@@ -622,7 +622,7 @@ function CreateCouponDialog({
                   type="button"
                   onClick={() => setAppliesTo("ALL")}
                   className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    appliesTo === "ALL" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    appliesTo === "ALL" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   Entire Menu
@@ -631,7 +631,7 @@ function CreateCouponDialog({
                   type="button"
                   onClick={() => setAppliesTo("ITEMS")}
                   className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    appliesTo === "ITEMS" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    appliesTo === "ITEMS" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   Selected Items
@@ -820,7 +820,7 @@ function EditCouponDialog({
                   type="button"
                   onClick={() => setChannel("DELIVERY")}
                   className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    !isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    !isDineIn ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   <Truck className="size-3.5" />
@@ -831,7 +831,7 @@ function EditCouponDialog({
                   onClick={() => setChannel("DINE_IN")}
                   disabled={!isDineInAvailable}
                   className={`inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isDineIn ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    isDineIn ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   <UtensilsCrossed className="size-3.5" />
@@ -880,7 +880,7 @@ function EditCouponDialog({
                     type="button"
                     onClick={() => setType("FLAT")}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      type === "FLAT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                      type === "FLAT" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                     }`}
                   >
                     Flat ₹
@@ -889,7 +889,7 @@ function EditCouponDialog({
                     type="button"
                     onClick={() => setType("PERCENT")}
                     className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      type === "PERCENT" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                      type === "PERCENT" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                     }`}
                   >
                     Percentage %
@@ -984,7 +984,7 @@ function EditCouponDialog({
                   type="button"
                   onClick={() => setAppliesTo("ALL")}
                   className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    appliesTo === "ALL" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    appliesTo === "ALL" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   Entire Menu
@@ -993,7 +993,7 @@ function EditCouponDialog({
                   type="button"
                   onClick={() => setAppliesTo("ITEMS")}
                   className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                    appliesTo === "ITEMS" ? "bg-saffron text-ink shadow-sm" : "text-muted hover:text-bone"
+                    appliesTo === "ITEMS" ? "bg-saffron text-white shadow-sm" : "text-muted hover:text-bone"
                   }`}
                 >
                   Selected Items

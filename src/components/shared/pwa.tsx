@@ -509,7 +509,7 @@ export function InstallHeaderButton() {
     <button
       type="button"
       onClick={openInstallPrompt}
-      className="no-print print:hidden inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-ink active:scale-95"
+      className="no-print print:hidden inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-95"
       aria-label="Install TREFOOD App"
     >
       <Download className="size-3.5 shrink-0" />

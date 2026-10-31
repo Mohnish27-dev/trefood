@@ -64,11 +64,11 @@ export function DeliveryVerificationCard({ data }: Props) {
         {/* TreFood Official Campus Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-orange-600 flex items-center justify-center shadow-lg shadow-orange-600/30">
+            <div className="h-9 w-9 rounded-xl bg-saffron flex items-center justify-center shadow-lg shadow-saffron/30">
               <span className="font-black text-white text-lg tracking-tight">Tf</span>
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-orange-400">
+              <div className="text-xs font-semibold uppercase tracking-wider text-gold">
                 TreFood Campus Pass
               </div>
               <div className="text-sm font-bold text-white">
@@ -150,7 +150,7 @@ export function DeliveryVerificationCard({ data }: Props) {
         <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-sm">
           <div className="flex items-center gap-4">
             {partner.photoUrl ? (
-              <div className="relative h-20 w-20 rounded-2xl overflow-hidden border-2 border-orange-500 shrink-0 shadow-md">
+              <div className="relative h-20 w-20 rounded-2xl overflow-hidden border-2 border-saffron shrink-0 shadow-md">
                 <Image
                   src={partner.photoUrl}
                   alt={partner.name}
@@ -171,7 +171,7 @@ export function DeliveryVerificationCard({ data }: Props) {
                 {partner.name}
               </h2>
               <div className="mt-1 flex items-center gap-2">
-                <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-orange-400 font-bold border border-slate-700">
+                <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-gold font-bold border border-slate-700">
                   {partner.badgeId}
                 </span>
                 {partner.vehicleNumber ? (
@@ -251,7 +251,7 @@ export function DeliveryVerificationCard({ data }: Props) {
               href="tel:1800123456"
               className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-900 hover:bg-slate-850 active:scale-98 transition border border-slate-700 text-xs font-medium text-slate-200"
             >
-              <ShieldAlert className="h-4 w-4 text-orange-400" />
+              <ShieldAlert className="h-4 w-4 text-gold" />
               TreFood Ops Desk
             </a>
           </div>

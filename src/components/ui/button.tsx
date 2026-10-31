@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const buttonVariants = cva(
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl",
-    "font-medium transition-all outline-none",
+    "font-medium transition-all outline-none cursor-pointer",
     "disabled:pointer-events-none disabled:opacity-40",
     "[&_svg]:pointer-events-none [&_svg]:shrink-0",
     "active:scale-[0.98]",
@@ -20,15 +20,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Saffron is action, and only action. If two saffron buttons appear on
-        // one screen, one of them is wrong.
+        // Royal Maroon is the core brand action color.
         primary:
-          "bg-saffron text-ink font-semibold hover:bg-saffron-glow shadow-[0_2px_16px_-4px] shadow-saffron/50",
+          "bg-saffron text-white font-semibold hover:bg-saffron-glow shadow-[0_2px_16px_-4px] shadow-saffron/40",
+        maroon:
+          "bg-maroon text-white font-semibold hover:bg-maroon-glow shadow-[0_2px_16px_-4px] shadow-maroon/40",
+        gold:
+          "bg-gold text-slate-950 font-bold hover:brightness-105 shadow-[0_2px_14px_-2px_rgba(252,181,26,0.45)]",
         secondary: "bg-surface-raised text-bone border border-line hover:bg-surface-hover",
         outline: "border border-line text-bone hover:bg-surface-raised",
         ghost: "text-muted hover:text-bone hover:bg-surface-raised",
         danger: "bg-chili text-white font-semibold hover:bg-chili/90",
-        success: "bg-mint text-ink font-semibold hover:bg-mint/90",
+        success: "bg-mint text-white font-semibold hover:bg-mint/90",
         link: "text-saffron underline-offset-4 hover:underline",
       },
       size: {

@@ -211,7 +211,7 @@ export function CheckoutView({
                     selected ? "border-saffron bg-saffron" : "border-line",
                   )}
                 >
-                  {selected ? <span className="size-2 rounded-full bg-ink" /> : null}
+                  {selected ? <span className="size-2 rounded-full bg-white" /> : null}
                 </span>
 
                 <span className="min-w-0 flex-1">
@@ -397,7 +397,7 @@ export function CheckoutView({
         </span>
       </p>
 
-      <Link href="/cart" className="mt-4 block text-center text-sm text-muted hover:text-saffron">
+      <Link href="/cart" className="mt-4 block text-center text-sm text-muted hover:text-tf-maroon dark:hover:text-rose-400">
         ← Back to cart
       </Link>
     </div>

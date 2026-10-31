@@ -25,13 +25,13 @@ const THEME_STORAGE_KEY = "trefood-theme";
 /**
  * Inline script to be injected into <head> before DOM rendering.
  * Prevents Flash of Unstyled Content (FOUC) by immediately applying
- * the saved theme or defaulting to 'dark'.
+ * the saved theme or defaulting to 'light'.
  */
 export const themeInitScript = `
 (function() {
   try {
     var stored = localStorage.getItem('${THEME_STORAGE_KEY}');
-    var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+    var theme = stored === 'light' || stored === 'dark' ? stored : 'light';
     var root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
@@ -42,7 +42,7 @@ export const themeInitScript = `
 `;
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Sync state with DOM and localStorage on initial mount
@@ -50,11 +50,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
       const initialTheme: Theme =
-        stored === "light" || stored === "dark" ? stored : "dark";
+        stored === "light" || stored === "dark" ? stored : "light";
       setThemeState(initialTheme);
       applyTheme(initialTheme);
     } catch {
-      applyTheme("dark");
+      applyTheme("light");
     } finally {
       setIsLoaded(true);
     }
@@ -82,7 +82,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Update browser theme-color meta tag for PWA and mobile status bar
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute("content", next === "dark" ? "#0B0D12" : "#F8F9FC");
+      metaThemeColor.setAttribute("content", next === "dark" ? "#14050A" : "#830020");
     }
   };
 

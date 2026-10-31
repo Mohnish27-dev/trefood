@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, Home, ShoppingCart, User } from "lucide-react";
+import { ClipboardList, Home, Search, ShoppingCart, User } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,17 +8,7 @@ import { useCart } from "@/hooks/use-cart";
 import { cn } from "@/lib/utils";
 
 /**
- * Bottom navigation.
- *
- * Thumb-reachable on a 360px phone held one-handed, which is how this app is
- * actually used — walking to a gate, at night, carrying something else.
- * `pb-safe` keeps it clear of the home indicator once installed as a PWA.
- */
-/**
- * A saffron bar under the tab that was just tapped, while the next route is
- * still on the wire. It is delayed by 120ms in CSS, so a prefetched (that
- * is, instant) navigation never flashes it — this only ever appears when
- * the network is actually slow.
+ * A maroon bar under the tab that was just tapped while route is on wire.
  */
 function TapHint() {
   const { pending } = useLinkStatus();
@@ -27,7 +17,7 @@ function TapHint() {
   return (
     <span
       aria-hidden
-      className="nav-tap-hint absolute inset-x-5 bottom-1 h-0.5 rounded-full bg-saffron"
+      className="nav-tap-hint absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-tf-maroon animate-pulse"
     />
   );
 }
@@ -38,7 +28,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
   const activeCampus = campusSlug ?? "nit-patna";
 
   const items = [
-    { href: `/c/${activeCampus}`, label: "Browse", icon: Home },
+    { href: `/c/${activeCampus}`, label: "Home", icon: Home },
     { href: "/cart", label: "Cart", icon: ShoppingCart, badge: itemCount },
     { href: "/orders", label: "Orders", icon: ClipboardList },
     { href: "/account", label: "Account", icon: User },
@@ -46,7 +36,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 backdrop-blur-lg pb-safe"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e8ded9] dark:border-line bg-white/95 dark:bg-surface/95 backdrop-blur-xl shadow-[0_-4px_24px_rgba(131,0,32,0.04)] pb-safe"
       aria-label="Main"
     >
       <ul className="mx-auto flex max-w-lg">
@@ -60,20 +50,37 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  // 44px floor, same as Button.
-                  "relative flex min-h-14 flex-col items-center justify-center gap-1 py-2 transition-colors",
-                  active ? "text-saffron" : "text-faint hover:text-muted",
+                  "relative flex min-h-14 flex-col items-center justify-center gap-1 py-1.5 transition-all select-none",
+                  active
+                    ? "text-tf-maroon dark:text-rose-400 font-bold"
+                    : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
                 )}
               >
                 <span className="relative">
-                  <Icon className="size-5" />
+                  <Icon
+                    className={cn(
+                      "size-5 transition-transform",
+                      active && "scale-110 stroke-[2.4]",
+                    )}
+                  />
                   {badge !== undefined && badge > 0 ? (
-                    <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-saffron px-1 text-[10px] font-bold tabular text-ink">
+                    <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-tf-maroon text-white px-1 text-[10px] font-bold tabular shadow-xs">
                       {badge > 9 ? "9+" : badge}
                     </span>
                   ) : null}
                 </span>
-                <span className="text-[10px] font-medium leading-none">{label}</span>
+                <span className="text-[11px] font-medium leading-none tracking-tight">
+                  {label}
+                </span>
+
+                {/* Active Indicator Bar (Underline from reference) */}
+                {active ? (
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-6 bottom-0 h-1 rounded-t-full bg-tf-maroon dark:bg-rose-400 transition-all"
+                  />
+                ) : null}
+
                 <TapHint />
               </Link>
             </li>

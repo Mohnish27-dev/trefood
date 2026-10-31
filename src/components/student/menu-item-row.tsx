@@ -327,7 +327,7 @@ function AddOnSheet({
                               isSelected ? "border-saffron bg-saffron" : "border-line",
                             )}
                           >
-                            {isSelected ? <span className="size-2 rounded-full bg-ink" /> : null}
+                            {isSelected ? <span className="size-2 rounded-full bg-white" /> : null}
                           </span>
 
                           <span className="flex-1 text-sm text-bone">{option.name}</span>

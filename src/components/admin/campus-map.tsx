@@ -40,7 +40,7 @@ export interface MapZone {
  * has no such dependency, costs no request, and takes the palette.
  */
 function pin(zone: MapZone): L.DivIcon {
-  const colour = !zone.isActive ? "#5a6274" : zone.isFallback ? "#34d399" : "#ff6b1a";
+  const colour = !zone.isActive ? "#9a918e" : zone.isFallback ? "#15803d" : "#830020";
   return L.divIcon({
     className: "",
     html: `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:${colour};border:2px solid #0b0d12;box-shadow:0 0 0 2px ${colour}55"></span>`,
@@ -90,14 +90,14 @@ export function CampusMap({
           // GeoJSON is [lng, lat]; Leaflet wants [lat, lng]. Getting this
           // backwards puts NIT Patna in the Indian Ocean.
           positions={polygon.map(([lng, lat]) => [lat, lng] as [number, number])}
-          pathOptions={{ color: "#ff6b1a", weight: 2, fillOpacity: 0.06 }}
+          pathOptions={{ color: "#830020", weight: 2, fillOpacity: 0.08 }}
         />
       ) : null}
 
       {draftPoints.length >= 2 ? (
         <Polyline
           positions={draftPoints}
-          pathOptions={{ color: "#fbbf24", weight: 2, dashArray: "6 6" }}
+          pathOptions={{ color: "#fcb51a", weight: 2, dashArray: "6 6" }}
         />
       ) : null}
 
@@ -107,7 +107,7 @@ export function CampusMap({
           position={point}
           icon={L.divIcon({
             className: "",
-            html: `<span style="display:block;width:10px;height:10px;border-radius:9999px;background:#fbbf24;border:2px solid #0b0d12"></span>`,
+            html: `<span style="display:block;width:10px;height:10px;border-radius:9999px;background:#fcb51a;border:2px solid #ffffff"></span>`,
             iconSize: [10, 10],
             iconAnchor: [5, 5],
           })}
