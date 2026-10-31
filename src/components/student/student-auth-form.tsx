@@ -42,7 +42,6 @@ import { cn } from "@/lib/utils";
 
 interface StudentAuthFormProps {
   redirectTo: string | null;
-  initialType?: "student" | "vendor";
   /**
    * Resolved on the server from the signed device cookie.
    */
@@ -52,7 +51,6 @@ interface StudentAuthFormProps {
   children?: ReactNode;
 }
 
-type UserType = "student" | "vendor";
 type StudentAuthMode = "signin" | "signup" | "forgot";
 
 /**
@@ -70,7 +68,6 @@ interface CodeStep {
 }
 
 const REASONS: Record<string, string> = {
-  vendor: "That account is not linked to a restaurant. Pick a vendor account below.",
   admin: "That page needs an admin account.",
   auth_failed: "Authentication could not be completed. Please try signing in again.",
   // Only shown after the callback has already restarted the flow once on its
@@ -84,32 +81,25 @@ const REASONS: Record<string, string> = {
 
 export function StudentAuthForm({
   redirectTo,
-  initialType = "student",
   quickUnlockDevice = null,
   reason,
   children,
 }: StudentAuthFormProps) {
-  const [userType, setUserType] = useState<UserType>(initialType);
   const [studentMode, setStudentMode] = useState<StudentAuthMode>("signin");
   const [showPassword, setShowPassword] = useState(false);
-  const [showVendorPassword, setShowVendorPassword] = useState(false);
 
   const [storedProfile, setStoredProfile] = useState<StoredQuickUnlockProfile | null>(null);
   const [showQuickUnlock, setShowQuickUnlock] = useState<boolean>(false);
   const [staleProfile, setStaleProfile] = useState(false);
 
   const deviceTrusted = Boolean(quickUnlockDevice?.trusted);
-  /** This device's PIN opens the vendor console, not the campus list. */
   const deviceIsVendor = deviceTrusted && isVendorRole(quickUnlockDevice?.role);
-
-  /**
-   * Set once somebody leaves the PIN pad on purpose ("switch account"), so the
-   * auto-open below does not drop them straight back onto it and trap them on
-   * a screen they just walked away from.
-   */
   const quickUnlockDismissedRef = useRef(false);
 
   useEffect(() => {
+    // If this device holds a vendor role, vendor login handles it.
+    if (deviceIsVendor) return;
+
     const timer = setTimeout(() => {
       const profile = getStoredQuickUnlockProfile();
 
@@ -121,15 +111,8 @@ export function StudentAuthForm({
         return;
       }
 
-      // The server's role always wins over whatever the last write to
-      // localStorage happened to say. The cookie was verified this request;
-      // the stored copy could be from before this device changed hands.
       const role = quickUnlockDevice?.role ?? null;
 
-      // The stored copy is only this device's cached label for the account the
-      // cookie names. If it describes somebody else — a tablet that changed
-      // hands, a phone a friend borrowed — it would put the wrong name over
-      // the keypad, so the server's identity is used instead.
       if (profile?.pinHash && profile.userId === quickUnlockDevice?.userId) {
         setStoredProfile({ ...profile, role });
       } else if (quickUnlockDevice?.userId) {
@@ -145,28 +128,11 @@ export function StudentAuthForm({
           role,
           updatedAt: Date.now(),
         });
-      } else {
-        return;
-      }
-
-      // A vendor tablet goes straight to the keypad. There is one account on
-      // that device and it has already been vouched for by the device cookie,
-      // so showing an email field first is a form nobody is going to fill in.
-      // Students keep the banner-then-tap flow: a phone is shared, browsed
-      // signed-out, and reached from links that are not "let me in".
-      //
-      // Never when `reason` is set. A reason means something upstream refused
-      // this account — most often a vendor whose restaurant link is gone — and
-      // opening the keypad would both bury the explanation and unlock straight
-      // back into the redirect that sent them here. The PIN is still one tap
-      // away on the banner; it just cannot be the thing that happens by itself.
-      if (isVendorRole(role) && !reason && !quickUnlockDismissedRef.current) {
-        setShowQuickUnlock(true);
       }
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [deviceTrusted, quickUnlockDevice, reason]);
+  }, [deviceTrusted, deviceIsVendor, quickUnlockDevice]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,10 +143,6 @@ export function StudentAuthForm({
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
 
-  // Vendor form fields
-  const [vendorEmail, setVendorEmail] = useState("");
-  const [vendorPassword, setVendorPassword] = useState("");
-
   // The six-digit code screen, and the new password it collects on a reset.
   const [codeStep, setCodeStep] = useState<CodeStep | null>(null);
   const [code, setCode] = useState("");
@@ -189,9 +151,6 @@ export function StudentAuthForm({
 
   /**
    * Counts the resend cooldown down once a second.
-   *
-   * The server enforces the real limit; this only stops somebody hammering a
-   * button that is going to be refused, and tells them how long to wait.
    */
   useEffect(() => {
     if (!codeStep) return;
@@ -208,13 +167,6 @@ export function StudentAuthForm({
   const explicitNext =
     redirectTo && redirectTo !== "/" && /^\/(?!\/)/.test(redirectTo) ? redirectTo : null;
 
-  /**
-   * Google sign-in is a plain link, not a click handler.
-   *
-   * The flow is a top-level navigation to Google and back, so a link is what
-   * it actually is — and it keeps working before React has hydrated, which the
-   * old JavaScript-only button did not.
-   */
   const googleEnabled = clientEnv.NEXT_PUBLIC_GOOGLE_ENABLED;
 
   const googleHref = explicitNext
@@ -364,29 +316,6 @@ export function StudentAuthForm({
     setSuccessMessage(null);
   };
 
-  const handleVendorSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccessMessage(null);
-    setLoading(true);
-
-    try {
-      const res = await signInWithEmail({
-        email: vendorEmail,
-        password: vendorPassword,
-        ...(redirectTo ? { redirectTo } : {}),
-      });
-
-      if (res.status === "error") {
-        setError(res.message);
-        setLoading(false);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Vendor sign-in failed.");
-      setLoading(false);
-    }
-  };
-
   if (showQuickUnlock && storedProfile) {
     return (
       <div className="light auth-theme w-full max-w-md mx-auto min-h-dvh flex flex-col justify-center px-4 py-8 bg-tf-cream text-tf-ink">
@@ -410,29 +339,21 @@ export function StudentAuthForm({
     setSuccessMessage(null);
   };
 
-  const switchUserType = (type: UserType) => {
-    setUserType(type);
-    setError(null);
-    setSuccessMessage(null);
-  };
-
   /** The two-tone headline under the artwork: plain lead, maroon accent. */
   const heading: { lead: string; accent: string; sub: string } =
-    userType === "vendor"
-      ? { lead: "Welcome, ", accent: "Partner!", sub: "Manage live orders and your menu." }
-      : codeStep
-        ? { lead: "Check your ", accent: "email", sub: "Enter the 6-digit code we just sent." }
-        : studentMode === "signup"
-          ? { lead: "Join ", accent: "TreFood!", sub: "Create your account in under a minute." }
-          : studentMode === "forgot"
-            ? { lead: "Reset your ", accent: "password", sub: "We will email you a 6-digit code." }
-            : {
-                lead: "Welcome to ",
-                accent: "TreFood!",
-                sub: isAdminRedirect
-                  ? "Sign in with your admin account to continue."
-                  : "Good Food. More Choices. Closer to You.",
-              };
+    codeStep
+      ? { lead: "Check your ", accent: "email", sub: "Enter the 6-digit code we just sent." }
+      : studentMode === "signup"
+        ? { lead: "Join ", accent: "TreFood!", sub: "Create your account in under a minute." }
+        : studentMode === "forgot"
+          ? { lead: "Reset your ", accent: "password", sub: "We will email you a 6-digit code." }
+          : {
+              lead: "Welcome to ",
+              accent: "TreFood!",
+              sub: isAdminRedirect
+                ? "Sign in with your admin account to continue."
+                : "Good Food. More Choices. Closer to You.",
+            };
 
   return (
     <div className="light auth-theme relative w-full max-w-md mx-auto min-h-dvh flex flex-col bg-tf-cream text-tf-ink shadow-2xl">
@@ -495,13 +416,13 @@ export function StudentAuthForm({
             </div>
           ) : null}
 
-          {/* Quick PIN Banner */}
-          {storedProfile && (deviceIsVendor ? userType === "vendor" : userType === "student") ? (
+          {/* Quick PIN Banner for Students */}
+          {storedProfile && !deviceIsVendor ? (
             <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-tf-maroon/25 bg-white p-3 text-xs shadow-sm">
               <div className="flex items-center gap-2.5 min-w-0">
                 <KeyRound className="size-4 shrink-0 text-tf-maroon" />
                 <span className="truncate">
-                  {deviceIsVendor ? "Unlock the dashboard for " : "Quick PIN is ready for "}
+                  Quick PIN is ready for{" "}
                   <strong className="text-tf-maroon">
                     {storedProfile.name || storedProfile.email}
                   </strong>
@@ -512,14 +433,14 @@ export function StudentAuthForm({
                 onClick={() => setShowQuickUnlock(true)}
                 className="shrink-0 rounded-lg bg-tf-maroon px-3 py-1.5 font-semibold text-white hover:bg-tf-maroon-deep transition-colors cursor-pointer"
               >
-                {deviceIsVendor ? "Enter PIN" : "Use PIN"}
+                Use PIN
               </button>
             </div>
           ) : null}
         </div>
 
         {/* ── Code step: shown instead of the whole student form ── */}
-        {userType === "student" && codeStep ? (
+        {codeStep ? (
           <div className="mt-4 space-y-4">
             <div className="flex items-start gap-3 rounded-xl ring-1 ring-tf-maroon/20 bg-white p-3.5">
               <MailCheck className="size-5 shrink-0 text-tf-maroon mt-0.5" />
@@ -540,8 +461,6 @@ export function StudentAuthForm({
                 value={code}
                 onChange={setCode}
                 disabled={loading}
-                // A reset needs a password too, so completing the code must
-                // not fire the request before that field has been filled in.
                 onComplete={codeStep.kind === "signup" ? (v) => void submitCode(v) : undefined}
               />
 
@@ -591,10 +510,7 @@ export function StudentAuthForm({
               </button>
             </div>
           </div>
-        ) : null}
-
-        {/* ── Student: sign in / sign up / reset ── */}
-        {userType === "student" && !codeStep ? (
+        ) : (
           <>
             <form onSubmit={(e) => void handleStudentSubmit(e)} className="mt-4 space-y-3">
               {studentMode === "signup" ? (
@@ -670,9 +586,6 @@ export function StudentAuthForm({
               </div>
             </form>
 
-            {/* Rendered only when a Google client is actually configured.
-                A button that always shows and sometimes dead-ends on
-                Google's own error page is worse than no button. */}
             {googleEnabled && studentMode !== "forgot" ? (
               <>
                 <div className="my-5 flex items-center gap-4">
@@ -703,63 +616,7 @@ export function StudentAuthForm({
               </button>
             </p>
           </>
-        ) : null}
-
-        {/* ── Vendor ── */}
-        {userType === "vendor" ? (
-          <>
-            <p className="mt-4 rounded-xl border bg-white p-3 text-xs leading-relaxed text-[#5a5655]">
-              Use the email and password the campus administrator gave you when your restaurant
-              was onboarded.
-            </p>
-
-            <form onSubmit={(e) => void handleVendorSubmit(e)} className="mt-3 space-y-3">
-              <AuthInput
-                icon={Mail}
-                id="vendor-auth-email"
-                type="email"
-                placeholder="Vendor email ID"
-                value={vendorEmail}
-                onChange={(e) => setVendorEmail(e.target.value)}
-                required
-                autoComplete="email"
-                disabled={loading}
-              />
-
-              <AuthInput
-                icon={Lock}
-                id="vendor-auth-password"
-                type={showVendorPassword ? "text" : "password"}
-                placeholder="Password"
-                value={vendorPassword}
-                onChange={(e) => setVendorPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                disabled={loading}
-                reveal={{
-                  shown: showVendorPassword,
-                  toggle: () => setShowVendorPassword(!showVendorPassword),
-                }}
-              />
-
-              <div className="pt-1">
-                <PrimaryButton loading={loading}>Login to Vendor Console</PrimaryButton>
-              </div>
-            </form>
-          </>
-        ) : null}
-
-        {/* ── Switch between student and restaurant partner sign-in ── */}
-        <p className="mt-4 text-center text-sm text-[#6b6563]">
-          {userType === "student" ? "Restaurant partner? " : "Ordering food? "}
-          <button
-            type="button"
-            onClick={() => switchUserType(userType === "student" ? "vendor" : "student")}
-            className="font-semibold text-tf-maroon hover:underline cursor-pointer"
-          >
-            {userType === "student" ? "Partner login" : "Student login"}
-          </button>
-        </p>
+        )}
       </section>
 
       {children}
@@ -787,7 +644,6 @@ function AuthInput({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   icon: LucideIcon;
-  /** Adds the show/hide eye for password fields. */
   reveal?: { shown: boolean; toggle: () => void };
 }) {
   return (

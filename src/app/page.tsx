@@ -226,7 +226,7 @@ export default function LandingPage() {
               </p>
             </div>
             <Link
-              href="/signin?tab=vendor"
+              href="/vendor/login"
               className="inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl border border-saffron/40 bg-saffron-wash px-5 text-sm font-semibold text-saffron transition-all hover:bg-saffron hover:text-ink active:scale-[0.98]"
             >
               Vendor console

@@ -23,7 +23,7 @@ export default async function VendorOrdersPage() {
   const { restaurantId } = await requireVendor();
 
   const board = await getVendorBoard({ restaurantId });
-  if (!board) redirect("/signin?next=/vendor/orders&reason=vendor");
+  if (!board) redirect("/vendor/login?next=/vendor/orders&reason=vendor");
 
   return <OrderBoard initial={board} stage="new" />;
 }

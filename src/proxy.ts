@@ -55,6 +55,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // answer a mutation with a document. The action re-checks auth itself.
   if (request.headers.has("next-action")) return response;
 
+  // The vendor login page itself must be accessible without credentials.
+  if (pathname === "/vendor/login") return response;
+
   if (!GUARDED.some((pattern) => pattern.test(pathname))) return response;
 
   const hasCredential = CREDENTIAL_COOKIES.some((name) => request.cookies.has(name));
@@ -65,6 +68,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const origin = forwardedHost
     ? `${forwardedProto}://${forwardedHost}`
     : process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+
+  // Unauthenticated vendor routes redirect to the dedicated vendor login page.
+  if (pathname.startsWith("/vendor")) {
+    const vendorLogin = new URL("/vendor/login", origin);
+    vendorLogin.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(vendorLogin);
+  }
 
   const signIn = new URL("/signin", origin);
   signIn.searchParams.set("next", `${pathname}${search}`);

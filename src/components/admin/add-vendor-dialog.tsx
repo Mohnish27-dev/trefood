@@ -134,7 +134,7 @@ export function AddVendorDialog({
   const handleCopyFullCredentials = async () => {
     if (!createdCredentials) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "https://trefood.in";
-    const loginUrl = `${origin}/signin?tab=vendor`;
+    const loginUrl = `${origin}/vendor/login`;
 
     const message = `🍽️ *TREFOOD Vendor Portal Credentials*
 ━━━━━━━━━━━━━━━━━━━━━
@@ -249,13 +249,13 @@ Sign in to view live orders, prepare KOTs, update menu availability, and manage 
                 </span>
                 <div className="flex items-center gap-2">
                   <code className="rounded bg-surface px-2 py-1 font-mono text-[11px] text-saffron">
-                    /signin?tab=vendor
+                    /vendor/login
                   </code>
                   <button
                     type="button"
                     onClick={() =>
                       handleCopy(
-                        `${typeof window !== "undefined" ? window.location.origin : ""}/signin?tab=vendor`,
+                        `${typeof window !== "undefined" ? window.location.origin : ""}/vendor/login`,
                         "Sign-in link",
                       )
                     }

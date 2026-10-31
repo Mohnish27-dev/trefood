@@ -27,16 +27,16 @@ export const dynamic = "force-dynamic";
 export default async function VendorLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
 
-  if (!session) redirect("/signin?next=/vendor/orders");
+  if (!session) redirect("/vendor/login?next=/vendor/orders");
   if (session.role !== ROLE.VENDOR_OWNER && session.role !== ROLE.VENDOR_STAFF) {
-    redirect("/signin?next=/vendor/orders&reason=vendor");
+    redirect("/vendor/login?next=/vendor/orders&reason=vendor");
   }
 
   const restaurant = session.user.restaurantId
     ? await getRestaurantById(session.user.restaurantId)
     : null;
 
-  if (!restaurant) redirect("/signin?next=/vendor/orders&reason=vendor");
+  if (!restaurant) redirect("/vendor/login?next=/vendor/orders&reason=vendor");
 
   return (
     <VendorShell

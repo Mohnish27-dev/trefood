@@ -13,7 +13,7 @@ export default async function VendorPreparingPage() {
   const { restaurantId } = await requireVendor();
 
   const board = await getVendorBoard({ restaurantId });
-  if (!board) redirect("/signin?next=/vendor/preparing&reason=vendor");
+  if (!board) redirect("/vendor/login?next=/vendor/preparing&reason=vendor");
 
   return <OrderBoard initial={board} stage="preparing" />;
 }

@@ -989,7 +989,7 @@ function VendorCredentialsDialog({ vendor }: { vendor: AdminVendorRow }) {
   const handleCopyFullMessage = async () => {
     if (!savedCredentials) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "https://trefood.in";
-    const loginUrl = `${origin}/signin?tab=vendor`;
+    const loginUrl = `${origin}/vendor/login`;
 
     const msg = `🍽️ *TREFOOD Vendor Portal Credentials*
 ━━━━━━━━━━━━━━━━━━━━━
@@ -1105,12 +1105,12 @@ Sign in to view live orders, prepare KOTs, update menu availability, and manage 
                 <div className="flex items-center justify-between border-b border-line pb-2">
                   <span className="text-muted">Login URL</span>
                   <div className="flex items-center gap-1.5">
-                    <code className="text-[11px] font-mono text-saffron">/signin?tab=vendor</code>
+                    <code className="text-[11px] font-mono text-saffron">/vendor/login</code>
                     <button
                       type="button"
                       onClick={() =>
                         handleCopy(
-                          `${typeof window !== "undefined" ? window.location.origin : ""}/signin?tab=vendor`,
+                          `${typeof window !== "undefined" ? window.location.origin : ""}/vendor/login`,
                           "Sign-in link",
                         )
                       }
