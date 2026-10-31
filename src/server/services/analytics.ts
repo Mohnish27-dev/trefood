@@ -14,7 +14,7 @@ import type { Campus } from "@/types/campus";
  * Every order is cash on delivery. The vendor's own staff came back from the
  * gate holding the full bill, so "revenue" here is the vendor's, and TREFOOD's
  * income is the commission line inside it. A column called "payable" would be
- * the wrong shape entirely; what a vendor has is a balance they owe us.
+ * the wrong shape entirely;  what a vendor has is a balance they owe us.
  *
  * Two independent sources, deliberately not merged:
  *

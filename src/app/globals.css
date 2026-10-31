@@ -526,14 +526,43 @@ h3,
    Print — KOT tickets only. 58mm and 80mm thermal.
    ══════════════════════════════════════════════════════════════════════ */
 
+@page {
+  margin: 0;
+  size: auto;
+}
+
 @media print {
+  html,
   body {
-    background: #fff !important;
-    color: #000 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     background-image: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .no-print {
+
+  /* Prevent dark backgrounds or surfaces from printing black ink */
+  .bg-ink,
+  .bg-surface,
+  .bg-surface-raised,
+  .dark body,
+  [data-theme="dark"] body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print,
+  .print\:hidden,
+  [data-sonner-toaster],
+  [aria-label="Install TREFOOD App"],
+  [role="region"][aria-label*="Install"],
+  [role="status"] {
     display: none !important;
+    visibility: hidden !important;
   }
 }
 

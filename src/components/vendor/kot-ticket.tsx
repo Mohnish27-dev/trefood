@@ -1,10 +1,12 @@
 "use client";
 
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Printer } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { downloadKotTicketImage } from "@/lib/kot-canvas";
 import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -38,11 +40,25 @@ export interface KotOrder {
  */
 export function KotTicket({ order }: { order: KotOrder }) {
   const [width, setWidth] = useState<"58" | "80">("80");
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
+  const handleSaveImage = async (): Promise<void> => {
+    try {
+      setIsSavingImage(true);
+      await downloadKotTicketImage(order, width);
+      toast.success("Ticket saved as image!");
+    } catch (err) {
+      console.error("Failed to save ticket image", err);
+      toast.error("Could not save ticket image. You can use Print / Save PDF instead.");
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
 
   return (
-    <div className="min-h-dvh bg-ink">
+    <div className="min-h-dvh bg-ink print:min-h-0 print:bg-white print:text-black print:p-0 print:m-0">
       {/* ── Controls. Never printed. ─────────────────────────────── */}
-      <div className="no-print mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-4">
+      <div className="no-print print:hidden mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-4">
         <Link
           href="/vendor/orders"
           className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm text-muted hover:text-bone"
@@ -51,7 +67,7 @@ export function KotTicket({ order }: { order: KotOrder }) {
           Back to the board
         </Link>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-line p-1">
             {(["58", "80"] as const).map((option) => (
               <button
@@ -68,17 +84,34 @@ export function KotTicket({ order }: { order: KotOrder }) {
             ))}
           </div>
 
-          <Button onClick={() => window.print()}>
-            <Printer />
-            Print
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleSaveImage()}
+            disabled={isSavingImage}
+            className="border-line text-bone hover:bg-surface-raised"
+          >
+            {isSavingImage ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            <span className="hidden sm:inline">Save Image</span>
+            <span className="sm:hidden">Save</span>
+          </Button>
+
+          <Button type="button" onClick={() => window.print()}>
+            <Printer className="size-4" />
+            <span>Print / Save PDF</span>
           </Button>
         </div>
       </div>
 
       {/* ── The ticket ───────────────────────────────────────────── */}
-      <div className="mx-auto px-4 pb-10">
+      <div className="mx-auto px-4 pb-10 print:p-0 print:m-0 print:w-auto">
         <div
-          className="mx-auto bg-white p-3 font-mono text-[13px] leading-snug text-black"
+          id="kot-ticket-paper"
+          className="mx-auto bg-white p-3.5 sm:p-4 font-mono text-[13px] leading-snug text-black shadow-xl print:m-0 print:p-3 print:shadow-none print:border-none"
           style={{ width: width === "58" ? "58mm" : "80mm" }}
         >
           <p className="text-center text-base font-bold uppercase tracking-wide">

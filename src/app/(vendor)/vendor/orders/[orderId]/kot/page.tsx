@@ -8,7 +8,18 @@ import { getCampusById } from "@/server/services/catalog";
 import { revealGateCode } from "@/server/services/gate-code";
 import { campusClock } from "@/lib/campus-time";
 
-export const metadata: Metadata = { title: "Kitchen ticket" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orderId: string }>;
+}): Promise<Metadata> {
+  const { orderId } = await params;
+  const order = await getOrder(orderId);
+  if (!order) return { title: "Kitchen ticket" };
+  return {
+    title: `KOT #${order.orderNumber} · ${order.restaurantSnapshot.name}`,
+  };
+}
 export const dynamic = "force-dynamic";
 
 /**
