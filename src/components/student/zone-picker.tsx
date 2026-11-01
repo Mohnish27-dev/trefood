@@ -73,6 +73,7 @@ export function ZonePicker({
               size="sm"
               showText
               showTagline
+              tagline="CAMPUS COMMERCE PLATFORM"
             />
           </Link>
 

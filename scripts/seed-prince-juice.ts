@@ -199,6 +199,17 @@ const ITEMS: ItemDef[] = [
     sortOrder: 1,
   },
   {
+    id: "pj_orange_juice",
+    categoryId: "cat_pj_juices",
+    name: "Orange Juice",
+    description: "Pure freshly squeezed sweet orange juice full of natural vitamin C.",
+    isVeg: true,
+    pricePaise: R(50),
+    isPopular: true,
+    addOnGroups: [beverageSizeGroup({ small: R(50), medium: R(75), large: R(100) })],
+    sortOrder: 2.5,
+  },
+  {
     id: "pj_sweet_lime_juice",
     categoryId: "cat_pj_juices",
     name: "Sweet Lime Juice",

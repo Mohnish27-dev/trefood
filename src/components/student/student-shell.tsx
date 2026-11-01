@@ -32,7 +32,7 @@ export function StudentShell({ children, user }: StudentShellProps) {
   const campusSlug = fromPath ?? cartCampus;
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col bg-[#FAFAFA] dark:bg-ink text-slate-900 dark:text-bone">
       <div className="flex-1 pb-24">{children}</div>
       {/* Quick Unlock Onboarding Prompt */}
       <QuickUnlockPrompt user={user} />

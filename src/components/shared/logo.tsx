@@ -6,6 +6,7 @@ interface BrandLogoProps {
   size?: "sm" | "md" | "lg" | "xl";
   showText?: boolean;
   showTagline?: boolean;
+  tagline?: string;
   variant?: "light" | "on-maroon" | "auto";
   className?: string;
   href?: string;
@@ -57,6 +58,7 @@ export function BrandLogo({
   size = "md",
   showText = true,
   showTagline = false,
+  tagline = "Food · Fruits · Groceries",
   variant = "auto",
   className,
   href,
@@ -141,7 +143,7 @@ export function BrandLogo({
                 isDarkBg ? "text-white/80" : "text-tf-maroon/80 dark:text-muted",
               )}
             >
-              Food · Fruits · Groceries
+              {tagline}
             </span>
           ) : null}
         </div>

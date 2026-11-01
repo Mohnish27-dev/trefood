@@ -124,7 +124,7 @@ export function CampusSearchBar({
             setIsOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search for food, fruits, groceries..."
+          placeholder="Search food, fruits, vegetables, groceries..."
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -137,7 +137,7 @@ export function CampusSearchBar({
             activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
           }
           className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none"
-          aria-label="Search for food, fruits, groceries"
+          aria-label="Search food, fruits, vegetables, groceries"
         />
 
         <div className="flex items-center gap-2">

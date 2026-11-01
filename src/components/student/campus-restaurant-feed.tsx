@@ -219,6 +219,18 @@ export function CampusRestaurantFeed({
               r.cuisines.some((c) => ["Groceries", "Fruits", "Snacks", "Beverages"].includes(c)) ||
               /prince|fruit|juice/i.test(r.name)
             );
+          case "vegetables":
+            return (
+              r.cuisines.some((c) =>
+                ["Vegetables", "Groceries", "Fresh Fruits", "Healthy Food", "Salads"].includes(c),
+              ) || /veg|prince|fruit|mandi|market/i.test(r.name)
+            );
+          case "chicken":
+            return (
+              r.cuisines.some((c) =>
+                ["Chicken", "Non-Veg", "Biryani", "Rolls", "Mughlai", "Fast Food"].includes(c),
+              ) || /chicken|biryani|zaika|kolkata|wrapchik|royal/i.test(r.name)
+            );
           case "senior":
             // Senior Recommends: 4.2+ rating or top campus legends
             return r.rating !== null && r.rating >= 4.2;
@@ -301,6 +313,10 @@ export function CampusRestaurantFeed({
         onSelectSuggestion={handleSelectSuggestion}
         onSearchWake={loadSearchIndex}
         searchIndexLoading={indexLoading}
+        restaurants={orderedRestaurants}
+        campusSlug={campusSlug}
+        favouriteIds={favouriteIds}
+        signedIn={signedIn}
       />
 
       {/* ── PWA Mobile Sticky Food Type Filters (All, Food, Fruits, Juices) ── */}
@@ -311,7 +327,7 @@ export function CampusRestaurantFeed({
       />
 
       {/* ── Filter Feedback & Status Row ────────────────────────────── */}
-      <div ref={resultsRef} className="scroll-mt-3 pt-2">
+      <div id="restaurant-feed" ref={resultsRef} className="scroll-mt-3 pt-2">
         <div className="mb-3 flex items-baseline justify-between">
           <div className="flex items-center gap-2">
             <h1 className="font-display text-lg font-semibold text-bone">

@@ -256,6 +256,17 @@ const ITEMS: ItemDef[] = [
     sortOrder: 1,
   },
   {
+    id: "rd_orange_juice",
+    categoryId: "cat_rd_fresh_juices",
+    name: "Orange Juice",
+    description: "Pure freshly squeezed sweet orange juice with no added preservatives.",
+    isVeg: true,
+    pricePaise: R(50),
+    isPopular: true,
+    addOnGroups: [portionGroup(R(50), R(70), "Small Glass (₹50)", "Large Glass (₹70)")],
+    sortOrder: 2.5,
+  },
+  {
     id: "rd_mousambi_juice",
     categoryId: "cat_rd_fresh_juices",
     name: "Fresh Mousambi Juice",
