@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { AuthError, requireAdmin } from "@/server/auth/session";
-import { getRadar, type RadarSnapshot } from "@/server/services/admin";
+import { isFullAdmin } from "@/lib/constants";
+import { AuthError, requireStaff } from "@/server/auth/session";
+import { getRadar, withoutStudents, type RadarSnapshot } from "@/server/services/admin";
 
 /**
  * The admin live radar poll. Every 10 seconds — slower than the vendor board,
@@ -18,12 +19,12 @@ export type AdminRadarResponse = RadarSnapshot;
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    await requireAdmin();
+    const session = await requireStaff();
 
     const campusId = new URL(request.url).searchParams.get("campusId");
 
     const snapshot = await getRadar(campusId ? { campusId } : {});
-    return NextResponse.json(snapshot, {
+    return NextResponse.json(isFullAdmin(session.role) ? snapshot : withoutStudents(snapshot), {
       headers: { "cache-control": "no-store, no-cache, must-revalidate" },
     });
   } catch (error: unknown) {

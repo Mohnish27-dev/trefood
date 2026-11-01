@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 import { AuditTable, type AuditRow } from "@/components/admin/audit-table";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { listAuditLogs } from "@/server/services/audit";
 
 export const metadata: Metadata = { title: "Audit log" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminAuditPage() {
-  await requireAdmin();
+  await requireAdminPage();
 
   const logs = await listAuditLogs({ limit: 400 });
 

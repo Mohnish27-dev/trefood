@@ -5,7 +5,7 @@ import {
   type CampusOption,
   type StatementRow,
 } from "@/components/admin/settlement-table";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { listAllCampuses, listVendors } from "@/server/services/admin";
 import { listStatements, previewUnbilled } from "@/server/services/settlement";
 import { campusDateString, shiftCampusDate } from "@/lib/campus-time";
@@ -21,7 +21,7 @@ export default async function AdminSettlementsPage({
 }: {
   searchParams: Promise<{ campus?: string; date?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
 
   const params = await searchParams;
   const campuses = await listAllCampuses();

@@ -2,6 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Plus, X } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -39,6 +40,8 @@ export function MenuItemRow({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<string[] | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = imageFailed ? null : item.imageUrl;
 
   const hasChoices = item.addOnGroups.length > 0;
   const canOrder = item.isAvailable && restaurantIsOpen;
@@ -129,22 +132,46 @@ export function MenuItemRow({
           ) : null}
         </div>
 
-        <div className="shrink-0 pt-1">
-          {canOrder ? (
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => (hasChoices ? setSheetOpen(true) : commit([]))}
-              aria-label={`Add ${item.name}`}
-            >
-              <Plus />
-              Add
-            </Button>
-          ) : (
-            <Button size="sm" variant="ghost" disabled>
-              {item.isAvailable ? "Closed" : "Out"}
-            </Button>
-          )}
+        <div className="flex shrink-0 flex-col items-center">
+          {imageUrl ? (
+            <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-line bg-surface sm:h-28 sm:w-28">
+              <Image
+                src={imageUrl}
+                alt={item.name}
+                fill
+                sizes="(max-width: 640px) 96px, 112px"
+                className={cn("object-cover", !item.isAvailable && "opacity-50 grayscale")}
+                // Vendor-supplied URLs may point at any host; only static
+                // asset files go through the optimizer.
+                unoptimized={!imageUrl.startsWith("/") || imageUrl.startsWith("/api/")}
+                onError={() => setImageFailed(true)}
+              />
+            </div>
+          ) : null}
+
+          <div className={cn(imageUrl ? "z-10 -mt-4" : "pt-1")}>
+            {canOrder ? (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => (hasChoices ? setSheetOpen(true) : commit([]))}
+                aria-label={`Add ${item.name}`}
+                className={cn(imageUrl && "shadow-md")}
+              >
+                <Plus />
+                Add
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled
+                className={cn(imageUrl && "border border-line bg-surface shadow-sm")}
+              >
+                {item.isAvailable ? "Closed" : "Out"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -300,7 +327,7 @@ function AddOnSheet({
                               isSelected ? "border-saffron bg-saffron" : "border-line",
                             )}
                           >
-                            {isSelected ? <span className="size-2 rounded-full bg-ink" /> : null}
+                            {isSelected ? <span className="size-2 rounded-full bg-white" /> : null}
                           </span>
 
                           <span className="flex-1 text-sm text-bone">{option.name}</span>

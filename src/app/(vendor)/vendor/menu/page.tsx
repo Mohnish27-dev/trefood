@@ -29,6 +29,7 @@ export default async function VendorMenuPage() {
       description: item.description,
       isVeg: item.isVeg,
       pricePaise: item.pricePaise,
+      imageUrl: item.imageUrl ?? null,
       isAvailable: item.isAvailable,
       isPopular: item.isPopular ?? false,
       packingFeeEnabled: item.packingFeeEnabled ?? false,

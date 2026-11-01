@@ -50,7 +50,7 @@ export function SignInPicker({
     {
       heading: "TREFOOD ops",
       blurb: "Radar, settlements and campus data.",
-      roles: [ROLE.ADMIN, ROLE.SUPER_ADMIN],
+      roles: [ROLE.ADMIN, ROLE.SUPER_ADMIN, ROLE.CO_ADMIN],
       icon: Wrench,
     },
   ];

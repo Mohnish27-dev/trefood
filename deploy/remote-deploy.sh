@@ -55,7 +55,11 @@ start_image() {
   # Pull explicitly rather than letting `up` do it, so a registry auth
   # failure is reported as a registry auth failure and not as a vague
   # "service app failed to start".
-  docker compose pull app
+  if ! docker compose pull app; then
+    log "Pull failed. Checking if stale credentials exist in ~/.docker/config.json; logging out and retrying..."
+    docker logout ghcr.io 2>/dev/null || true
+    docker compose pull app
+  fi
   # No service argument: this also starts the proxy when COMPOSE_PROFILES
   # enables it, and is a no-op for it when it does not.
   docker compose up -d

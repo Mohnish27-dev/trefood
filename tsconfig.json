@@ -23,6 +23,7 @@
     "useUnknownInCatchVariables": true,
 
     "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] }
   },
   "include": [

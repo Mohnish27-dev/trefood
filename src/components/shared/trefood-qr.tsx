@@ -14,7 +14,7 @@ interface TreFoodQRCodeProps {
 export function TreFoodQRCode({
   url = "https://trefood.in",
   size = 320,
-  brandColor = "#ff5414",
+  brandColor = "#830020",
   className = "",
   showDownloadButtons = false,
 }: TreFoodQRCodeProps) {
@@ -308,7 +308,7 @@ export function TreFoodQRCode({
               fill="#ffffff"
             />
             <image
-              href="/logo.png"
+              href="/brand/trefood-brand-logo.jpg"
               x={imgX}
               y={imgY}
               width={imgSize}
@@ -324,7 +324,7 @@ export function TreFoodQRCode({
           <button
             type="button"
             onClick={() => downloadPNG(1024)}
-            className="rounded-lg bg-orange-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-500"
+            className="rounded-lg bg-saffron px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-saffron/90"
           >
             Download PNG (1024px)
           </button>

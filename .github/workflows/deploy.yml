@@ -14,7 +14,7 @@
 #  Setup — secrets, variables, and the one-time server bootstrap — is in
 #  docs/DEPLOYMENT.md. Nothing here works until that has been done once.
 # ══════════════════════════════════════════════════════════════════════
-name: Deploy to Lightsail
+name: Deploy to EC2
 
 on:
   push:

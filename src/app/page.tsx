@@ -226,8 +226,8 @@ export default function LandingPage() {
               </p>
             </div>
             <Link
-              href="/signin?tab=vendor"
-              className="inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl border border-saffron/40 bg-saffron-wash px-5 text-sm font-semibold text-saffron transition-all hover:bg-saffron hover:text-ink active:scale-[0.98]"
+              href="/vendor/login"
+              className="inline-flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl border border-saffron/40 bg-saffron-wash px-5 text-sm font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-[0.98]"
             >
               Vendor console
               <ArrowRight className="size-4" />
@@ -328,7 +328,7 @@ function HeaderCtaShell({ href, children }: { href: string; children: React.Reac
   return (
     <Link
       href={href}
-      className="inline-flex min-h-11 items-center rounded-xl border border-saffron/35 bg-saffron-wash px-4 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-ink active:scale-95"
+      className="inline-flex min-h-11 items-center rounded-xl border border-saffron/35 bg-saffron-wash px-4 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-95"
     >
       {children}
     </Link>
@@ -348,7 +348,7 @@ function HeroCtaShell({
   return (
     <Link
       href={href}
-      className="group inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-saffron px-6 text-sm font-semibold text-ink shadow-lg shadow-saffron/25 transition-all hover:bg-saffron-glow active:scale-[0.98]"
+      className="group inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-saffron px-6 text-sm font-semibold text-white shadow-lg shadow-saffron/25 transition-all hover:bg-saffron-glow active:scale-[0.98]"
     >
       <Icon className="size-4" />
       <span>{children}</span>

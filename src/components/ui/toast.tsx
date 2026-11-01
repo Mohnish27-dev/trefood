@@ -22,7 +22,7 @@ export function Toaster() {
         classNames: {
           toast: "!bg-surface-raised !border-line !text-bone !rounded-xl",
           description: "!text-muted",
-          actionButton: "!bg-saffron !text-ink",
+          actionButton: "!bg-saffron !text-white font-semibold",
         },
       }}
     />

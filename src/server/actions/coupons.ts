@@ -10,6 +10,7 @@ import {
   createCouponDirectly,
   deleteCoupon,
   toggleCouponStatus,
+  updateCoupon,
 } from "@/server/services/coupons";
 
 export type ActionResponse =
@@ -80,12 +81,11 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
     maxDiscountPaise,
     minOrderPaise,
     perStudentLimit,
-    // Nothing claims a slot at the counter, so a dine-in person limit could never be enforced.
     personLimit: channel === "DINE_IN" ? 0 : personLimit,
     menuItemIds,
     channel,
-    // No validUntil: every coupon closes at the end of the campus day it was made.
     actorId: session.user._id,
+    actorRole: ACTOR.ADMIN,
   });
 
   if (!res.ok) {
@@ -98,6 +98,227 @@ export async function createRestaurantCouponAction(input: unknown): Promise<Acti
   return {
     status: "success",
     message: `${channel === "DINE_IN" ? "Dine-in coupon" : "Coupon"} "${code.toUpperCase()}" created successfully!`,
+  };
+}
+
+const vendorCreateCouponSchema = z.object({
+  code: z
+    .string()
+    .min(3, "Code must be at least 3 characters")
+    .max(20, "Code cannot exceed 20 characters")
+    .regex(/^[A-Za-z0-9_-]+$/, "Code must contain only letters, numbers, and dashes"),
+  description: z.string().max(100).optional(),
+  type: z.enum(["FLAT", "PERCENT"]),
+  value: z.number().positive("Discount value must be greater than 0"),
+  maxDiscountRupees: z.number().nonnegative().optional(),
+  minOrderRupees: z.number().nonnegative().default(0),
+  perStudentLimit: z.number().int().min(1).default(1),
+  personLimit: z.number().int().min(0, "Person limit cannot be negative").default(0),
+  menuItemIds: z.array(z.string().min(1)).max(200).default([]),
+  channel: z.enum(["DELIVERY", "DINE_IN"]).default("DELIVERY"),
+});
+
+export async function createVendorCouponAction(input: unknown): Promise<ActionResponse> {
+  const { restaurantId, user } = await requireVendor();
+  const parsed = vendorCreateCouponSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid coupon details" };
+  }
+
+  const {
+    code,
+    description,
+    type,
+    value,
+    maxDiscountRupees,
+    minOrderRupees,
+    perStudentLimit,
+    personLimit,
+    menuItemIds,
+    channel,
+  } = parsed.data;
+
+  const valuePaise = type === "FLAT" ? rupeesToPaise(value) : 0;
+  const valueBps = type === "PERCENT" ? pctToBps(value) : 0;
+  const maxDiscountPaise =
+    type === "PERCENT" && maxDiscountRupees !== undefined
+      ? rupeesToPaise(maxDiscountRupees)
+      : valuePaise;
+  const minOrderPaise = rupeesToPaise(minOrderRupees);
+
+  const res = await createCouponDirectly({
+    code,
+    description: description || null,
+    restaurantId,
+    type,
+    valuePaise,
+    valueBps,
+    maxDiscountPaise,
+    minOrderPaise,
+    perStudentLimit,
+    personLimit: channel === "DINE_IN" ? 0 : personLimit,
+    menuItemIds,
+    channel,
+    actorId: user._id,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!res.ok) {
+    return { status: "error", message: res.message };
+  }
+
+  revalidatePath("/vendor/coupons");
+  revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
+  revalidatePath("/admin/vendors");
+  return {
+    status: "success",
+    message: `${channel === "DINE_IN" ? "Dine-in coupon" : "Coupon"} "${code.toUpperCase()}" created successfully!`,
+  };
+}
+
+const updateCouponSchema = z.object({
+  couponId: z.string().min(1, "Coupon ID is required"),
+  code: z
+    .string()
+    .min(3, "Code must be at least 3 characters")
+    .max(20, "Code cannot exceed 20 characters")
+    .regex(/^[A-Za-z0-9_-]+$/, "Code must contain only letters, numbers, and dashes")
+    .optional(),
+  description: z.string().max(100).optional(),
+  restaurantId: z.string().optional(),
+  type: z.enum(["FLAT", "PERCENT"]),
+  value: z.number().positive("Discount value must be greater than 0"),
+  maxDiscountRupees: z.number().nonnegative().optional(),
+  minOrderRupees: z.number().nonnegative().default(0),
+  perStudentLimit: z.number().int().min(1).default(1),
+  personLimit: z.number().int().min(0, "Person limit cannot be negative").default(0),
+  menuItemIds: z.array(z.string().min(1)).max(200).default([]),
+  channel: z.enum(["DELIVERY", "DINE_IN"]).default("DELIVERY"),
+});
+
+export async function updateRestaurantCouponAction(input: unknown): Promise<ActionResponse> {
+  const session = await requireAdmin();
+  const parsed = updateCouponSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid coupon details" };
+  }
+
+  const {
+    couponId,
+    code,
+    description,
+    restaurantId,
+    type,
+    value,
+    maxDiscountRupees,
+    minOrderRupees,
+    perStudentLimit,
+    personLimit,
+    menuItemIds,
+    channel,
+  } = parsed.data;
+
+  const valuePaise = type === "FLAT" ? rupeesToPaise(value) : 0;
+  const valueBps = type === "PERCENT" ? pctToBps(value) : 0;
+  const maxDiscountPaise =
+    type === "PERCENT" && maxDiscountRupees !== undefined
+      ? rupeesToPaise(maxDiscountRupees)
+      : valuePaise;
+  const minOrderPaise = rupeesToPaise(minOrderRupees);
+
+  const res = await updateCoupon({
+    couponId,
+    code,
+    description: description || null,
+    type,
+    valuePaise,
+    valueBps,
+    maxDiscountPaise,
+    minOrderPaise,
+    perStudentLimit,
+    personLimit: channel === "DINE_IN" ? 0 : personLimit,
+    menuItemIds,
+    channel,
+    actorId: session.user._id,
+    scope: { actorRole: ACTOR.ADMIN },
+  });
+
+  if (!res.ok) {
+    return { status: "error", message: res.message };
+  }
+
+  if (restaurantId) {
+    revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
+  }
+  revalidatePath("/admin/vendors");
+  revalidatePath("/vendor/coupons");
+
+  return {
+    status: "success",
+    message: `Coupon "${res.coupon.code}" updated successfully!`,
+  };
+}
+
+export async function updateVendorCouponAction(input: unknown): Promise<ActionResponse> {
+  const { restaurantId, user } = await requireVendor();
+  const parsed = updateCouponSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid coupon details" };
+  }
+
+  const {
+    couponId,
+    code,
+    description,
+    type,
+    value,
+    maxDiscountRupees,
+    minOrderRupees,
+    perStudentLimit,
+    personLimit,
+    menuItemIds,
+    channel,
+  } = parsed.data;
+
+  const valuePaise = type === "FLAT" ? rupeesToPaise(value) : 0;
+  const valueBps = type === "PERCENT" ? pctToBps(value) : 0;
+  const maxDiscountPaise =
+    type === "PERCENT" && maxDiscountRupees !== undefined
+      ? rupeesToPaise(maxDiscountRupees)
+      : valuePaise;
+  const minOrderPaise = rupeesToPaise(minOrderRupees);
+
+  const res = await updateCoupon({
+    couponId,
+    code,
+    description: description || null,
+    type,
+    valuePaise,
+    valueBps,
+    maxDiscountPaise,
+    minOrderPaise,
+    perStudentLimit,
+    personLimit: channel === "DINE_IN" ? 0 : personLimit,
+    menuItemIds,
+    channel,
+    actorId: user._id,
+    scope: { restaurantId, actorRole: ACTOR.VENDOR },
+  });
+
+  if (!res.ok) {
+    return { status: "error", message: res.message };
+  }
+
+  revalidatePath("/vendor/coupons");
+  revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
+  revalidatePath("/admin/vendors");
+
+  return {
+    status: "success",
+    message: `Coupon "${res.coupon.code}" updated successfully!`,
   };
 }
 
@@ -196,6 +417,35 @@ export async function deleteCouponAction(input: unknown): Promise<ActionResponse
   if (parsed.data.restaurantId) {
     revalidatePath(`/admin/vendors/${parsed.data.restaurantId}/coupons`);
   }
+  revalidatePath("/admin/vendors");
+  revalidatePath("/vendor/coupons");
+
+  return { status: "success", message: "Coupon deleted successfully." };
+}
+
+const vendorDeleteCouponSchema = z.object({
+  couponId: z.string().min(1),
+});
+
+export async function deleteVendorCouponAction(input: unknown): Promise<ActionResponse> {
+  const { restaurantId, user } = await requireVendor();
+  const parsed = vendorDeleteCouponSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { status: "error", message: "Invalid payload" };
+  }
+
+  const res = await deleteCoupon(parsed.data.couponId, user._id, {
+    restaurantId,
+    actorRole: ACTOR.VENDOR,
+  });
+
+  if (!res.ok) {
+    return { status: "error", message: res.message };
+  }
+
+  revalidatePath("/vendor/coupons");
+  revalidatePath(`/admin/vendors/${restaurantId}/coupons`);
   revalidatePath("/admin/vendors");
 
   return { status: "success", message: "Coupon deleted successfully." };

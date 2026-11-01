@@ -5,7 +5,8 @@ import { IssueDeskDashboard } from "@/components/admin/issue-desk";
 import { getSession } from "@/server/auth/session";
 import { listAllCampuses } from "@/server/services/admin";
 import { getIssueDeskSnapshot } from "@/server/services/issues";
-import { ROLE } from "@/lib/constants";
+import { ROLE, isFullAdmin } from "@/lib/constants";
+import { ADMIN_HOME } from "@/lib/routes";
 
 export const metadata: Metadata = {
   title: "Issue Desk",
@@ -20,7 +21,11 @@ export default async function IssueDeskPage() {
     redirect("/signin?next=/admin/issues");
   }
 
-  if (session.role !== ROLE.ADMIN && session.role !== ROLE.SUPER_ADMIN) {
+  // The Issue Desk carries customer phones and order values; co-admins go
+  // back to the radar.
+  if (session.role === ROLE.CO_ADMIN) redirect(ADMIN_HOME);
+
+  if (!isFullAdmin(session.role)) {
     redirect("/signin?next=/admin/issues&reason=admin");
   }
 

@@ -262,7 +262,7 @@ export function OfflineBanner() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 bg-amber px-4 py-2 text-xs font-medium text-ink"
+      className="no-print print:hidden fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 bg-amber px-4 py-2 text-xs font-medium text-ink"
     >
       <WifiOff className="size-3.5 shrink-0" />
       You are offline — any order you have placed is safe.
@@ -293,7 +293,13 @@ export function InstallPrompt() {
 
   const [showGuide, setShowGuide] = useState(false);
 
-  if (!isMounted || isInstalled || isDismissed) return null;
+  const isNonStudentRoute =
+    pathname.startsWith("/vendor") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/courier") ||
+    pathname.startsWith("/print");
+
+  if (!isMounted || isInstalled || isDismissed || isNonStudentRoute) return null;
 
   const isIOS = isIOSDevice();
   const hasBottomNav =
@@ -328,7 +334,7 @@ export function InstallPrompt() {
       role="region"
       aria-label="Install TREFOOD App"
       className={cn(
-        "fixed z-50 transition-all duration-300 animate-rise",
+        "no-print print:hidden fixed z-50 transition-all duration-300 animate-rise",
         // Mobile layout: centered floating bottom card with safe area margin
         "inset-x-3 mx-auto max-w-md",
         hasBottomNav ? "bottom-20 sm:bottom-6" : "bottom-4 sm:bottom-6",
@@ -503,7 +509,7 @@ export function InstallHeaderButton() {
     <button
       type="button"
       onClick={openInstallPrompt}
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-ink active:scale-95"
+      className="no-print print:hidden inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-95"
       aria-label="Install TREFOOD App"
     >
       <Download className="size-3.5 shrink-0" />

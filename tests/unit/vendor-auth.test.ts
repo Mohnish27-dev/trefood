@@ -5,6 +5,8 @@ import {
   verifyPassword,
   verifyVendorSessionToken,
 } from "@/server/auth/passwords";
+import { resolveLandingPath } from "@/lib/routes";
+import { ROLE } from "@/lib/constants";
 
 describe("Direct Vendor Auth Passwords & Tokens", () => {
   it("hashes password with salt and produces verifiable hash", () => {
@@ -61,5 +63,12 @@ describe("Direct Vendor Auth Passwords & Tokens", () => {
     // Malformed token
     expect(verifyVendorSessionToken("")).toBeNull();
     expect(verifyVendorSessionToken("not-a-token")).toBeNull();
+  });
+
+  it("resolves vendor landing paths correctly", () => {
+    expect(resolveLandingPath(null, ROLE.VENDOR_OWNER)).toBe("/vendor/orders");
+    expect(resolveLandingPath(null, ROLE.VENDOR_STAFF)).toBe("/vendor/orders");
+    expect(resolveLandingPath("/vendor/menu", ROLE.VENDOR_OWNER)).toBe("/vendor/menu");
+    expect(resolveLandingPath(null, ROLE.STUDENT)).toBe("/c/nit-patna");
   });
 });

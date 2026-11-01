@@ -4,7 +4,7 @@ import {
   EarningsDashboard,
   type DashboardCampus,
 } from "@/components/admin/earnings-dashboard";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { listAllCampuses } from "@/server/services/admin";
 import { datesOfMonth, getEarningsAnalytics } from "@/server/services/analytics";
 import { getDailyVendorReport, isIsoDay } from "@/server/services/daily-vendor-report";
@@ -30,7 +30,7 @@ export default async function AdminEarningsPage({
 }: {
   searchParams: Promise<{ campus?: string; month?: string; day?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
 
   const { campus, month, day } = await searchParams;
   const allCampuses = await listAllCampuses();

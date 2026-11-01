@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/states";
-import { requireAdmin } from "@/server/auth/session";
+import { requireStaff } from "@/server/auth/session";
 import { listAllCampuses } from "@/server/services/admin";
 import { formatMinutes } from "@/server/services/curfew";
 
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * Patna.
  */
 export default async function AdminCampusesPage() {
-  await requireAdmin();
+  await requireStaff();
   const campuses = await listAllCampuses();
 
   return (

@@ -1,10 +1,12 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
-import { ROLE, type Role } from "@/lib/constants";
+import { ADMIN_ROLES, ROLE, STAFF_ROLES, type Role } from "@/lib/constants";
+import { ADMIN_HOME } from "@/lib/routes";
 import type { User } from "@/types/user";
 
 /**
@@ -105,7 +107,27 @@ export async function requireVendor(): Promise<Session & { restaurantId: string 
 }
 
 export async function requireAdmin(): Promise<Session> {
-  return requireRole(ROLE.ADMIN, ROLE.SUPER_ADMIN);
+  return requireRole(...ADMIN_ROLES);
+}
+
+/**
+ * Admins and co-admins. Use for the operational screens a co-admin shares;
+ * anything touching money, students, KYC or campus data stays on
+ * `requireAdmin()`.
+ */
+export async function requireStaff(): Promise<Session> {
+  return requireRole(...STAFF_ROLES);
+}
+
+/**
+ * `requireAdmin()` for a page render. A co-admin who types an admin-only URL
+ * is sent back to the radar instead of hitting an error screen; everyone
+ * else falls through to the normal check.
+ */
+export async function requireAdminPage(): Promise<Session> {
+  const session = await getSession();
+  if (session?.role === ROLE.CO_ADMIN) redirect(ADMIN_HOME);
+  return requireAdmin();
 }
 
 /**

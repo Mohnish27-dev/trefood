@@ -41,6 +41,21 @@ export const themeInitScript = `
 })();
 `;
 
+function applyTheme(next: Theme) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  root.classList.remove("light", "dark");
+  root.classList.add(next);
+  root.setAttribute("data-theme", next);
+  root.style.colorScheme = next;
+
+  // Update browser theme-color meta tag for PWA and mobile status bar
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute("content", next === "dark" ? "#14050A" : "#830020");
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -51,6 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
       const initialTheme: Theme =
         stored === "light" || stored === "dark" ? stored : "dark";
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Client-only hydration sync with localStorage
       setThemeState(initialTheme);
       applyTheme(initialTheme);
     } catch {
@@ -71,20 +87,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
-
-  const applyTheme = (next: Theme) => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(next);
-    root.setAttribute("data-theme", next);
-    root.style.colorScheme = next;
-
-    // Update browser theme-color meta tag for PWA and mobile status bar
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute("content", next === "dark" ? "#0B0D12" : "#F8F9FC");
-    }
-  };
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);

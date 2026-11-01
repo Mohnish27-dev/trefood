@@ -1,12 +1,36 @@
 "use client";
 
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Printer } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { downloadKotTicketImage } from "@/lib/kot-canvas";
 import { formatINR } from "@/lib/money";
 import { cn } from "@/lib/utils";
+
+export interface KotItemAddOn {
+  name: string;
+  pricePaise?: number;
+}
+
+export interface KotOrderItem {
+  name: string;
+  isVeg: boolean;
+  quantity: number;
+  unitPricePaise?: number;
+  lineTotalPaise?: number;
+  addOns: (KotItemAddOn | string)[];
+}
+
+export interface KotPricingBreakdown {
+  subtotalPaise: number;
+  packagingFeePaise?: number;
+  deliveryFeePaise?: number;
+  discountPaise?: number;
+  grandTotalPaise?: number;
+}
 
 export interface KotOrder {
   orderNumber: string;
@@ -21,7 +45,8 @@ export interface KotOrder {
   cashDuePaise: number;
   gateCode: string | null;
   description?: string | null;
-  items: { name: string; isVeg: boolean; quantity: number; addOns: string[] }[];
+  items: KotOrderItem[];
+  pricing?: KotPricingBreakdown | null;
 }
 
 /**
@@ -38,11 +63,25 @@ export interface KotOrder {
  */
 export function KotTicket({ order }: { order: KotOrder }) {
   const [width, setWidth] = useState<"58" | "80">("80");
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
+  const handleSaveImage = async (): Promise<void> => {
+    try {
+      setIsSavingImage(true);
+      await downloadKotTicketImage(order, width);
+      toast.success("Ticket saved as image!");
+    } catch (err) {
+      console.error("Failed to save ticket image", err);
+      toast.error("Could not save ticket image. You can use Print / Save PDF instead.");
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
 
   return (
-    <div className="min-h-dvh bg-ink">
+    <div className="min-h-dvh bg-ink print:min-h-0 print:bg-white print:text-black print:p-0 print:m-0">
       {/* ── Controls. Never printed. ─────────────────────────────── */}
-      <div className="no-print mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-4">
+      <div className="no-print print:hidden mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-4">
         <Link
           href="/vendor/orders"
           className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm text-muted hover:text-bone"
@@ -51,7 +90,7 @@ export function KotTicket({ order }: { order: KotOrder }) {
           Back to the board
         </Link>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-line p-1">
             {(["58", "80"] as const).map((option) => (
               <button
@@ -68,17 +107,34 @@ export function KotTicket({ order }: { order: KotOrder }) {
             ))}
           </div>
 
-          <Button onClick={() => window.print()}>
-            <Printer />
-            Print
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleSaveImage()}
+            disabled={isSavingImage}
+            className="border-line text-bone hover:bg-surface-raised"
+          >
+            {isSavingImage ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
+            <span className="hidden sm:inline">Save Image</span>
+            <span className="sm:hidden">Save</span>
+          </Button>
+
+          <Button type="button" onClick={() => window.print()}>
+            <Printer className="size-4" />
+            <span>Print / Save PDF</span>
           </Button>
         </div>
       </div>
 
       {/* ── The ticket ───────────────────────────────────────────── */}
-      <div className="mx-auto px-4 pb-10">
+      <div className="mx-auto px-4 pb-10 print:p-0 print:m-0 print:w-auto">
         <div
-          className="mx-auto bg-white p-3 font-mono text-[13px] leading-snug text-black"
+          id="kot-ticket-paper"
+          className="mx-auto bg-white p-3.5 sm:p-4 font-mono text-[13px] leading-snug text-black shadow-xl print:m-0 print:p-3 print:shadow-none print:border-none"
           style={{ width: width === "58" ? "58mm" : "80mm" }}
         >
           <p className="text-center text-base font-bold uppercase tracking-wide">
@@ -96,26 +152,98 @@ export function KotTicket({ order }: { order: KotOrder }) {
 
           <Rule />
 
-          {order.items.map((item, index) => (
-            <div key={`${item.name}-${index}`} className="mb-1.5">
-              <div className="flex gap-2">
-                <span className="w-6 shrink-0 font-bold">{item.quantity}x</span>
-                <span className="flex-1 font-bold uppercase">
-                  {item.name}
-                  <span className="ml-1 font-normal">[{item.isVeg ? "VEG" : "NON-VEG"}]</span>
-                </span>
+          {order.items.map((item, index) => {
+            const hasLineTotal = typeof item.lineTotalPaise === "number";
+            const hasUnitPrice = typeof item.unitPricePaise === "number";
+            const displayTotalPaise = hasLineTotal
+              ? item.lineTotalPaise
+              : hasUnitPrice && typeof item.unitPricePaise === "number"
+              ? item.unitPricePaise * item.quantity
+              : null;
+
+            return (
+              <div key={`${item.name}-${index}`} className="mb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                    <span className="w-5 shrink-0 font-bold">{item.quantity}x</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold uppercase break-words leading-tight">
+                        {item.name}
+                        <span className="ml-1 font-normal text-[11px]">
+                          [{item.isVeg ? "VEG" : "NON-VEG"}]
+                        </span>
+                      </p>
+                      {item.quantity > 1 && typeof item.unitPricePaise === "number" ? (
+                        <p className="mt-0.5 text-[11px] font-normal text-neutral-600">
+                          {formatINR(item.unitPricePaise)} each
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {typeof displayTotalPaise === "number" ? (
+                    <span className="shrink-0 font-bold tabular-nums text-right">
+                      {formatINR(displayTotalPaise)}
+                    </span>
+                  ) : null}
+                </div>
+
+                {item.addOns.length > 0 ? (
+                  <div className="ml-6.5 mt-0.5 space-y-0.5 text-[11px]">
+                    {item.addOns.map((addOn, addOnIdx) => {
+                      const isObj = typeof addOn === "object" && addOn !== null;
+                      const name = isObj ? addOn.name : addOn;
+                      const price =
+                        isObj && typeof addOn.pricePaise === "number" && addOn.pricePaise > 0
+                          ? addOn.pricePaise
+                          : null;
+                      return (
+                        <div
+                          key={addOnIdx}
+                          className="flex justify-between gap-1 text-neutral-700 leading-tight"
+                        >
+                          <span className="break-words">+ {name}</span>
+                          {price !== null ? (
+                            <span className="shrink-0 tabular-nums">+{formatINR(price)}</span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
-              {item.addOns.length > 0 ? (
-                <p className="ml-8 text-[12px]">+ {item.addOns.join(", ")}</p>
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
 
           {order.description ? (
             <div className="my-2 border border-black p-1.5">
               <p className="text-[10px] font-bold uppercase">Customer Note / Special Instructions:</p>
               <p className="text-[12px] font-bold uppercase whitespace-pre-wrap">{order.description}</p>
             </div>
+          ) : null}
+
+          {order.pricing ? (
+            <>
+              <Rule />
+              <div className="space-y-0.5">
+                <Row label="Item Total" value={formatINR(order.pricing.subtotalPaise)} />
+                {order.pricing.packagingFeePaise && order.pricing.packagingFeePaise > 0 ? (
+                  <Row label="Packaging Fee" value={formatINR(order.pricing.packagingFeePaise)} />
+                ) : null}
+                {order.pricing.deliveryFeePaise && order.pricing.deliveryFeePaise > 0 ? (
+                  <Row label="Delivery Fee" value={formatINR(order.pricing.deliveryFeePaise)} />
+                ) : null}
+                {order.pricing.discountPaise && order.pricing.discountPaise > 0 ? (
+                  <Row label="Coupon Discount" value={`-${formatINR(order.pricing.discountPaise)}`} />
+                ) : null}
+                {order.pricing.grandTotalPaise &&
+                order.cashDuePaise < order.pricing.grandTotalPaise ? (
+                  <Row
+                    label="Stockout / Adjustment"
+                    value={`-${formatINR(order.pricing.grandTotalPaise - order.cashDuePaise)}`}
+                  />
+                ) : null}
+              </div>
+            </>
           ) : null}
 
           <Rule />
@@ -176,7 +304,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   return (
     <div className="flex justify-between gap-2">
       <span className="text-[12px]">{label}</span>
-      <span className={cn("text-[12px]", bold && "text-[14px] font-bold")}>{value}</span>
+      <span className={cn("text-[12px] tabular-nums", bold && "text-[14px] font-bold")}>{value}</span>
     </div>
   );
 }

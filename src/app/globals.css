@@ -48,11 +48,30 @@
   --color-sky: var(--theme-sky);
   --color-sky-wash: var(--theme-sky-wash);
 
+  --color-maroon: var(--theme-maroon);
+  --color-maroon-glow: var(--theme-maroon-glow);
+  --color-maroon-deep: var(--theme-maroon-deep);
+  --color-maroon-wash: var(--theme-maroon-wash);
+
+  --color-gold: var(--theme-gold);
+  --color-gold-glow: var(--theme-gold-glow);
+  --color-gold-deep: var(--theme-gold-deep);
+  --color-gold-wash: var(--theme-gold-wash);
+
   /* ── Fonts ──────────────────────────────────────────────────────── */
   --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
   --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-mono-code), ui-monospace, "Cascadia Code", monospace;
   --font-handwriting: var(--font-caveat), "Caveat", cursive;
+
+  /* ── Sign-in brand palette (fixed, never themed) ──────────────────
+     Sampled from the campus sign-in artwork so the HTML around the
+     hero and footer images meets them without a visible seam. */
+  --color-tf-maroon: #830020;
+  --color-tf-maroon-deep: #540018;
+  --color-tf-cream: #fef4f0;
+  --color-tf-yellow: #fcb51a;
+  --color-tf-ink: #1f201f;
 
   /* ── Radii ──────────────────────────────────────────────────────── */
   --radius-card: 1rem;
@@ -203,7 +222,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Base
+   Base & Brand Design Tokens
    ══════════════════════════════════════════════════════════════════════ */
 
 :root,
@@ -213,34 +232,45 @@
   --header-h: 3.5rem;
   --bottom-nav-h: 4.25rem;
 
-  --theme-ink: #0b0d12;
-  --theme-ink-deep: #06080c;
-  --theme-surface: #12151d;
-  --theme-surface-raised: #1a1f2a;
-  --theme-surface-hover: #222836;
-  --theme-line: #262c3a;
-  --theme-line-strong: rgba(56, 64, 83, 0.2);
+  --theme-ink: #14050a;              /* Deep midnight wine ground */
+  --theme-ink-deep: #0a0205;
+  --theme-surface: #1e0912;          /* Rich wine-dark card surface */
+  --theme-surface-raised: #2a0e1a;   /* Raised burgundy surface */
+  --theme-surface-hover: #381324;
+  --theme-line: #42182b;
+  --theme-line-strong: rgba(240, 180, 200, 0.18);
 
-  --theme-bone: #f5f3ef;
-  --theme-muted: #8b93a5;
-  --theme-faint: #5a6274;
+  --theme-bone: #fef4f0;             /* Off-white text */
+  --theme-muted: #bfa6b0;
+  --theme-faint: #7d6570;
 
-  --theme-saffron: #ff6b1a;
-  --theme-saffron-glow: #ff8a47;
-  --theme-saffron-deep: #d4520c;
-  --theme-saffron-wash: rgba(255, 107, 26, 0.1);
+  --theme-saffron: #a3123a;
+  --theme-saffron-glow: #be184a;
+  --theme-saffron-deep: #830020;
+  --theme-saffron-wash: rgba(163, 18, 58, 0.18);
 
-  --theme-mint: #34d399;
-  --theme-mint-wash: rgba(52, 211, 153, 0.1);
+  --theme-maroon: #a3123a;
+  --theme-maroon-glow: #be184a;
+  --theme-maroon-deep: #540018;
+  --theme-maroon-wash: rgba(163, 18, 58, 0.18);
 
-  --theme-chili: #f43f5e;
-  --theme-chili-wash: rgba(244, 63, 94, 0.1);
+  /* Secondary Brand Accent (Honey Gold) */
+  --theme-gold: #fcb51a;
+  --theme-gold-glow: #fed166;
+  --theme-gold-deep: #d97706;
+  --theme-gold-wash: rgba(252, 181, 26, 0.15);
+
+  --theme-mint: #22c55e;
+  --theme-mint-wash: rgba(34, 197, 94, 0.15);
+
+  --theme-chili: #fb7185;
+  --theme-chili-wash: rgba(251, 113, 133, 0.15);
 
   --theme-amber: #fbbf24;
-  --theme-amber-wash: rgba(251, 191, 36, 0.1);
+  --theme-amber-wash: rgba(251, 191, 36, 0.15);
 
   --theme-sky: #38bdf8;
-  --theme-sky-wash: rgba(56, 189, 248, 0.1);
+  --theme-sky-wash: rgba(56, 189, 248, 0.15);
 }
 
 .light,
@@ -249,25 +279,37 @@
   --header-h: 3.5rem;
   --bottom-nav-h: 4.25rem;
 
-  --theme-ink: #f8f9fc;
-  --theme-ink-deep: #0f172a;
-  --theme-surface: #ffffff;
-  --theme-surface-raised: #f1f5f9;
-  --theme-surface-hover: #e2e8f0;
-  --theme-line: #e2e8f0;
-  --theme-line-strong: rgba(15, 23, 42, 0.08);
+  --theme-ink: #fef4f0;              /* Campus warm cream ground */
+  --theme-ink-deep: #1f201f;         /* Charcoal ink */
+  --theme-surface: #ffffff;          /* Pure white card surface */
+  --theme-surface-raised: #fbe9e3;   /* Tinted raised warm surface */
+  --theme-surface-hover: #f6dcd4;    /* Warm hover state */
+  --theme-line: #e8ded9;             /* Soft warm dividing line */
+  --theme-line-strong: #c4bdbb;      /* Strong structural border */
 
-  --theme-bone: #0f172a;
-  --theme-muted: #475569;
-  --theme-faint: #94a3b8;
+  --theme-bone: #1f201f;             /* Primary text */
+  --theme-muted: #5f5a58;            /* Secondary text */
+  --theme-faint: #9a918e;            /* Subtle text */
 
-  --theme-saffron: #ff6b1a;
-  --theme-saffron-glow: #ff8a47;
-  --theme-saffron-deep: #ea580c;
-  --theme-saffron-wash: rgba(255, 107, 26, 0.08);
+  /* Primary Brand Action (Royal Maroon) */
+  --theme-saffron: #830020;
+  --theme-saffron-glow: #a3123a;
+  --theme-saffron-deep: #5e0017;
+  --theme-saffron-wash: rgba(131, 0, 32, 0.08);
 
-  --theme-mint: #059669;
-  --theme-mint-wash: rgba(5, 150, 105, 0.08);
+  --theme-maroon: #830020;
+  --theme-maroon-glow: #a3123a;
+  --theme-maroon-deep: #540018;
+  --theme-maroon-wash: rgba(131, 0, 32, 0.08);
+
+  /* Secondary Brand Accent (Honey Gold) */
+  --theme-gold: #fcb51a;
+  --theme-gold-glow: #fed166;
+  --theme-gold-deep: #d97706;
+  --theme-gold-wash: rgba(252, 181, 26, 0.12);
+
+  --theme-mint: #15803d;
+  --theme-mint-wash: rgba(21, 128, 61, 0.08);
 
   --theme-chili: #e11d48;
   --theme-chili-wash: rgba(225, 29, 72, 0.08);
@@ -277,6 +319,22 @@
 
   --theme-sky: #0284c7;
   --theme-sky-wash: rgba(2, 132, 199, 0.08);
+}
+
+.auth-theme {
+  --color-ink: #fef4f0;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbe9e3;
+  --color-surface-hover: #f6dcd4;
+  --color-line: #c4bdbb;
+  --color-bone: #1f201f;
+  --color-muted: #5f5a58;
+  --color-faint: #9a918e;
+
+  --color-saffron: #830020;
+  --color-saffron-glow: #a3123a;
+  --color-saffron-deep: #5e0017;
+  --color-saffron-wash: rgba(131, 0, 32, 0.07);
 }
 
 * {
@@ -291,11 +349,9 @@ body {
   background: var(--color-ink);
   color: var(--color-bone);
   font-family: var(--font-sans);
-  /* Campus wifi is bad; large background images are not. A cheap radial
-     wash gives depth without a single network byte. */
   background-image:
-    radial-gradient(60rem 40rem at 50% -10%, rgb(255 107 26 / 0.07), transparent 60%),
-    radial-gradient(40rem 30rem at 100% 0%, rgb(56 189 248 / 0.04), transparent 55%);
+    radial-gradient(60rem 40rem at 50% -10%, rgb(163 18 58 / 0.12), transparent 60%),
+    radial-gradient(40rem 30rem at 100% 0%, rgb(252 181 26 / 0.04), transparent 55%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
@@ -303,8 +359,8 @@ body {
 .light body,
 [data-theme="light"] body {
   background-image:
-    radial-gradient(60rem 40rem at 50% -10%, rgb(255 107 26 / 0.05), transparent 60%),
-    radial-gradient(40rem 30rem at 100% 0%, rgb(56 189 248 / 0.03), transparent 55%);
+    radial-gradient(60rem 40rem at 50% -10%, rgb(131 0 32 / 0.04), transparent 60%),
+    radial-gradient(40rem 30rem at 100% 0%, rgb(252 181 26 / 0.03), transparent 55%);
 }
 
 .light .text-ink,
@@ -435,17 +491,9 @@ h3,
    than floating on flat ink. Costs no network bytes. */
 @utility hero-glow {
   background:
-    radial-gradient(38rem 26rem at 15% 0%, rgb(255 107 26 / 0.22), transparent 62%),
-    radial-gradient(30rem 22rem at 88% 12%, rgb(251 191 36 / 0.14), transparent 60%),
-    radial-gradient(26rem 20rem at 60% 96%, rgb(56 189 248 / 0.1), transparent 62%);
-}
-
-.light .hero-glow,
-[data-theme="light"] .hero-glow {
-  background:
-    radial-gradient(38rem 26rem at 15% 0%, rgb(255 107 26 / 0.16), transparent 62%),
-    radial-gradient(30rem 22rem at 88% 12%, rgb(251 191 36 / 0.12), transparent 60%),
-    radial-gradient(26rem 20rem at 60% 96%, rgb(56 189 248 / 0.08), transparent 62%);
+    radial-gradient(38rem 26rem at 15% 0%, rgb(131 0 32 / 0.18), transparent 62%),
+    radial-gradient(30rem 22rem at 88% 12%, rgb(252 181 26 / 0.14), transparent 60%),
+    radial-gradient(26rem 20rem at 60% 96%, rgb(163 18 58 / 0.08), transparent 62%);
 }
 
 /* Saffron→amber wash used on the two headline words and the step numerals. */
@@ -453,7 +501,7 @@ h3,
   background: linear-gradient(
     100deg,
     var(--color-saffron) 0%,
-    var(--color-amber) 46%,
+    var(--color-gold) 50%,
     var(--color-saffron-glow) 100%
   );
   background-clip: text;
@@ -490,14 +538,43 @@ h3,
    Print — KOT tickets only. 58mm and 80mm thermal.
    ══════════════════════════════════════════════════════════════════════ */
 
+@page {
+  margin: 0;
+  size: auto;
+}
+
 @media print {
+  html,
   body {
-    background: #fff !important;
-    color: #000 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     background-image: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .no-print {
+
+  /* Prevent dark backgrounds or surfaces from printing black ink */
+  .bg-ink,
+  .bg-surface,
+  .bg-surface-raised,
+  .dark body,
+  [data-theme="dark"] body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print,
+  .print\:hidden,
+  [data-sonner-toaster],
+  [aria-label="Install TREFOOD App"],
+  [role="region"][aria-label*="Install"],
+  [role="status"] {
     display: none !important;
+    visibility: hidden !important;
   }
 }
 
@@ -522,35 +599,7 @@ h3,
 }
 
 /* ── Restaurant Detail Hero Card Theme Adaptation ─────────────────────── */
-.restaurant-hero-card {
-  background-color: #ffffff;
-  color: #0f172a;
-  border-color: rgba(226, 232, 240, 0.9);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
-}
-
-.restaurant-hero-card .hero-card-title {
-  color: #0f172a;
-}
-
-.restaurant-hero-card .hero-card-subtext {
-  color: #475569;
-}
-
-.restaurant-hero-card .hero-card-strong {
-  color: #0f172a;
-}
-
-.restaurant-hero-card .hero-card-divider {
-  border-color: #f1f5f9;
-}
-
-.restaurant-hero-card .hero-card-chip {
-  background-color: #f8fafc;
-  border-color: #e2e8f0;
-  color: #475569;
-}
-
+.restaurant-hero-card,
 .dark .restaurant-hero-card,
 [data-theme="dark"] .restaurant-hero-card {
   background-color: #151922 !important;
@@ -559,31 +608,71 @@ h3,
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
 }
 
+.restaurant-hero-card .hero-card-title,
 .dark .restaurant-hero-card .hero-card-title,
 [data-theme="dark"] .restaurant-hero-card .hero-card-title {
   color: var(--theme-bone) !important;
 }
 
+.restaurant-hero-card .hero-card-subtext,
 .dark .restaurant-hero-card .hero-card-subtext,
 [data-theme="dark"] .restaurant-hero-card .hero-card-subtext {
   color: var(--theme-muted) !important;
 }
 
+.restaurant-hero-card .hero-card-strong,
 .dark .restaurant-hero-card .hero-card-strong,
 [data-theme="dark"] .restaurant-hero-card .hero-card-strong {
   color: var(--theme-bone) !important;
 }
 
+.restaurant-hero-card .hero-card-divider,
 .dark .restaurant-hero-card .hero-card-divider,
 [data-theme="dark"] .restaurant-hero-card .hero-card-divider {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+.restaurant-hero-card .hero-card-chip,
 .dark .restaurant-hero-card .hero-card-chip,
 [data-theme="dark"] .restaurant-hero-card .hero-card-chip {
   background-color: var(--theme-surface) !important;
   border-color: var(--theme-line) !important;
   color: var(--theme-muted) !important;
+}
+
+.light .restaurant-hero-card,
+[data-theme="light"] .restaurant-hero-card {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32) !important;
+}
+
+.light .restaurant-hero-card .hero-card-title,
+[data-theme="light"] .restaurant-hero-card .hero-card-title {
+  color: #0f172a !important;
+}
+
+.light .restaurant-hero-card .hero-card-subtext,
+[data-theme="light"] .restaurant-hero-card .hero-card-subtext {
+  color: #475569 !important;
+}
+
+.light .restaurant-hero-card .hero-card-strong,
+[data-theme="light"] .restaurant-hero-card .hero-card-strong {
+  color: #0f172a !important;
+}
+
+.light .restaurant-hero-card .hero-card-divider,
+[data-theme="light"] .restaurant-hero-card .hero-card-divider {
+  border-color: #f1f5f9 !important;
+}
+
+.light .restaurant-hero-card .hero-card-chip,
+[data-theme="light"] .restaurant-hero-card .hero-card-chip {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
 }
 
 /* ── Restaurant In-Menu Search Input ─────────────────────────────────── */

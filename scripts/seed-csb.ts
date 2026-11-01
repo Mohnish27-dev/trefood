@@ -25,6 +25,14 @@ const VENDOR_EMAIL = "csbar759@gmail.com";
 
 const R = rupeesToPaise;
 
+/**
+ * Every item has a photo at public/menu/csb/<item id>.jpg (sources and
+ * licences in CREDITS.json next to them).
+ */
+export function csbItemImage(itemId: string): string {
+  return `/menu/csb/${itemId}.jpg`;
+}
+
 function sizeGroup(regularPaise: Paise, largePaise: Paise): AddOnGroup {
   return {
     id: "grp_size",
@@ -1379,7 +1387,7 @@ export async function seedChaiSuttaBar(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: csbItemImage(item.id),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],

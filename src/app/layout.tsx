@@ -136,8 +136,8 @@ const jsonLd = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0B0D12" },
-    { media: "(prefers-color-scheme: light)", color: "#F8F9FC" },
+    { media: "(prefers-color-scheme: dark)", color: "#14050A" },
+    { media: "(prefers-color-scheme: light)", color: "#830020" },
   ],
   colorScheme: "dark light",
   width: "device-width",
@@ -153,7 +153,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${bricolage.variable} ${inter.variable} ${mono.variable} ${caveat.variable}`}
+      className={`dark ${bricolage.variable} ${inter.variable} ${mono.variable} ${caveat.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

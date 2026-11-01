@@ -10,6 +10,7 @@ import { COOKIE_MAX_AGE_SECONDS } from "@/lib/cookies";
 import { DEMO_USER_COOKIE, getSession } from "@/server/auth/session";
 import { hashPassword, verifyPassword, VENDOR_SESSION_COOKIE } from "@/server/auth/passwords";
 import { resolveLandingPath } from "@/lib/routes";
+import { isVendorRole } from "@/lib/quick-unlock";
 import { buildStudent, needsPasswordSetup } from "@/server/auth/accounts";
 import {
   normaliseEmail,
@@ -488,6 +489,8 @@ export async function resetPasswordWithCode(input: unknown): Promise<AuthActionS
 /* ------------------------------------------------------------------ */
 
 export async function signOut(): Promise<void> {
+  const session = await getSession();
+  const isVendor = isVendorRole(session?.role);
   await destroyCurrentSession();
 
   const store = await cookies();
@@ -499,7 +502,7 @@ export async function signOut(): Promise<void> {
   // "Use a different account" (forgetQuickUnlockDevice) is what forgets.
   store.delete({ name: QUICK_UNLOCK_SESSION_COOKIE, path: "/", domain: authCookieDomain() });
 
-  redirect("/signin");
+  redirect(isVendor ? "/vendor/login" : "/signin");
 }
 
 /** Account screen: drop every other browser, keep this one. */

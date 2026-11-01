@@ -25,6 +25,14 @@ const VENDOR_EMAIL = "sonezoneworks@gmail.com";
 
 const R = rupeesToPaise;
 
+/**
+ * Every item has a photo at public/menu/soneZone/<item id>.jpg (sources and
+ * licences in CREDITS.json next to them).
+ */
+export function soneZoneItemImage(itemId: string): string {
+  return `/menu/soneZone/${itemId}.jpg`;
+}
+
 function sizeGroup(regularPaise: Paise, largePaise: Paise, label1 = "Regular", label2 = "Large"): AddOnGroup {
   return {
     id: "grp_size",
@@ -1864,7 +1872,7 @@ export async function seedSoneZone(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: soneZoneItemImage(item.id),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 import { StudentTable, type StudentRowView } from "@/components/admin/student-table";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { listStudents } from "@/server/services/students";
 
 export const metadata: Metadata = { title: "Students" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminStudentsPage() {
-  await requireAdmin();
+  await requireAdminPage();
 
   const { rows: students, total } = await listStudents({});
 

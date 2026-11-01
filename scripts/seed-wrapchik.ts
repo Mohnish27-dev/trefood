@@ -26,6 +26,14 @@ const VENDOR_EMAIL = "wrapchick10@gmail.com";
 
 const R = rupeesToPaise;
 
+/**
+ * Every item has a photo at public/menu/wrapchik/<item id>.jpg (sources and
+ * licences in CREDITS.json next to them).
+ */
+export function wrapchikItemImage(itemId: string): string {
+  return `/menu/wrapchik/${itemId}.jpg`;
+}
+
 function pizzaSizeGroup(prices: {
   small: Paise;
   regular: Paise;
@@ -1346,7 +1354,7 @@ export async function seedWrapchik(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: wrapchikItemImage(item.id),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],

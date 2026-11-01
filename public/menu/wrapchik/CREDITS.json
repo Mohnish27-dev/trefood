@@ -1,0 +1,596 @@
+{
+  "wp_cheese_onion_pizza": {
+    "file": "File:Tomato onion pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Tomato_onion_pizza.jpg",
+    "author": "Swathi sri srinivasa raghavan",
+    "license": "CC0"
+  },
+  "wp_cheese_capsicum_pizza": {
+    "file": "File:Cheese and capsicum pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheese_and_capsicum_pizza.jpg",
+    "author": "Alnitak-Alnilam-Mintaka",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_tomato_pizza": {
+    "file": "File:Tomato Pizza (164927625).jpeg",
+    "source": "https://commons.wikimedia.org/wiki/File:Tomato_Pizza_(164927625).jpeg",
+    "author": "Markus Spiske Freeforcommercialuse Net",
+    "license": "CC BY 3.0"
+  },
+  "wp_cheese_corn_pizza": {
+    "file": "File:Pizza with corn dish.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Pizza_with_corn_dish.jpg",
+    "author": "CNEcija12345",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_margherita_pizza": {
+    "file": "File:Margherita Originale.JPG",
+    "source": "https://commons.wikimedia.org/wiki/File:Margherita_Originale.JPG",
+    "author": "Mario56",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_cheese_corn_onion_pizza": {
+    "file": "File:Cheese and sweet corn pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheese_and_sweet_corn_pizza.jpg",
+    "author": "Alnitak-Alnilam-Mintaka",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_tomato_onion_pizza": {
+    "file": "File:Home made Indian Pizza Mozzarella.jpeg",
+    "source": "https://commons.wikimedia.org/wiki/File:Home_made_Indian_Pizza_Mozzarella.jpeg",
+    "author": "Gunjan Patel",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_capsicum_onion_pizza": {
+    "file": "File:Cheese pizza with red chili peppers.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheese_pizza_with_red_chili_peppers.jpg",
+    "author": "Alnitak-Alnilam-Mintaka",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_capsicum_tomato_pizza": {
+    "file": "File:Home made vegetarian pizza with olives and capsicum.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Home_made_vegetarian_pizza_with_olives_and_capsicum.jpg",
+    "author": "Leon Brooks",
+    "license": "Public domain"
+  },
+  "wp_fresh_veggie_pizza": {
+    "file": "File:Vegetarian Pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Vegetarian_Pizza.jpg",
+    "author": "Petar Milošević",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_paneer_paradise_pizza": {
+    "file": "File:Malai Paneer Pizza from India.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Malai_Paneer_Pizza_from_India.jpg",
+    "author": "Barthateslisa",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_spicy_senorita_pizza": {
+    "file": "File:Mushroom pizza and beer.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Mushroom_pizza_and_beer.jpg",
+    "author": "Luisfi",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_farmers_pick_pizza": {
+    "file": "File:Vegetable pizza food.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Vegetable_pizza_food.jpg",
+    "author": "Waran R Samay",
+    "license": "CC BY 4.0"
+  },
+  "wp_veggie_paradise_pizza": {
+    "file": "File:Veg Pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Veg_Pizza.jpg",
+    "author": "YKanchan07",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_wrapchik_special_pizza": {
+    "file": "File:Eq it-na pizza-margherita sep2005 sml.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Eq_it-na_pizza-margherita_sep2005_sml.jpg",
+    "author": "Valerio Capello at English Wikipedia",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_supreme_veg_pizza": {
+    "file": "File:Vegetarian Pizza at Electronic City, Bengaluru.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Vegetarian_Pizza_at_Electronic_City,_Bengaluru.jpg",
+    "author": "Harshil Mehta",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_onion_pizza": {
+    "file": "File:Chicken tandoori pizza. Amazing..jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_tandoori_pizza._Amazing..jpg",
+    "author": "mroach",
+    "license": "CC BY-SA 2.0"
+  },
+  "wp_chicken_capsicum_pizza": {
+    "file": "File:Chicken pizza with mozzarella and cheddar cheese, hot sauces, and black pepper - Massachusetts.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_pizza_with_mozzarella_and_cheddar_cheese,_hot_sauces,_and_black_pepper_-_Massachusetts.jpg",
+    "author": "Daderot",
+    "license": "CC0"
+  },
+  "wp_chicken_tomato_pizza": {
+    "file": "File:Deep dish pizza slice with tomato paste, chicken breast, mozarella and cheddar cheeses, and black pepper - Massachusetts.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Deep_dish_pizza_slice_with_tomato_paste,_chicken_breast,_mozarella_and_cheddar_cheeses,_and_black_pepper_-_Massachusetts.jpg",
+    "author": "Daderot",
+    "license": "CC0"
+  },
+  "wp_chicken_corn_pizza": {
+    "file": "File:Corn pizza and chicken pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Corn_pizza_and_chicken_pizza.jpg",
+    "author": "Dharshini Vinayagam",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheesy_chicken_pizza": {
+    "file": "File:Cheese pizza and fried chicken popcorn.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheese_pizza_and_fried_chicken_popcorn.jpg",
+    "author": "Akashdoley13",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_corn_onion_pizza": {
+    "file": "File:Chicken Pizza 1.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Pizza_1.jpg",
+    "author": "Gaurav Dhwaj Khadka",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_tomato_onion_pizza": {
+    "file": "File:Chicken Pizza made in Uganda.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Pizza_made_in_Uganda.jpg",
+    "author": "James Moore200",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_capsicum_onion_pizza": {
+    "file": "File:Indian chicken pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Indian_chicken_pizza.jpg",
+    "author": "Hiba Umair",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_capsicum_tomato_pizza": {
+    "file": "File:Chicken pizza 01.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_pizza_01.jpg",
+    "author": "Agoetee 123",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_veggie_pizza": {
+    "file": "File:Pizza served for dinner with vegetables and chicken topping.JPG",
+    "source": "https://commons.wikimedia.org/wiki/File:Pizza_served_for_dinner_with_vegetables_and_chicken_topping.JPG",
+    "author": "Tomwsulcer",
+    "license": "CC0"
+  },
+  "wp_chicken_paradise_pizza": {
+    "file": "File:Chicken Tikka at a restaurant.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Tikka_at_a_restaurant.jpg",
+    "author": "Lucrucia98",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_spicy_senorita_pizza": {
+    "file": "File:Japanese teriyaki chicken pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Japanese_teriyaki_chicken_pizza.jpg",
+    "author": "japan_style from Tokyo, JAPAN",
+    "license": "CC BY 2.0"
+  },
+  "wp_chicken_farmers_pick_pizza": {
+    "file": "File:Pizza Hut Buffalo Chicken.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Pizza_Hut_Buffalo_Chicken.jpg",
+    "author": "JIP",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_paprika_pizza": {
+    "file": "File:BBQ Chicken Pizza Hut.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:BBQ_Chicken_Pizza_Hut.jpg",
+    "author": "Cifo Buscemi",
+    "license": "CC BY 3.0"
+  },
+  "wp_wrapchik_special_chicken_pizza": {
+    "file": "File:Chilly and pepper loaded Pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chilly_and_pepper_loaded_Pizza.jpg",
+    "author": "Sneha G Gupta",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_supreme_chicken_pizza": {
+    "file": "File:Super Supreme pizza from Pizza Hut in Indonesia.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Super_Supreme_pizza_from_Pizza_Hut_in_Indonesia.jpg",
+    "author": "Suseno",
+    "license": "CC0"
+  },
+  "wp_pocket_cheese_onion": {
+    "file": "File:Wikimania 2016 Deryck day 0 - 07 calzone.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Wikimania_2016_Deryck_day_0_-_07_calzone.jpg",
+    "author": "Deryck Chan",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_pocket_cheese_capsicum": {
+    "file": "File:Calzone 01.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Calzone_01.jpg",
+    "author": "TELLURIDE 749",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_pocket_cheese_tomato": {
+    "file": "File:Calzone Tradition.JPG",
+    "source": "https://commons.wikimedia.org/wiki/File:Calzone_Tradition.JPG",
+    "author": "Mario56",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_pocket_chicken_tomato": {
+    "file": "File:Calzone Tradition + poivrons.JPG",
+    "source": "https://commons.wikimedia.org/wiki/File:Calzone_Tradition_%2B_poivrons.JPG",
+    "author": "Mario56",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_pocket_chicken_capsicum": {
+    "file": "File:Calzone (3348696443).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Calzone_(3348696443).jpg",
+    "author": "Mack Male from Edmonton, AB, Canada",
+    "license": "CC BY-SA 2.0"
+  },
+  "wp_pocket_chicken_onion": {
+    "file": "File:Mega calzone - ND0 3594 (8041010760).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Mega_calzone_-_ND0_3594_(8041010760).jpg",
+    "author": "N i c o l a from Fiumicino (Rome), Italy",
+    "license": "CC BY 2.0"
+  },
+  "wp_chicken_crispy_lollipop": {
+    "file": "File:Chicken lollipop in Goa.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_lollipop_in_Goa.jpg",
+    "author": "Peiling Tan from Singapore, Singapore",
+    "license": "CC BY 2.0"
+  },
+  "wp_chicken_crispy_wings": {
+    "file": "File:Bankrueed fried chicken wings.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Bankrueed_fried_chicken_wings.jpg",
+    "author": "Vee Satayamas",
+    "license": "CC BY 4.0"
+  },
+  "wp_chicken_crispy_leg_1pc": {
+    "file": "File:Fried chicken drumstick.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fried_chicken_drumstick.jpg",
+    "author": "Fumikas Sagisavas",
+    "license": "CC0"
+  },
+  "wp_chicken_crispy_leg_2pc": {
+    "file": "File:Crispy Fried Chicken Drumsticks Leg Piece.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Crispy_Fried_Chicken_Drumsticks_Leg_Piece.jpg",
+    "author": "Gaurav Dhwaj Khadka",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_crispy_leg_3pc": {
+    "file": "File:Fried-Chicken-Set.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fried-Chicken-Set.jpg",
+    "author": "Evan-Amos",
+    "license": "CC0"
+  },
+  "wp_chicken_crispy_popcorn": {
+    "file": "File:Popcorn Chicken (54442218769).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Popcorn_Chicken_(54442218769).jpg",
+    "author": "Choo Yut Shing from Singapore, Singapore",
+    "license": "CC BY 2.0"
+  },
+  "wp_chicken_crispy_strips": {
+    "file": "File:Chicken tenders and french fries - June 2023 - Sarah Stierch.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_tenders_and_french_fries_-_June_2023_-_Sarah_Stierch.jpg",
+    "author": "Missvain",
+    "license": "CC BY 4.0"
+  },
+  "wp_chicken_crispy_nuggets": {
+    "file": "File:Impossible chicken nuggets 2.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Impossible_chicken_nuggets_2.jpg",
+    "author": "Mx. Granger",
+    "license": "CC0"
+  },
+  "wp_aloo_tikki_burger": {
+    "file": "File:Aloo Tikki Burger.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Aloo_Tikki_Burger.jpg",
+    "author": "Vikramdewangan22889",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_aloo_tikki_burger": {
+    "file": "File:Veggie burger burger king flickr user moe creative commons.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Veggie_burger_burger_king_flickr_user_moe_creative_commons.jpg",
+    "author": "Moe",
+    "license": "CC BY 2.0"
+  },
+  "wp_veggie_decar_burger": {
+    "file": "File:Fancy Veggie Burger and Fries - Joe's Burger House 2024-07-07.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fancy_Veggie_Burger_and_Fries_-_Joe%27s_Burger_House_2024-07-07.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_cheese_veggie_decar_burger": {
+    "file": "File:Plant-based Cheeseburger - Depot Cinema and Restaurant 2025-03-06.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Plant-based_Cheeseburger_-_Depot_Cinema_and_Restaurant_2025-03-06.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_paneer_feast_burger": {
+    "file": "File:Paneer Burger.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Paneer_Burger.jpg",
+    "author": "Mokshjuneja",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_paneer_feast_burger": {
+    "file": "File:Soni Snacks- Veg Cheese Burger.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Soni_Snacks-_Veg_Cheese_Burger.jpg",
+    "author": "Virajnene95",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_maharaja_aloo_tikki_burger": {
+    "file": "File:Veggie burger with fries cc flickr user heliosphan.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Veggie_burger_with_fries_cc_flickr_user_heliosphan.jpg",
+    "author": "heliosphan",
+    "license": "CC BY 2.0"
+  },
+  "wp_maharaja_paneer_feast_burger": {
+    "file": "File:Veg Patty Burger.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Veg_Patty_Burger.jpg",
+    "author": "DEEPTI BALAJI6570",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_classic_chicken_burger": {
+    "file": "File:Chicken-burger-combo (1).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken-burger-combo_(1).jpg",
+    "author": "Chikex",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_chicken_cheese_burger": {
+    "file": "File:Fried chicken sandwich.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fried_chicken_sandwich.jpg",
+    "author": "Breawycker",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_maharaja_chicken_burger": {
+    "file": "File:Double Chicken Burger 20260607.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Double_Chicken_Burger_20260607.jpg",
+    "author": "Vesekskiy",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_aloo_delight_wrap": {
+    "file": "File:Aloo Corn Frankie Roll.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Aloo_Corn_Frankie_Roll.jpg",
+    "author": "Senjuti Dey",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_aloo_delight_wrap": {
+    "file": "File:Veg Mayonnaise Roll.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Veg_Mayonnaise_Roll.jpg",
+    "author": "Sanya1492",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_paneer_wrap": {
+    "file": "File:Kathi Roll.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Kathi_Roll.jpg",
+    "author": "Amanwiki308",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheese_paneer_wrap": {
+    "file": "File:Paneer kathi roll homemade.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Paneer_kathi_roll_homemade.jpg",
+    "author": "Shafana jasmine",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_tangy_wrap": {
+    "file": "File:Vegetable Wrap (toasted) - The naan hut 2023-12-22.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Vegetable_Wrap_(toasted)_-_The_naan_hut_2023-12-22.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_chicken_lemon_peri_wrap": {
+    "file": "File:Handmade Chicken Shawarma Wrap - Lavash.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Handmade_Chicken_Shawarma_Wrap_-_Lavash.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_cheesy_lemon_peri_wrap": {
+    "file": "File:Chicken Shawarma Wrap - Lavash 2024-09-11.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Shawarma_Wrap_-_Lavash_2024-09-11.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_chicken_garlic_peri_wrap": {
+    "file": "File:Врап со пилешко зелечук и кајгана.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:%D0%92%D1%80%D0%B0%D0%BF_%D1%81%D0%BE_%D0%BF%D0%B8%D0%BB%D0%B5%D1%88%D0%BA%D0%BE_%D0%B7%D0%B5%D0%BB%D0%B5%D1%87%D1%83%D0%BA_%D0%B8_%D0%BA%D0%B0%D1%98%D0%B3%D0%B0%D0%BD%D0%B0.jpg",
+    "author": "Viktorija N. Ivanov",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheesy_garlic_peri_wrap": {
+    "file": "File:Chicken Kathi Roll (5646735923).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Kathi_Roll_(5646735923).jpg",
+    "author": "Andy Mitchell from Glasgow, UK",
+    "license": "CC BY-SA 2.0"
+  },
+  "wp_bomby_chicken_ball_wrap": {
+    "file": "File:An Aesthetic Chicken Roll.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:An_Aesthetic_Chicken_Roll.jpg",
+    "author": "Thamizhpparithi Maari",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_salted_fries": {
+    "file": "File:Cajun fries from Popeyes Louisiana Kitchen, Stratford, Ontario, 2025-08-04.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cajun_fries_from_Popeyes_Louisiana_Kitchen,_Stratford,_Ontario,_2025-08-04.jpg",
+    "author": "Chris Woodrich",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_peri_peri_fries": {
+    "file": "File:Fries (Peri Peri) 2026.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fries_(Peri_Peri)_2026.jpg",
+    "author": "Gpkp",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_cheesy_fries": {
+    "file": "File:Cheese Fries.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheese_Fries.jpg",
+    "author": "David Goehring",
+    "license": "CC BY 2.0"
+  },
+  "wp_tangy_fries": {
+    "file": "File:French fries with mayonnaise (3487440272).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:French_fries_with_mayonnaise_(3487440272).jpg",
+    "author": "Kham Tran from Australia",
+    "license": "CC BY 2.0"
+  },
+  "wp_garlic_breadsticks": {
+    "file": "File:Soepstengels (3871017999).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Soepstengels_(3871017999).jpg",
+    "author": "Sander van der Wel from Netherlands",
+    "license": "CC BY-SA 2.0"
+  },
+  "wp_stuffed_garlic_bread": {
+    "file": "File:Garlic stuffed bread.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Garlic_stuffed_bread.jpg",
+    "author": "Vinodbharani27",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_paneer_tikka_stuffed_garlic_bread": {
+    "file": "File:Korean cream cheese garlic bread.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Korean_cream_cheese_garlic_bread.jpg",
+    "author": "Asecretfanfare",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_veg_sandwich": {
+    "file": "File:Vegetable Sandwich 2.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Vegetable_Sandwich_2.jpg",
+    "author": "Ganesh Mohan T",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_veg_cheesy_sandwich": {
+    "file": "File:Liat Portal for Foodie Disorder - Open grilled cheese sandwich in Tel Aviv.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Liat_Portal_for_Foodie_Disorder_-_Open_grilled_cheese_sandwich_in_Tel_Aviv.jpg",
+    "author": "HaJunkiyada",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_sandwich_combo": {
+    "file": "File:Sandwich and French Fries.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Sandwich_and_French_Fries.jpg",
+    "author": "Peachyeung316",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_white_sauce_pasta": {
+    "file": "File:White sauce pasta.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:White_sauce_pasta.jpg",
+    "author": "Sanika Dhumal",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_corn_cheese_pasta": {
+    "file": "File:Corn and cheese pasta.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Corn_and_cheese_pasta.jpg",
+    "author": "Wind Hashira",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_dark_chocolate_waffle": {
+    "file": "File:Chocolate Waffle (2026).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chocolate_Waffle_(2026).jpg",
+    "author": "Gpkp",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_milk_chocolate_waffle": {
+    "file": "File:A&W chocolate sauce on ice cream waffle malaysia.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:A%26W_chocolate_sauce_on_ice_cream_waffle_malaysia.jpg",
+    "author": "Vincent60030",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_black_white_chocolate_waffle": {
+    "file": "File:Chocolate Waffle with Ice Cream.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chocolate_Waffle_with_Ice_Cream.jpg",
+    "author": "Dhanushya ravikumar",
+    "license": "CC BY 4.0"
+  },
+  "wp_triple_chocolate_waffle": {
+    "file": "File:Chocolate Waffle Ice Cream.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chocolate_Waffle_Ice_Cream.jpg",
+    "author": "Cendy00",
+    "license": "CC BY 4.0"
+  },
+  "wp_masala_coke": {
+    "file": "File:Glass cola.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Glass_cola.jpg",
+    "author": "pic_p_ter",
+    "license": "Public domain"
+  },
+  "wp_blue_lagoon": {
+    "file": "File:Blue Lagoon at the Mandarin Oriental, Washington DC.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Blue_Lagoon_at_the_Mandarin_Oriental,_Washington_DC.jpg",
+    "author": "John Phelan",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_virgin_mojito": {
+    "file": "File:Mojito glass.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Mojito_glass.jpg",
+    "author": "Yartsew",
+    "license": "CC BY-SA 3.0"
+  },
+  "wp_kitkat_shake": {
+    "file": "File:Chocolate milkshake ... 😋.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chocolate_milkshake_..._%F0%9F%98%8B.jpg",
+    "author": "Bernard DUPONT",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_oreo_shake": {
+    "file": "File:Oreo milkshake - Creperie Doux Sourire 2025-05-03.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Oreo_milkshake_-_Creperie_Doux_Sourire_2025-05-03.jpg",
+    "author": "Andy Li",
+    "license": "CC0"
+  },
+  "wp_cold_coffee": {
+    "file": "File:Cold Cofee op.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Cold_Cofee_op.jpg",
+    "author": "Wind Hashira",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_choco_overload": {
+    "file": "File:GLASS OF HAPPINESS.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:GLASS_OF_HAPPINESS.jpg",
+    "author": "Elakkiya Loganayaki",
+    "license": "CC0"
+  },
+  "wp_burger_magic_combo": {
+    "file": "File:Burger with fries and cold drink.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Burger_with_fries_and_cold_drink.jpg",
+    "author": "Anushka10patel",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_wrap_magic_combo": {
+    "file": "File:Hoagie wrap - interior.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Hoagie_wrap_-_interior.jpg",
+    "author": "Pretzelles",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_pizza_magic_combo": {
+    "file": "File:Deep Fried Pizza.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Deep_Fried_Pizza.jpg",
+    "author": "User:Stx",
+    "license": "Public domain"
+  },
+  "wp_duo_combo_chicken": {
+    "file": "File:Fried Chicken & Vegetable Curry Meal.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fried_Chicken_%26_Vegetable_Curry_Meal.jpg",
+    "author": "Ralff Nestor Nacor",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_big_8_chicken": {
+    "file": "File:Chicken Lollipop Gulshan.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Chicken_Lollipop_Gulshan.jpg",
+    "author": "Sablepaw",
+    "license": "CC BY-SA 4.0"
+  },
+  "wp_big_12_chicken": {
+    "file": "File:Looking down into KFC bucket of fried chicken (34956588243).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Looking_down_into_KFC_bucket_of_fried_chicken_(34956588243).jpg",
+    "author": "Willis Lam",
+    "license": "CC BY-SA 2.0"
+  },
+  "wp_5pcs_leg_bucket": {
+    "file": "File:Fried Chicken (Unsplash).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Fried_Chicken_(Unsplash).jpg",
+    "author": "Brian Chan tigerrulezzz",
+    "license": "CC0"
+  },
+  "wp_wrapchik_special_bucket": {
+    "file": "File:Delicious burgers, fries, salad, and chicken served at a restaurant table.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Delicious_burgers,_fries,_salad,_and_chicken_served_at_a_restaurant_table.jpg",
+    "author": "Shixart1985",
+    "license": "CC BY 2.0"
+  },
+  "wp_chicken_krisper_meal": {
+    "file": "File:Burger + Fries Daily Special, South Bird Hot Chicken, 2026 (01).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Burger_%2B_Fries_Daily_Special,_South_Bird_Hot_Chicken,_2026_(01).jpg",
+    "author": "Bahnfrend",
+    "license": "CC BY-SA 4.0"
+  }
+}

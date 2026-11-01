@@ -86,7 +86,7 @@ export function PickupLocationPicker({
                   selected ? "border-saffron bg-saffron" : "border-line-strong",
                 )}
               >
-                {selected ? <Check className="size-3 text-ink" strokeWidth={3.5} /> : null}
+                {selected ? <Check className="size-3 text-white" strokeWidth={3.5} /> : null}
               </span>
 
               <span className="min-w-0 flex-1">

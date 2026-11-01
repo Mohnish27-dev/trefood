@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { requireAdmin } from "@/server/auth/session";
+import { requireAdminPage } from "@/server/auth/session";
 import { getCampusById, getMenu, getRestaurantById } from "@/server/services/catalog";
 import { listAdminCouponsForRestaurant } from "@/server/services/coupons";
 import { RestaurantCouponsManager } from "@/components/admin/restaurant-coupons-manager";
@@ -14,7 +14,7 @@ export default async function RestaurantCouponsPage({
 }: {
   params: Promise<{ restaurantId: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPage();
   const { restaurantId } = await params;
 
   const restaurant = await getRestaurantById(restaurantId);

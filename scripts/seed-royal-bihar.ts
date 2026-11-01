@@ -25,6 +25,14 @@ const VENDOR_EMAIL = "royalbiharrestaurant@gmail.com";
 
 const R = rupeesToPaise;
 
+/**
+ * Every item has a photo at public/menu/royalBihar/<item id>.jpg (sources and
+ * licences in CREDITS.json next to them).
+ */
+export function royalBiharItemImage(itemId: string): string {
+  return `/menu/royalBihar/${itemId}.jpg`;
+}
+
 function portionGroup(halfPaise: Paise, fullPaise: Paise, label1 = "Half", label2 = "Full"): AddOnGroup {
   return {
     id: "grp_portion",
@@ -1914,7 +1922,7 @@ export async function seedRoyalBihar(): Promise<void> {
     description: item.description,
     isVeg: item.isVeg,
     pricePaise: item.pricePaise,
-    imageUrl: null,
+    imageUrl: royalBiharItemImage(item.id),
     isAvailable: true,
     isPopular: item.isPopular ?? false,
     addOnGroups: item.addOnGroups ?? [],

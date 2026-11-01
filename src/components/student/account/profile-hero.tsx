@@ -39,16 +39,16 @@ export function ProfileHero({
       {/* Decoration only. aria-hidden so a screen reader hears the name first. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-[radial-gradient(60%_100%_at_50%_100%,rgb(255_107_26/0.22),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-[radial-gradient(60%_100%_at_50%_100%,rgb(131_0_32/0.18),transparent_70%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-saffron/10 blur-2xl"
+        className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-tf-maroon/10 blur-2xl"
       />
 
       <div className="relative p-4">
         <div className="flex items-start gap-3.5">
-          <span className="relative flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-saffron to-saffron-deep font-display text-2xl font-bold text-white shadow-[0_6px_20px_-6px] shadow-saffron/60 ring-1 ring-white/15">
+          <span className="relative flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-tf-maroon via-tf-maroon-glow to-tf-yellow font-display text-2xl font-extrabold text-white shadow-[0_6px_20px_-6px_rgba(131,0,32,0.5)] ring-2 ring-white/20">
             {initial}
           </span>
 

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ZoneEditor, type EditorZone } from "@/components/admin/zone-editor";
-import { requireAdmin } from "@/server/auth/session";
+import { isFullAdmin } from "@/lib/constants";
+import { requireStaff } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 
 export const metadata: Metadata = { title: "Gates" };
@@ -15,7 +16,7 @@ export default async function AdminZonesPage({
 }: {
   params: Promise<{ campusId: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireStaff();
 
   const { campusId } = await params;
   const campus = await getCampusById(campusId);
@@ -58,6 +59,7 @@ export default async function AdminZonesPage({
         center={campus.center}
         zones={zones}
         geofence={campus.geofence?.coordinates[0] ?? null}
+        readOnly={!isFullAdmin(session.role)}
       />
     </>
   );

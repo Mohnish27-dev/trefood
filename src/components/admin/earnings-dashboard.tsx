@@ -9,6 +9,8 @@ import {
   CalendarDays,
   Minus,
   Store,
+  CalendarRange,
+  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -146,6 +148,37 @@ export interface DashboardCampus {
   name: string;
 }
 
+export interface DashboardPeakHour {
+  hour: number | null;
+  label: string;
+  orderCount: number;
+  billedPaise: number;
+}
+
+export interface DashboardWeekDay extends DashboardDaily {
+  dayName: string;
+  shortDayName: string;
+  isToday: boolean;
+  isPast: boolean;
+  isFuture: boolean;
+  peakHour: DashboardPeakHour;
+  vendorKeepsPaise: number;
+}
+
+export interface DashboardWeekEarnings extends DashboardBucket {
+  startDate: string;
+  endDate: string;
+  previousWeekTotal: DashboardBucket;
+  days: DashboardWeekDay[];
+  busiestDay: {
+    date: string;
+    dayName: string;
+    orderCount: number;
+    commissionPaise: number;
+  } | null;
+  vendorKeepsPaise: number;
+}
+
 export interface EarningsDashboardProps {
   todayDate: string;
   month: string;
@@ -158,6 +191,7 @@ export interface EarningsDashboardProps {
   weekendDates: [string, string];
   saturday: DashboardDaily;
   sunday: DashboardDaily;
+  currentWeek: DashboardWeekEarnings;
   monthTotal: DashboardBucket;
   previousMonthTotal: DashboardBucket;
   yearTotal: DashboardBucket;
@@ -444,7 +478,7 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
 
       {/* ---- Volume tiles ---------------------------------------------- */}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Tile
           label="Today"
           paise={props.today.billedPaise}
@@ -453,6 +487,18 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
             current: props.today.billedPaise,
             previous: props.yesterday.billedPaise,
             periodLabel: "yesterday",
+          }}
+        />
+        <Tile
+          label="This Week"
+          paise={props.currentWeek.billedPaise}
+          caption={`${props.currentWeek.orderCount} order${
+            props.currentWeek.orderCount === 1 ? "" : "s"
+          } · Mon – Sun`}
+          delta={{
+            current: props.currentWeek.billedPaise,
+            previous: props.currentWeek.previousWeekTotal.billedPaise,
+            periodLabel: "last week",
           }}
         />
         <Tile
@@ -497,6 +543,13 @@ export function EarningsDashboard(props: EarningsDashboardProps) {
           </>
         ) : null}
       </p>
+
+      {/* ---- Current Week Section --------------------------------------- */}
+
+      <CurrentWeekEarningsSection
+        currentWeek={props.currentWeek}
+        onSelectDay={(day) => go({ day })}
+      />
 
       {/* ---- Weekend Section ------------------------------------------- */}
 
@@ -965,6 +1018,228 @@ function formatDay(date: string): string {
   const [year, month, day] = date.split("-");
   if (!year || !month || !day) return date;
   return `${day} ${MONTH_NAMES[Number(month) - 1]?.slice(0, 3) ?? month} ${year}`;
+}
+
+/** "09 Sep" from "2026-09-09". */
+function shortDate(date: string): string {
+  const [, month, day] = date.split("-");
+  if (!month || !day) return date;
+  return `${day} ${MONTH_NAMES[Number(month) - 1]?.slice(0, 3) ?? month}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Current Week Section Component
+   ══════════════════════════════════════════════════════════════════════ */
+
+function CurrentWeekEarningsSection({
+  currentWeek,
+  onSelectDay,
+}: {
+  currentWeek: DashboardWeekEarnings;
+  onSelectDay: (day: string) => void;
+}) {
+  const startLabel = formatDay(currentWeek.startDate);
+  const endLabel = formatDay(currentWeek.endDate);
+  const rangeLabel = `${startLabel} – ${endLabel}`;
+
+  return (
+    <Card className="p-5 border-line/80 bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <CalendarRange className="size-4 shrink-0 text-saffron" />
+          <div>
+            <h2 className="font-display text-base font-semibold text-bone">
+              Current Week Performance
+            </h2>
+            <p className="text-xs text-muted">
+              Monday to Sunday ({rangeLabel}) · Complete earnings & ordering rush insights
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge tone="neutral" className="tabular">
+            {currentWeek.orderCount} total order{currentWeek.orderCount === 1 ? "" : "s"}
+          </Badge>
+          <Delta
+            current={currentWeek.commissionPaise}
+            previous={currentWeek.previousWeekTotal.commissionPaise}
+            periodLabel="last week"
+            compact
+          />
+        </div>
+      </div>
+
+      {/* Overview Stat Cards */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            TREFOOD Commission
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-saffron tabular">
+            <Money paise={currentWeek.commissionPaise} exact />
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] text-faint">Platform income</p>
+            <Delta
+              current={currentWeek.commissionPaise}
+              previous={currentWeek.previousWeekTotal.commissionPaise}
+              periodLabel="last week"
+              compact
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            Student Volume Billed
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-bone tabular">
+            {formatINRCompact(currentWeek.billedPaise)}
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] text-faint">Gross sales across vendors</p>
+            <Delta
+              current={currentWeek.billedPaise}
+              previous={currentWeek.previousWeekTotal.billedPaise}
+              periodLabel="last week"
+              compact
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            Vendor Payout (Kept)
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-bone tabular">
+            <Money paise={currentWeek.vendorKeepsPaise} exact />
+          </p>
+          <p className="mt-2 text-[11px] text-faint">
+            Retained by vendors from sales
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-line/40 bg-surface-raised/40 p-3.5">
+          <p className="text-[10px] font-semibold tracking-wider text-faint uppercase">
+            Delivered Orders
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-bone tabular">
+            {currentWeek.orderCount}
+          </p>
+          <p className="mt-2 text-[11px] text-faint">
+            {currentWeek.busiestDay
+              ? `Top: ${currentWeek.busiestDay.dayName} (${currentWeek.busiestDay.orderCount} orders)`
+              : "Delivered this week"}
+          </p>
+        </div>
+      </div>
+
+      {/* Day by Day Breakdown with Peak Ordering Hours */}
+      <div className="mt-5">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+            Daily Breakdown & Peak Ordering Hours
+          </p>
+          <p className="text-[11px] text-muted">
+            Rush hour identifies when students placed the most orders each day
+          </p>
+        </div>
+
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+          {currentWeek.days.map((day) => {
+            const isTop =
+              currentWeek.busiestDay?.date === day.date && day.orderCount > 0;
+
+            return (
+              <div
+                key={day.date}
+                className={cn(
+                  "flex flex-col justify-between rounded-xl border p-3 transition-colors",
+                  day.isToday
+                    ? "border-saffron/60 bg-saffron/5 shadow-xs"
+                    : "border-line/60 bg-surface/50 hover:border-line",
+                  day.isFuture && "opacity-60",
+                )}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div>
+                      <p className="text-xs font-semibold text-bone">{day.dayName}</p>
+                      <p className="text-[10px] text-muted">{shortDate(day.date)}</p>
+                    </div>
+                    {day.isToday ? (
+                      <span className="rounded bg-saffron/20 px-1.5 py-0.5 text-[9px] font-bold text-saffron uppercase">
+                        Today
+                      </span>
+                    ) : isTop ? (
+                      <span className="rounded bg-mint/20 px-1.5 py-0.5 text-[9px] font-bold text-mint uppercase">
+                        Top Day
+                      </span>
+                    ) : day.isFuture ? (
+                      <span className="rounded bg-surface-raised px-1 py-0.5 text-[9px] text-faint">
+                        Upcoming
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* Daily Delivered Earnings */}
+                  <div className="mt-3 space-y-1 border-t border-line/40 pt-2.5">
+                    <div className="flex items-baseline justify-between text-[11px]">
+                      <span className="text-faint">Orders</span>
+                      <span className="font-medium text-bone tabular">{day.orderCount}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between text-[11px]">
+                      <span className="text-faint">Billed</span>
+                      <span className="font-medium text-bone tabular">
+                        {formatINRCompact(day.billedPaise)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between text-[11px]">
+                      <span className="text-faint">Commission</span>
+                      <span className="font-semibold text-saffron tabular">
+                        <Money paise={day.commissionPaise} exact />
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Peak Ordering Rush Hour Card */}
+                  <div className="mt-3 rounded-lg border border-line/40 bg-surface-raised/50 p-2">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-faint uppercase tracking-wider">
+                      <Clock className="size-3 text-saffron shrink-0" />
+                      <span>Peak Hour</span>
+                    </div>
+                    {day.peakHour.hour !== null ? (
+                      <div className="mt-1">
+                        <p className="text-xs font-semibold text-bone tabular">
+                          {day.peakHour.label}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-faint tabular">
+                          {day.peakHour.orderCount} order
+                          {day.peakHour.orderCount === 1 ? "" : "s"} ·{" "}
+                          {formatINRCompact(day.peakHour.billedPaise)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-faint italic">No orders</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick inspect button */}
+                <button
+                  type="button"
+                  onClick={() => onSelectDay(day.date)}
+                  className="mt-3 w-full rounded-md border border-line/30 bg-surface-raised/30 py-1 text-center text-[10px] font-medium text-muted transition-colors hover:bg-surface-raised hover:text-saffron cursor-pointer"
+                >
+                  View day report
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -295,7 +295,7 @@ export function SearchTeaser({ href }: { href: string }) {
       <span className="min-w-0 flex-1 truncate text-sm text-faint">
         Search biryani, momos, chai…
       </span>
-      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-saffron text-ink transition-transform group-hover:translate-x-0.5">
+      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-saffron text-white transition-transform group-hover:translate-x-0.5">
         <ArrowRight className="size-4" />
       </span>
     </Link>

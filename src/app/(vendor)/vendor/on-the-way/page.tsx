@@ -13,7 +13,7 @@ export default async function VendorOnTheWayPage() {
   const { restaurantId } = await requireVendor();
 
   const board = await getVendorBoard({ restaurantId });
-  if (!board) redirect("/signin?next=/vendor/on-the-way&reason=vendor");
+  if (!board) redirect("/vendor/login?next=/vendor/on-the-way&reason=vendor");
 
   return <OrderBoard initial={board} stage="on_the_way" />;
 }

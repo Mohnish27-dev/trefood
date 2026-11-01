@@ -9,8 +9,10 @@ import { MAX_RESTAURANT_PHONES, PHONE_PATTERN } from "@/lib/restaurant-phones";
 import { requireAdmin } from "@/server/auth/session";
 import {
   createVendorDirectly,
+  createVendorLoginForExistingRestaurant,
   deleteVendor,
   deleteZone,
+  resetVendorPasswordByAdmin,
   reviewKyc,
   setCommissionOverride,
   setPlatformFee,
@@ -40,14 +42,25 @@ import type { DeliveryZone } from "@/types/campus";
 /**
  * Admin Server Actions.
  *
- * `requireAdmin()` is the first line of every one of them. The admin route
+ * `requireAdmin()` is the first line of every one of them — co-admins can
+ * view parts of the console but call none of these. The admin route
  * group is also gated in `proxy.ts`, but that is a redirect for humans, not
  * authorisation: a Server Action is reachable by a direct POST and has to
  * defend itself (PRD Part 4.9).
  */
 
 export type AdminActionState =
-  | { status: "ok"; message: string; zoneId?: string }
+  | {
+      status: "ok";
+      message: string;
+      zoneId?: string | undefined;
+      credentials?: {
+        restaurantName: string;
+        email: string;
+        password?: string | undefined;
+        restaurantId?: string | undefined;
+      } | undefined;
+    }
   | { status: "error"; message: string };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -490,6 +503,92 @@ export async function createVendorAccount(input: unknown): Promise<AdminActionSt
   return {
     status: "ok",
     message: `Vendor "${result.restaurant.name}" created! They can now sign in with ${parsed.data.email}.`,
+    credentials: {
+      restaurantName: result.restaurant.name,
+      email: parsed.data.email,
+      password: parsed.data.password,
+      restaurantId: result.restaurant._id,
+    },
+  };
+}
+
+export async function resetVendorPasswordAction(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({
+      restaurantId: z.string().min(1),
+      newPassword: z.string().min(6, "Password must be at least 6 characters"),
+    })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid password.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const result = await resetVendorPasswordByAdmin({
+    restaurantId: parsed.data.restaurantId,
+    newPassword: parsed.data.newPassword,
+    actorId: user._id,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/admin/vendors");
+  return {
+    status: "ok",
+    message: `Password updated for ${result.email}.`,
+    credentials: {
+      restaurantName: "",
+      email: result.email,
+      password: parsed.data.newPassword,
+      restaurantId: parsed.data.restaurantId,
+    },
+  };
+}
+
+export async function linkVendorAccountAction(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({
+      restaurantId: z.string().min(1),
+      email: z.string().trim().email("Enter a valid email address"),
+      password: z.string().min(6, "Password must be at least 6 characters"),
+      ownerName: z.string().trim().optional(),
+      phone: z.string().trim().optional(),
+    })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid credentials.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const result = await createVendorLoginForExistingRestaurant({
+    ...parsed.data,
+    actorId: user._id,
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
+
+  revalidatePath("/admin/vendors");
+  return {
+    status: "ok",
+    message: `Vendor login created for ${result.user.email}!`,
+    credentials: {
+      restaurantName: result.user.name,
+      email: result.user.email,
+      password: parsed.data.password,
+      restaurantId: result.user.restaurantId ?? undefined,
+    },
   };
 }
 

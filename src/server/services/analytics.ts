@@ -2,7 +2,7 @@ import "server-only";
 
 import * as db from "@/server/db/collections";
 import { ORDER_STATUS } from "@/lib/constants";
-import { campusDateString } from "@/lib/campus-time";
+import { campusDateString, campusDayRange } from "@/lib/campus-time";
 import type { Bps, Paise } from "@/lib/money";
 import type { Campus } from "@/types/campus";
 
@@ -14,7 +14,7 @@ import type { Campus } from "@/types/campus";
  * Every order is cash on delivery. The vendor's own staff came back from the
  * gate holding the full bill, so "revenue" here is the vendor's, and TREFOOD's
  * income is the commission line inside it. A column called "payable" would be
- * the wrong shape entirely; what a vendor has is a balance they owe us.
+ * the wrong shape entirely;  what a vendor has is a balance they owe us.
  *
  * Two independent sources, deliberately not merged:
  *
@@ -115,6 +115,39 @@ export interface CollectionHealth {
   unbilled: UnbilledSlice;
 }
 
+export interface PeakHourInfo {
+  /** 0 to 23, or null when no orders were placed on that date. */
+  hour: number | null;
+  /** e.g. "8:00 PM – 9:00 PM" or "No orders" */
+  label: string;
+  orderCount: number;
+  billedPaise: Paise;
+}
+
+export interface WeekDayPerformance extends DailyPoint {
+  dayName: string;
+  shortDayName: string;
+  isToday: boolean;
+  isPast: boolean;
+  isFuture: boolean;
+  peakHour: PeakHourInfo;
+  vendorKeepsPaise: Paise;
+}
+
+export interface WeekEarnings extends EarningsBucket {
+  startDate: string;
+  endDate: string;
+  previousWeekTotal: EarningsBucket;
+  days: WeekDayPerformance[];
+  busiestDay: {
+    date: string;
+    dayName: string;
+    orderCount: number;
+    commissionPaise: Paise;
+  } | null;
+  vendorKeepsPaise: Paise;
+}
+
 export interface EarningsAnalytics {
   /** Campus-local today, in the scope's timezone. */
   todayDate: string;
@@ -130,6 +163,8 @@ export interface EarningsAnalytics {
   weekendDates: [string, string];
   saturday: DailyPoint;
   sunday: DailyPoint;
+  /** Monday to Sunday of the week containing reportDay or today. */
+  currentWeek: WeekEarnings;
   monthTotal: EarningsBucket;
   previousMonthTotal: EarningsBucket;
   yearTotal: EarningsBucket;
@@ -168,15 +203,27 @@ export async function getEarningsAnalytics(params: {
   const campusIds = params.campuses.map((campus) => campus._id);
   const restaurantsById = await restaurantIndex(campusIds);
 
+  const anchorDate = params.reportDay ?? todayDate;
+  const weekDates = datesOfWeek(anchorDate);
+  const weekStart = weekDates[0] ?? anchorDate;
+  const weekEnd = weekDates[6] ?? anchorDate;
+
   // One pass per campus, because `$dateToString` takes a single timezone and
   // two campuses can legitimately sit in two of them. Merged on the way out.
   const perDay = new Map<string, Map<string, EarningsBucket>>();
   const unbilledByRestaurant = new Map<string, UnbilledSlice>();
+  const hourlyByDate = new Map<string, Map<number, HourlyStat>>();
 
   await Promise.all(
     params.campuses.flatMap((campus) => [
       collectDelivered({ campus, into: perDay }),
       collectUnbilled({ campus, into: unbilledByRestaurant }),
+      collectHourlyOrders({
+        campus,
+        fromDate: weekStart,
+        toDate: weekEnd,
+        into: hourlyByDate,
+      }),
     ]),
   );
 
@@ -188,7 +235,6 @@ export async function getEarningsAnalytics(params: {
     sumBuckets(datesMatching(perDay, matches));
 
   const yesterdayDate = campusDateString(new Date(now.getTime() - 86_400_000), timezone);
-  const anchorDate = params.reportDay ?? todayDate;
   const weekendDates = weekendOf(anchorDate) as [string, string];
   const [saturdayDate, sundayDate] = weekendDates;
   const previousMonth = shiftMonth(month, -1);
@@ -197,6 +243,48 @@ export async function getEarningsAnalytics(params: {
   const sunPoints = gapFill(perDay, [sundayDate]);
   const saturday = satPoints[0] ?? { date: saturdayDate, ...emptyBucket() };
   const sunday = sunPoints[0] ?? { date: sundayDate, ...emptyBucket() };
+
+  const previousWeekDates = datesOfWeek(shiftDate(weekStart, -7));
+  const weekPoints = gapFill(perDay, weekDates);
+
+  const weekDays: WeekDayPerformance[] = weekPoints.map((point) => {
+    const dayMap = hourlyByDate.get(point.date);
+    const names = dayOfWeekName(point.date);
+    return {
+      ...point,
+      dayName: names.full,
+      shortDayName: names.short,
+      isToday: point.date === todayDate,
+      isPast: point.date < todayDate,
+      isFuture: point.date > todayDate,
+      peakHour: computePeakHour(dayMap),
+      vendorKeepsPaise: Math.max(point.billedPaise - point.commissionPaise, 0),
+    };
+  });
+
+  let busiestDay: WeekEarnings["busiestDay"] = null;
+  for (const day of weekDays) {
+    if (day.orderCount > 0 && (busiestDay === null || day.commissionPaise > busiestDay.commissionPaise)) {
+      busiestDay = {
+        date: day.date,
+        dayName: day.dayName,
+        orderCount: day.orderCount,
+        commissionPaise: day.commissionPaise,
+      };
+    }
+  }
+
+  const weekTotal = sumBuckets(weekPoints);
+  const previousWeekTotal = inPeriod((date) => previousWeekDates.includes(date));
+  const currentWeek: WeekEarnings = {
+    ...weekTotal,
+    startDate: weekStart,
+    endDate: weekEnd,
+    previousWeekTotal,
+    days: weekDays,
+    busiestDay,
+    vendorKeepsPaise: Math.max(weekTotal.billedPaise - weekTotal.commissionPaise, 0),
+  };
 
   const analytics: EarningsAnalytics = {
     todayDate,
@@ -210,6 +298,7 @@ export async function getEarningsAnalytics(params: {
     weekendDates,
     saturday,
     sunday,
+    currentWeek,
     monthTotal: inPeriod((date) => date.startsWith(month)),
     previousMonthTotal: inPeriod((date) => date.startsWith(previousMonth)),
     yearTotal: inPeriod((date) => date.startsWith(year)),
@@ -381,6 +470,91 @@ async function collectUnbilled(params: {
       commissionPaise: (existing?.commissionPaise ?? 0) + row.commissionPaise,
       oldestDate: earlierDate(existing?.oldestDate ?? null, oldestDate),
     });
+  }
+}
+
+export interface HourlyStat {
+  orderCount: number;
+  billedPaise: number;
+}
+
+/**
+ * Hourly ordering activity, grouped by campus-local day and hour.
+ *
+ * All placed orders in the week are counted (as chosen for rush-hour analysis),
+ * converting to the campus-local timezone so orders at 8:30 PM IST land in hour 20,
+ * not UTC hour 15.
+ */
+async function collectHourlyOrders(params: {
+  campus: Campus;
+  fromDate: string;
+  toDate: string;
+  into: Map<string, Map<number, HourlyStat>>;
+}): Promise<void> {
+  const start = campusDayRange(params.fromDate, params.campus.timezone).start;
+  const end = campusDayRange(params.toDate, params.campus.timezone).end;
+
+  interface HourlyRow {
+    _id: { date: string; hour: string };
+    orderCount: number;
+    billedPaise: number;
+  }
+
+  const rows = await (await db.orders())
+    .aggregate<HourlyRow>([
+      {
+        $match: {
+          campusId: params.campus._id,
+          $or: [
+            { "timestamps.placedAt": { $gte: start, $lt: end } },
+            { "timestamps.placedAt": null, "timestamps.createdAt": { $gte: start, $lt: end } },
+          ],
+        },
+      },
+      {
+        $project: {
+          orderTime: { $ifNull: ["$timestamps.placedAt", "$timestamps.createdAt"] },
+          billedPaise: { $ifNull: ["$pricing.grandTotalPaise", 0] },
+        },
+      },
+      {
+        $project: {
+          date: {
+            $dateToString: {
+              date: "$orderTime",
+              format: "%Y-%m-%d",
+              timezone: params.campus.timezone,
+            },
+          },
+          hour: {
+            $dateToString: {
+              date: "$orderTime",
+              format: "%H",
+              timezone: params.campus.timezone,
+            },
+          },
+          billedPaise: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { date: "$date", hour: "$hour" },
+          orderCount: { $sum: 1 },
+          billedPaise: { $sum: "$billedPaise" },
+        },
+      },
+    ])
+    .toArray();
+
+  for (const row of rows) {
+    const dayMap = params.into.get(row._id.date) ?? new Map<number, HourlyStat>();
+    const hourNum = parseInt(row._id.hour, 10);
+    const existing = dayMap.get(hourNum) ?? { orderCount: 0, billedPaise: 0 };
+    dayMap.set(hourNum, {
+      orderCount: existing.orderCount + row.orderCount,
+      billedPaise: existing.billedPaise + row.billedPaise,
+    });
+    params.into.set(row._id.date, dayMap);
   }
 }
 
@@ -616,4 +790,101 @@ function mergeUnbilled(slices: readonly UnbilledSlice[]): UnbilledSlice {
     }),
     { orderCount: 0, commissionPaise: 0, oldestDate: null },
   );
+}
+
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const SHORT_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function dayOfWeekName(date: string): { full: string; short: string } {
+  const at = new Date(`${date}T12:00:00Z`);
+  const day = at.getUTCDay();
+  return {
+    full: DAY_NAMES[day] ?? "",
+    short: SHORT_DAY_NAMES[day] ?? "",
+  };
+}
+
+export function formatHourRange(hour: number): string {
+  const formatH = (h: number): string => {
+    const period = h >= 12 ? "PM" : "AM";
+    const mod = h % 12;
+    const displayH = mod === 0 ? 12 : mod;
+    return `${displayH}:00 ${period}`;
+  };
+  const startStr = formatH(hour);
+  const endStr = formatH((hour + 1) % 24);
+  return `${startStr} – ${endStr}`;
+}
+
+export function computePeakHour(dayMap: Map<number, HourlyStat> | undefined): PeakHourInfo {
+  if (!dayMap || dayMap.size === 0) {
+    return {
+      hour: null,
+      label: "No orders",
+      orderCount: 0,
+      billedPaise: 0,
+    };
+  }
+
+  let bestHour: number | null = null;
+  let bestCount = 0;
+  let bestBilled = 0;
+
+  for (const [hour, stat] of dayMap.entries()) {
+    if (stat.orderCount > bestCount) {
+      bestHour = hour;
+      bestCount = stat.orderCount;
+      bestBilled = stat.billedPaise;
+    } else if (stat.orderCount === bestCount && stat.orderCount > 0) {
+      if (stat.billedPaise > bestBilled) {
+        bestHour = hour;
+        bestBilled = stat.billedPaise;
+      }
+    }
+  }
+
+  if (bestHour === null || bestCount === 0) {
+    return {
+      hour: null,
+      label: "No orders",
+      orderCount: 0,
+      billedPaise: 0,
+    };
+  }
+
+  return {
+    hour: bestHour,
+    label: formatHourRange(bestHour),
+    orderCount: bestCount,
+    billedPaise: bestBilled,
+  };
+}
+
+/**
+ * Monday through Sunday of the week containing `date` (ISO-8601 week).
+ *
+ * Monday is the start of the week, Sunday is the end.
+ */
+export function datesOfWeek(date: string): string[] {
+  const at = new Date(`${date}T12:00:00Z`);
+  const day = at.getUTCDay();
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(at.getTime() - diffToMonday * 86_400_000);
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(monday.getTime() + i * 86_400_000).toISOString().slice(0, 10),
+  );
+}
+
+/** The date shifted by `days` days. Positive delta goes forward, negative backwards. */
+export function shiftDate(date: string, days: number): string {
+  const at = new Date(`${date}T12:00:00Z`);
+  return new Date(at.getTime() + days * 86_400_000).toISOString().slice(0, 10);
 }

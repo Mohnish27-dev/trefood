@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, Home, ShoppingCart, User } from "lucide-react";
+import { ClipboardList, Home, LayoutGrid, ShoppingCart, User } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,17 +8,7 @@ import { useCart } from "@/hooks/use-cart";
 import { cn } from "@/lib/utils";
 
 /**
- * Bottom navigation.
- *
- * Thumb-reachable on a 360px phone held one-handed, which is how this app is
- * actually used — walking to a gate, at night, carrying something else.
- * `pb-safe` keeps it clear of the home indicator once installed as a PWA.
- */
-/**
- * A saffron bar under the tab that was just tapped, while the next route is
- * still on the wire. It is delayed by 120ms in CSS, so a prefetched (that
- * is, instant) navigation never flashes it — this only ever appears when
- * the network is actually slow.
+ * A maroon bar under the tab that was just tapped while route is on wire.
  */
 function TapHint() {
   const { pending } = useLinkStatus();
@@ -27,7 +17,7 @@ function TapHint() {
   return (
     <span
       aria-hidden
-      className="nav-tap-hint absolute inset-x-5 bottom-1 h-0.5 rounded-full bg-saffron"
+      className="nav-tap-hint absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-tf-maroon animate-pulse"
     />
   );
 }
@@ -37,49 +27,161 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
   const { itemCount } = useCart();
   const activeCampus = campusSlug ?? "nit-patna";
 
-  const items = [
-    { href: `/c/${activeCampus}`, label: "Browse", icon: Home },
-    { href: "/cart", label: "Cart", icon: ShoppingCart, badge: itemCount },
-    { href: "/orders", label: "Orders", icon: ClipboardList },
-    { href: "/account", label: "Account", icon: User },
-  ];
+  const handleCategoriesClick = (e: React.MouseEvent) => {
+    if (pathname.startsWith(`/c/${activeCampus}`)) {
+      const el = document.getElementById("explore-categories");
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 backdrop-blur-lg pb-safe"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e8ded9] dark:border-line bg-white/95 dark:bg-surface/95 backdrop-blur-xl shadow-[0_-4px_24px_rgba(131,0,32,0.06)] pb-safe"
       aria-label="Main"
     >
-      <ul className="mx-auto flex max-w-lg">
-        {items.map(({ href, label, icon: Icon, badge }) => {
-          const active =
-            href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-
+      <div className="mx-auto flex max-w-lg items-center justify-between px-2">
+        {/* 1. Home */}
+        {(() => {
+          const isHome =
+            pathname === `/c/${activeCampus}` ||
+            pathname === `/c/${activeCampus}/` ||
+            pathname === "/";
           return (
-            <li key={label} className="flex-1">
-              <Link
-                href={href}
-                aria-current={active ? "page" : undefined}
+            <Link
+              href={`/c/${activeCampus}`}
+              aria-current={isHome ? "page" : undefined}
+              className={cn(
+                "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
+                isHome
+                  ? "text-tf-maroon dark:text-rose-400 font-bold"
+                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+              )}
+            >
+              <Home
                 className={cn(
-                  // 44px floor, same as Button.
-                  "relative flex min-h-14 flex-col items-center justify-center gap-1 py-2 transition-colors",
-                  active ? "text-saffron" : "text-faint hover:text-muted",
+                  "size-5 transition-transform",
+                  isHome && "scale-110 stroke-[2.4]",
                 )}
-              >
-                <span className="relative">
-                  <Icon className="size-5" />
-                  {badge !== undefined && badge > 0 ? (
-                    <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-saffron px-1 text-[10px] font-bold tabular text-ink">
-                      {badge > 9 ? "9+" : badge}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="text-[10px] font-medium leading-none">{label}</span>
-                <TapHint />
-              </Link>
-            </li>
+              />
+              <span className="text-[10px] sm:text-[11px] font-medium leading-none">
+                Home
+              </span>
+              {isHome ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-4 bottom-0 h-0.75 rounded-t-full bg-tf-maroon dark:bg-rose-400"
+                />
+              ) : null}
+              <TapHint />
+            </Link>
           );
-        })}
-      </ul>
+        })()}
+
+        {/* 2. Categories */}
+        <Link
+          href={`/c/${activeCampus}#explore-categories`}
+          onClick={handleCategoriesClick}
+          className={cn(
+            "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+          )}
+        >
+          <LayoutGrid className="size-5 transition-transform hover:scale-110 stroke-[2]" />
+          <span className="text-[10px] sm:text-[11px] font-medium leading-none">
+            Categories
+          </span>
+          <TapHint />
+        </Link>
+
+        {/* 3. Elevated Circular Cart Button (Center) */}
+        <div className="relative flex flex-1 items-center justify-center">
+          <Link
+            href="/cart"
+            aria-label={`Cart with ${itemCount} items`}
+            className="group relative -top-3 flex size-12 sm:size-13 items-center justify-center rounded-full bg-tf-maroon hover:bg-tf-maroon-deep text-white shadow-lg ring-4 ring-white dark:ring-surface transition-transform active:scale-95 cursor-pointer"
+          >
+            <ShoppingCart className="size-5 stroke-[2.3] transition-transform group-hover:scale-110" />
+            {itemCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white shadow-xs border border-white">
+                {itemCount > 9 ? "9+" : itemCount}
+              </span>
+            ) : null}
+          </Link>
+          <span className="absolute bottom-1.5 text-[10px] sm:text-[11px] font-medium leading-none text-[#7a7472] dark:text-muted">
+            Cart
+          </span>
+        </div>
+
+        {/* 4. Orders */}
+        {(() => {
+          const isOrders = pathname.startsWith("/orders");
+          return (
+            <Link
+              href="/orders"
+              aria-current={isOrders ? "page" : undefined}
+              className={cn(
+                "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
+                isOrders
+                  ? "text-tf-maroon dark:text-rose-400 font-bold"
+                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+              )}
+            >
+              <ClipboardList
+                className={cn(
+                  "size-5 transition-transform",
+                  isOrders && "scale-110 stroke-[2.4]",
+                )}
+              />
+              <span className="text-[10px] sm:text-[11px] font-medium leading-none">
+                Orders
+              </span>
+              {isOrders ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-4 bottom-0 h-0.75 rounded-t-full bg-tf-maroon dark:bg-rose-400"
+                />
+              ) : null}
+              <TapHint />
+            </Link>
+          );
+        })()}
+
+        {/* 5. Account */}
+        {(() => {
+          const isAccount = pathname.startsWith("/account");
+          return (
+            <Link
+              href="/account"
+              aria-current={isAccount ? "page" : undefined}
+              className={cn(
+                "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
+                isAccount
+                  ? "text-tf-maroon dark:text-rose-400 font-bold"
+                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+              )}
+            >
+              <User
+                className={cn(
+                  "size-5 transition-transform",
+                  isAccount && "scale-110 stroke-[2.4]",
+                )}
+              />
+              <span className="text-[10px] sm:text-[11px] font-medium leading-none">
+                Account
+              </span>
+              {isAccount ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-4 bottom-0 h-0.75 rounded-t-full bg-tf-maroon dark:bg-rose-400"
+                />
+              ) : null}
+              <TapHint />
+            </Link>
+          );
+        })()}
+      </div>
     </nav>
   );
 }

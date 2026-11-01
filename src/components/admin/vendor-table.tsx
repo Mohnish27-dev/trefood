@@ -1,6 +1,31 @@
 "use client";
 
-import { Building2, CheckCircle2, Landmark, Loader2, Percent, Phone, Plus, Power, PowerOff, Receipt, Ticket, Trash2, UtensilsCrossed, X, XCircle } from "lucide-react";
+import {
+  Building2,
+  Check,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Landmark,
+  Loader2,
+  Percent,
+  Phone,
+  Plus,
+  Power,
+  PowerOff,
+  Receipt,
+  RefreshCw,
+  Share2,
+  Store,
+  Ticket,
+  Trash2,
+  UtensilsCrossed,
+  X,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +49,8 @@ import { EmptyState } from "@/components/shared/states";
 import { Money } from "@/components/shared/money";
 import {
   deleteVendorAccount,
+  linkVendorAccountAction,
+  resetVendorPasswordAction,
   reviewVendorKyc,
   saveCommissionOverride,
   savePayoutDetails,
@@ -47,6 +74,10 @@ export interface AdminVendorRow {
   campusName: string;
   ownerName: string;
   ownerPhone: string;
+  /** Linked vendor login email (null for co-admins or restaurants without a linked user). */
+  vendorEmail?: string | null;
+  /** Whether a vendor user account is linked to this restaurant. */
+  hasVendorAccount?: boolean;
   /** Contact numbers students and TREFOOD call, primary first. Admin-managed only. */
   phones: string[];
   gstin: string | null;
@@ -82,9 +113,16 @@ export interface AdminVendorRow {
 export function AdminVendorTable({
   vendors,
   campuses = [],
+  canManage = true,
 }: {
   vendors: AdminVendorRow[];
   campuses?: CampusOption[];
+  /**
+   * False for co-admins, who get a view-only list. Their rows arrive with KYC,
+   * commission, fee and bank fields already blanked by the server; this hides
+   * the empty slots and every control, whose actions would refuse them anyway.
+   */
+  canManage?: boolean;
 }) {
   const pending = vendors.filter((vendor) => vendor.kycStatus === "PENDING");
   const rest = vendors.filter((vendor) => vendor.kycStatus !== "PENDING");
@@ -104,25 +142,26 @@ export function AdminVendorTable({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold text-bone">Vendors & KYC</h1>
+          <h1 className="font-display text-xl font-semibold text-bone">Restaurants &amp; Vendors</h1>
           <p className="mt-1 text-sm text-muted">
-            Onboard new campus canteens and manage verification and commission overrides.
+            Onboard new campus restaurants with vendor login credentials, manage menus, and monitor operations.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {reorderableRestaurants.length > 0 ? (
+          {canManage && reorderableRestaurants.length > 0 ? (
             <ReorderRestaurantsDialog restaurants={reorderableRestaurants} />
           ) : null}
-          {campuses.length > 0 ? <AddVendorDialog campuses={campuses} /> : null}
+          {canManage ? <AddVendorDialog campuses={campuses} triggerLabel="Add Restaurant" /> : null}
         </div>
       </div>
 
       {vendors.length === 0 ? (
-        <Card>
+        <Card className="p-6">
           <EmptyState
             icon={Building2}
             title="No restaurants yet"
-            description="Onboard a new canteen using the Add Vendor button above."
+            description="Onboard a new canteen with vendor login credentials using the button below."
+            action={canManage ? <AddVendorDialog campuses={campuses} triggerLabel="Add First Restaurant" /> : undefined}
           />
         </Card>
       ) : (
@@ -135,7 +174,7 @@ export function AdminVendorTable({
               </h2>
               <div className="grid gap-3 lg:grid-cols-2">
                 {pending.map((vendor) => (
-                  <VendorCard key={vendor.restaurantId} vendor={vendor} />
+                  <VendorCard key={vendor.restaurantId} vendor={vendor} canManage={canManage} />
                 ))}
               </div>
             </section>
@@ -147,7 +186,7 @@ export function AdminVendorTable({
             </h2>
             <div className="grid gap-3 lg:grid-cols-2">
               {rest.map((vendor) => (
-                <VendorCard key={vendor.restaurantId} vendor={vendor} />
+                <VendorCard key={vendor.restaurantId} vendor={vendor} canManage={canManage} />
               ))}
             </div>
           </section>
@@ -157,7 +196,7 @@ export function AdminVendorTable({
   );
 }
 
-function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
+function VendorCard({ vendor, canManage }: { vendor: AdminVendorRow; canManage: boolean }) {
   const effectiveBps = vendor.commissionBpsOverride ?? vendor.campusCommissionBps;
   const [isOpen, setIsOpen] = useState(vendor.isOpen);
   const [isAdminClosed, setIsAdminClosed] = useState(Boolean(vendor.adminClosed));
@@ -238,26 +277,64 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        <Field label="Owner" value={`${vendor.ownerName} · ${vendor.ownerPhone}`} />
+        <Field
+          label="Owner"
+          value={canManage ? `${vendor.ownerName} · ${vendor.ownerPhone}` : vendor.ownerName}
+        />
         <Field
           label={vendor.phones.length === 1 ? "Phone" : `Phones (${vendor.phones.length})`}
           value={vendor.phones.length > 0 ? vendor.phones.join(", ") : "None"}
         />
-        <Field label="FSSAI" value={vendor.fssai ?? "Not supplied"} />
-        <Field label="GSTIN" value={vendor.gstin ?? "Not registered"} />
-        <Field
-          label="Commission"
-          value={`${bpsToPct(effectiveBps)}%${vendor.commissionBpsOverride === null ? " (campus rate)" : " (override)"}`}
-        />
-        <Field label="Bank" value={vendor.payout.accountNumber ? `${vendor.payout.ifsc} ····${vendor.payout.accountNumber.slice(-4)}` : "Not captured"} />
+        {canManage ? (
+          <div className="min-w-0 col-span-2 rounded-lg border border-line/60 bg-surface-raised/40 px-2.5 py-1.5 my-0.5">
+            <dt className="text-[10px] uppercase tracking-wider text-faint">Vendor Login ID</dt>
+            <dd className="truncate text-bone flex items-center justify-between gap-2 mt-0.5">
+              {vendor.vendorEmail ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-xs font-semibold text-saffron truncate">
+                    {vendor.vendorEmail}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(vendor.vendorEmail!);
+                      toast.success("Vendor login email copied!");
+                    }}
+                    className="p-0.5 text-muted hover:text-bone rounded transition-colors shrink-0"
+                    title="Copy vendor login email"
+                  >
+                    <Copy className="size-3" />
+                  </button>
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400">
+                  <span>No vendor login linked</span>
+                </span>
+              )}
+            </dd>
+          </div>
+        ) : null}
+        {canManage ? (
+          <>
+            <Field label="FSSAI" value={vendor.fssai ?? "Not supplied"} />
+            <Field label="GSTIN" value={vendor.gstin ?? "Not registered"} />
+            <Field
+              label="Commission"
+              value={`${bpsToPct(effectiveBps)}%${vendor.commissionBpsOverride === null ? " (campus rate)" : " (override)"}`}
+            />
+            <Field label="Bank" value={vendor.payout.accountNumber ? `${vendor.payout.ifsc} ····${vendor.payout.accountNumber.slice(-4)}` : "Not captured"} />
+          </>
+        ) : null}
         <Field
           label="Minimum order"
           value={<Money paise={vendor.minOrderPaise} />}
         />
-        <Field
-          label="Platform fee"
-          value={vendor.platformFeePaise > 0 ? <Money paise={vendor.platformFeePaise} /> : "None"}
-        />
+        {canManage ? (
+          <Field
+            label="Platform fee"
+            value={vendor.platformFeePaise > 0 ? <Money paise={vendor.platformFeePaise} /> : "None"}
+          />
+        ) : null}
       </dl>
 
       {vendor.kycStatus === "REJECTED" && vendor.rejectionReason ? (
@@ -266,74 +343,77 @@ function VendorCard({ vendor }: { vendor: AdminVendorRow }) {
         </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={togglingOpen}
-            onClick={handleToggleOpen}
-            className={cn(
-              "gap-1.5 transition-colors",
-              isOpen
-                ? "text-chili border-chili/30 hover:bg-chili/10 hover:border-chili/50"
-                : "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50",
-            )}
-            title={
-              isOpen
-                ? "Turn off canteen (vendor will not be able to turn it on)"
-                : "Turn on canteen"
-            }
-          >
-            {togglingOpen ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : isOpen ? (
-              <PowerOff className="size-3.5 text-chili" />
-            ) : (
-              <Power className="size-3.5 text-mint" />
-            )}
-            {isOpen ? "Turn Off" : "Turn On"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={togglingDineIn}
-            onClick={handleToggleDineIn}
-            className={cn(
-              "gap-1.5 transition-colors",
-              isDineIn
-                ? "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50"
-                : "text-muted border-line hover:bg-surface-raised",
-            )}
-            title={isDineIn ? "Disable Dine-in for this restaurant" : "Enable Dine-in for this restaurant"}
-          >
-            {togglingDineIn ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <UtensilsCrossed className={cn("size-3.5", isDineIn ? "text-mint" : "text-muted")} />
-            )}
-            {isDineIn ? "Dine In: ON" : "Dine In: OFF"}
-          </Button>
-          <KycDialog vendor={vendor} />
-          <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
-          <PlatformFeeDialog vendor={vendor} />
-          <PayoutDialog vendor={vendor} />
-          <PhonesDialog vendor={vendor} />
-          <Button asChild size="sm" variant="secondary" className="gap-1.5">
-            <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
-              <UtensilsCrossed className="size-3.5 text-saffron" />
-              Manage Menu
-            </Link>
-          </Button>
-          <Button asChild size="sm" variant="secondary" className="gap-1.5">
-            <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
-              <Ticket className="size-3.5 text-saffron" />
-              Add Coupon
-            </Link>
-          </Button>
+      {canManage ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 pt-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={togglingOpen}
+              onClick={handleToggleOpen}
+              className={cn(
+                "gap-1.5 transition-colors",
+                isOpen
+                  ? "text-chili border-chili/30 hover:bg-chili/10 hover:border-chili/50"
+                  : "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50",
+              )}
+              title={
+                isOpen
+                  ? "Turn off canteen (vendor will not be able to turn it on)"
+                  : "Turn on canteen"
+              }
+            >
+              {togglingOpen ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : isOpen ? (
+                <PowerOff className="size-3.5 text-chili" />
+              ) : (
+                <Power className="size-3.5 text-mint" />
+              )}
+              {isOpen ? "Turn Off" : "Turn On"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={togglingDineIn}
+              onClick={handleToggleDineIn}
+              className={cn(
+                "gap-1.5 transition-colors",
+                isDineIn
+                  ? "text-mint border-mint/30 hover:bg-mint/10 hover:border-mint/50"
+                  : "text-muted border-line hover:bg-surface-raised",
+              )}
+              title={isDineIn ? "Disable Dine-in for this restaurant" : "Enable Dine-in for this restaurant"}
+            >
+              {togglingDineIn ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <UtensilsCrossed className={cn("size-3.5", isDineIn ? "text-mint" : "text-muted")} />
+              )}
+              {isDineIn ? "Dine In: ON" : "Dine In: OFF"}
+            </Button>
+            <VendorCredentialsDialog vendor={vendor} />
+            <KycDialog vendor={vendor} />
+            <CommissionDialog vendor={vendor} effectiveBps={effectiveBps} />
+            <PlatformFeeDialog vendor={vendor} />
+            <PayoutDialog vendor={vendor} />
+            <PhonesDialog vendor={vendor} />
+            <Button asChild size="sm" variant="secondary" className="gap-1.5">
+              <Link href={`/admin/vendors/${vendor.restaurantId}/menu`}>
+                <UtensilsCrossed className="size-3.5 text-saffron" />
+                Manage Menu
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="secondary" className="gap-1.5">
+              <Link href={`/admin/vendors/${vendor.restaurantId}/coupons`}>
+                <Ticket className="size-3.5 text-saffron" />
+                Add Coupon
+              </Link>
+            </Button>
+          </div>
+          <DeleteVendorDialog vendor={vendor} />
         </div>
-        <DeleteVendorDialog vendor={vendor} />
-      </div>
+      ) : null}
     </Card>
   );
 }
@@ -866,6 +946,359 @@ function DeleteVendorDialog({ vendor }: { vendor: AdminVendorRow }) {
             Delete Restaurant
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VendorCredentialsDialog({ vendor }: { vendor: AdminVendorRow }) {
+  const [open, setOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState(vendor.vendorEmail || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [savedCredentials, setSavedCredentials] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+
+  const isLinking = !vendor.hasVendorAccount;
+
+  const handleGenerate = () => {
+    const prefixes = ["Chef", "Taste", "Spice", "Canteen", "Kitchen", "Bhojan", "Trefood"];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const num = Math.floor(100 + Math.random() * 900);
+    const pwd = `${prefix}@${num}`;
+    setNewPassword(pwd);
+    setShowPassword(true);
+    toast.info("Generated a secure password");
+  };
+
+  const handleCopy = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(label);
+      toast.success(`${label} copied!`);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const handleCopyFullMessage = async () => {
+    if (!savedCredentials) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://trefood.in";
+    const loginUrl = `${origin}/vendor/login`;
+
+    const msg = `🍽️ *TREFOOD Vendor Portal Credentials*
+━━━━━━━━━━━━━━━━━━━━━
+🏪 *Restaurant:* ${vendor.name}
+🔗 *Vendor Login URL:* ${loginUrl}
+📧 *Login Email:* ${savedCredentials.email}
+🔑 *Password:* ${savedCredentials.password}
+━━━━━━━━━━━━━━━━━━━━━
+Sign in to view live orders, prepare KOTs, update menu availability, and manage daily operations.`;
+
+    await handleCopy(msg, "Full credentials message");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      if (isLinking) {
+        const res = await linkVendorAccountAction({
+          restaurantId: vendor.restaurantId,
+          email,
+          password: newPassword,
+          ownerName: vendor.ownerName,
+          phone: vendor.ownerPhone,
+        });
+
+        if (res.status === "error") {
+          toast.error(res.message);
+          setSubmitting(false);
+          return;
+        }
+
+        setSavedCredentials({
+          email: res.credentials?.email || email,
+          password: res.credentials?.password || newPassword,
+        });
+        toast.success(res.message);
+      } else {
+        const res = await resetVendorPasswordAction({
+          restaurantId: vendor.restaurantId,
+          newPassword,
+        });
+
+        if (res.status === "error") {
+          toast.error(res.message);
+          setSubmitting(false);
+          return;
+        }
+
+        setSavedCredentials({
+          email: vendor.vendorEmail || email,
+          password: newPassword,
+        });
+        toast.success(res.message);
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update vendor credentials");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetState = () => {
+    setNewPassword("");
+    setShowPassword(false);
+    setEmail(vendor.vendorEmail || "");
+    setSavedCredentials(null);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) resetState();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="gap-1.5 text-saffron border-saffron/30 hover:border-saffron/60 hover:bg-saffron-wash/30"
+          title="Manage vendor login credentials and password"
+        >
+          <KeyRound className="size-3.5 text-saffron" />
+          <span>{isLinking ? "Setup Login" : "Credentials"}</span>
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="size-5 text-saffron" />
+            <span>{isLinking ? "Setup Vendor Login" : "Vendor Credentials"}</span>
+          </DialogTitle>
+          <DialogDescription>
+            {isLinking
+              ? `Create vendor login credentials for ${vendor.name} so they can access their dashboard.`
+              : `View or reset login credentials for ${vendor.name}.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        {savedCredentials ? (
+          <div className="space-y-4 py-2">
+            <div className="rounded-xl border border-mint/30 bg-mint-wash/30 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-mint">
+                <CheckCircle2 className="size-4" />
+                <span>Credentials Updated Successfully!</span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <span className="text-muted">Login URL</span>
+                  <div className="flex items-center gap-1.5">
+                    <code className="text-[11px] font-mono text-saffron">/vendor/login</code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopy(
+                          `${typeof window !== "undefined" ? window.location.origin : ""}/vendor/login`,
+                          "Sign-in link",
+                        )
+                      }
+                      className="p-1 text-muted hover:text-bone"
+                    >
+                      {copiedField === "Sign-in link" ? (
+                        <Check className="size-3 text-mint" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <span className="text-muted">Login Email</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-medium text-bone">
+                      {savedCredentials.email}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(savedCredentials.email, "Email")}
+                      className="p-1 text-muted hover:text-bone"
+                    >
+                      {copiedField === "Email" ? (
+                        <Check className="size-3 text-mint" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted">Password</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-medium text-bone">
+                      {showPassword ? savedCredentials.password : "••••••••••••"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="p-1 text-muted hover:text-bone"
+                    >
+                      {showPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(savedCredentials.password, "Password")}
+                      className="p-1 text-muted hover:text-bone"
+                    >
+                      {copiedField === "Password" ? (
+                        <Check className="size-3 text-mint" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleCopyFullMessage}
+              className="w-full gap-2 text-xs"
+            >
+              {copiedField === "Full credentials message" ? (
+                <>
+                  <Check className="size-3.5" />
+                  <span>Copied to Clipboard!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="size-3.5" />
+                  <span>Copy Full Message for Vendor (WhatsApp / SMS)</span>
+                </>
+              )}
+            </Button>
+
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setOpen(false);
+                  resetState();
+                }}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogBody className="space-y-4">
+              {isLinking ? (
+                <div>
+                  <Label htmlFor={`vendor-email-${vendor.restaurantId}`}>Vendor Login Email *</Label>
+                  <Input
+                    id={`vendor-email-${vendor.restaurantId}`}
+                    required
+                    type="email"
+                    placeholder="e.g. vendor@canteen.in"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">
+                    This email will be used by the vendor to sign in.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-line bg-surface-raised p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-faint">Linked Login Email</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="font-mono text-sm font-semibold text-bone">
+                      {vendor.vendorEmail}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(vendor.vendorEmail || "", "Login Email")}
+                      className="p-1 text-muted hover:text-bone"
+                      title="Copy email"
+                    >
+                      {copiedField === "Login Email" ? (
+                        <Check className="size-3.5 text-mint" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`vendor-pwd-${vendor.restaurantId}`}>
+                    {isLinking ? "Set Initial Password *" : "Set New Password *"}
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    className="text-[11px] font-medium text-saffron hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="size-3" />
+                    Generate
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id={`vendor-pwd-${vendor.restaurantId}`}
+                    required
+                    type={showPassword ? "text" : "password"}
+                    minLength={6}
+                    placeholder="At least 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-bone"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] text-muted">
+                  {isLinking
+                    ? "Give this password to the vendor to access their portal."
+                    : "Enter a new password. The vendor will immediately be able to sign in with it."}
+                </p>
+              </div>
+            </DialogBody>
+
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="ghost" disabled={submitting} onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={submitting || newPassword.length < 6}>
+                {submitting ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
+                {isLinking ? "Create & Link Account" : "Update Password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
