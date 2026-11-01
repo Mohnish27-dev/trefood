@@ -89,19 +89,42 @@ export async function downloadKotTicketImage(
   y += 16 * scale; // Dashed rule
 
   // Items
-  ctx.font = font(13, "bold");
   for (const item of order.items) {
+    const hasLineTotal = typeof item.lineTotalPaise === "number";
+    const hasUnitPrice = typeof item.unitPricePaise === "number";
+    const displayTotalPaise = hasLineTotal
+      ? item.lineTotalPaise
+      : hasUnitPrice && typeof item.unitPricePaise === "number"
+      ? item.unitPricePaise * item.quantity
+      : null;
+    const priceStr = typeof displayTotalPaise === "number" ? formatINR(displayTotalPaise) : "";
+
+    ctx.font = font(12, "bold");
+    const priceWidth = priceStr ? ctx.measureText(priceStr).width + 8 * scale : 0;
     const itemHeader = `${item.quantity}x ${item.name.toUpperCase()} [${item.isVeg ? "VEG" : "NON-VEG"}]`;
-    const itemLines = wrapText(ctx, itemHeader, contentWidth);
-    y += itemLines.length * 18 * scale + 4 * scale;
+    const itemLines = wrapText(ctx, itemHeader, contentWidth - priceWidth);
+    y += itemLines.length * 17 * scale;
+
+    if (item.quantity > 1 && typeof item.unitPricePaise === "number") {
+      y += 15 * scale;
+    }
 
     if (item.addOns.length > 0) {
-      ctx.font = font(11, "normal");
-      const addOnsText = `+ ${item.addOns.join(", ")}`;
-      const addOnLines = wrapText(ctx, addOnsText, contentWidth - 20 * scale);
-      y += addOnLines.length * 15 * scale + 4 * scale;
-      ctx.font = font(13, "bold");
+      ctx.font = font(10.5, "normal");
+      for (const addOn of item.addOns) {
+        const isObj = typeof addOn === "object" && addOn !== null;
+        const name = isObj ? addOn.name : addOn;
+        const price =
+          isObj && typeof addOn.pricePaise === "number" && addOn.pricePaise > 0
+            ? addOn.pricePaise
+            : null;
+        const addOnPriceStr = price !== null ? `+${formatINR(price)}` : "";
+        const addOnPriceWidth = addOnPriceStr ? ctx.measureText(addOnPriceStr).width + 6 * scale : 0;
+        const addOnLines = wrapText(ctx, `+ ${name}`, contentWidth - 16 * scale - addOnPriceWidth);
+        y += addOnLines.length * 14 * scale;
+      }
     }
+    y += 4 * scale;
   }
 
   // Customer note
@@ -109,6 +132,25 @@ export async function downloadKotTicketImage(
     ctx.font = font(11, "bold");
     const noteLines = wrapText(ctx, order.description, contentWidth - 20 * scale);
     y += 20 * scale + noteLines.length * 16 * scale + 16 * scale;
+  }
+
+  // Pricing breakdown
+  if (order.pricing) {
+    y += 16 * scale; // Dashed rule
+    y += 18 * scale; // Item Total
+    if (order.pricing.packagingFeePaise && order.pricing.packagingFeePaise > 0) {
+      y += 18 * scale;
+    }
+    if (order.pricing.deliveryFeePaise && order.pricing.deliveryFeePaise > 0) {
+      y += 18 * scale;
+    }
+    if (order.pricing.discountPaise && order.pricing.discountPaise > 0) {
+      y += 18 * scale;
+    }
+    if (order.pricing.grandTotalPaise && order.cashDuePaise < order.pricing.grandTotalPaise) {
+      y += 18 * scale;
+    }
+    y += 4 * scale;
   }
 
   y += 16 * scale; // Dashed rule
@@ -215,23 +257,64 @@ export async function downloadKotTicketImage(
   drawY += 14 * scale;
 
   // 3. Items
-  ctx.textAlign = "left";
   for (const item of order.items) {
+    const hasLineTotal = typeof item.lineTotalPaise === "number";
+    const hasUnitPrice = typeof item.unitPricePaise === "number";
+    const displayTotalPaise = hasLineTotal
+      ? item.lineTotalPaise
+      : hasUnitPrice && typeof item.unitPricePaise === "number"
+      ? item.unitPricePaise * item.quantity
+      : null;
+    const priceStr = typeof displayTotalPaise === "number" ? formatINR(displayTotalPaise) : "";
+
     ctx.font = font(12, "bold");
+    const priceWidth = priceStr ? ctx.measureText(priceStr).width + 8 * scale : 0;
     const itemHeader = `${item.quantity}x ${item.name.toUpperCase()} [${item.isVeg ? "VEG" : "NON-VEG"}]`;
-    const itemLines = wrapText(ctx, itemHeader, contentWidth);
-    for (const line of itemLines) {
-      ctx.fillText(line, startX, drawY);
-      drawY += 17 * scale;
+    const itemLines = wrapText(ctx, itemHeader, contentWidth - priceWidth);
+
+    ctx.textAlign = "left";
+    for (let li = 0; li < itemLines.length; li++) {
+      const line = itemLines[li] ?? "";
+      ctx.fillText(line, startX, drawY + li * 17 * scale);
+    }
+    if (priceStr) {
+      ctx.textAlign = "right";
+      ctx.fillText(priceStr, rightX, drawY);
+      ctx.textAlign = "left";
+    }
+    drawY += itemLines.length * 17 * scale;
+
+    if (item.quantity > 1 && typeof item.unitPricePaise === "number") {
+      ctx.font = font(10.5, "normal");
+      ctx.textAlign = "left";
+      ctx.fillText(`${formatINR(item.unitPricePaise)} each`, startX + 16 * scale, drawY);
+      drawY += 15 * scale;
     }
 
     if (item.addOns.length > 0) {
       ctx.font = font(10.5, "normal");
-      const addOnsText = `+ ${item.addOns.join(", ")}`;
-      const addOnLines = wrapText(ctx, addOnsText, contentWidth - 16 * scale);
-      for (const line of addOnLines) {
-        ctx.fillText(line, startX + 16 * scale, drawY);
-        drawY += 15 * scale;
+      for (const addOn of item.addOns) {
+        const isObj = typeof addOn === "object" && addOn !== null;
+        const name = isObj ? addOn.name : addOn;
+        const price =
+          isObj && typeof addOn.pricePaise === "number" && addOn.pricePaise > 0
+            ? addOn.pricePaise
+            : null;
+        const addOnPriceStr = price !== null ? `+${formatINR(price)}` : "";
+        const addOnPriceWidth = addOnPriceStr ? ctx.measureText(addOnPriceStr).width + 6 * scale : 0;
+        const addOnLines = wrapText(ctx, `+ ${name}`, contentWidth - 16 * scale - addOnPriceWidth);
+
+        ctx.textAlign = "left";
+        for (let ai = 0; ai < addOnLines.length; ai++) {
+          const line = addOnLines[ai] ?? "";
+          ctx.fillText(line, startX + 16 * scale, drawY + ai * 14 * scale);
+        }
+        if (addOnPriceStr) {
+          ctx.textAlign = "right";
+          ctx.fillText(addOnPriceStr, rightX, drawY);
+          ctx.textAlign = "left";
+        }
+        drawY += addOnLines.length * 14 * scale;
       }
     }
     drawY += 4 * scale;
@@ -248,6 +331,7 @@ export async function downloadKotTicketImage(
     ctx.lineWidth = 1 * scale;
     ctx.strokeRect(startX, drawY, contentWidth, boxHeight);
 
+    ctx.textAlign = "left";
     ctx.fillText("CUSTOMER NOTE / SPECIAL INSTRUCTIONS:", startX + 8 * scale, drawY + 6 * scale);
     let noteY = drawY + 22 * scale;
     for (const line of noteLines) {
@@ -255,6 +339,39 @@ export async function downloadKotTicketImage(
       noteY += 15 * scale;
     }
     drawY += boxHeight + 8 * scale;
+  }
+
+  // Pricing breakdown
+  if (order.pricing) {
+    drawDashedLine(ctx, drawY, startX, rightX);
+    drawY += 14 * scale;
+
+    const drawRow = (label: string, value: string) => {
+      ctx.font = font(11, "normal");
+      ctx.textAlign = "left";
+      ctx.fillText(label, startX, drawY);
+      ctx.textAlign = "right";
+      ctx.fillText(value, rightX, drawY);
+      drawY += 18 * scale;
+    };
+
+    drawRow("Item Total", formatINR(order.pricing.subtotalPaise));
+    if (order.pricing.packagingFeePaise && order.pricing.packagingFeePaise > 0) {
+      drawRow("Packaging Fee", formatINR(order.pricing.packagingFeePaise));
+    }
+    if (order.pricing.deliveryFeePaise && order.pricing.deliveryFeePaise > 0) {
+      drawRow("Delivery Fee", formatINR(order.pricing.deliveryFeePaise));
+    }
+    if (order.pricing.discountPaise && order.pricing.discountPaise > 0) {
+      drawRow("Coupon Discount", `-${formatINR(order.pricing.discountPaise)}`);
+    }
+    if (order.pricing.grandTotalPaise && order.cashDuePaise < order.pricing.grandTotalPaise) {
+      drawRow(
+        "Stockout / Adjustment",
+        `-${formatINR(order.pricing.grandTotalPaise - order.cashDuePaise)}`,
+      );
+    }
+    drawY += 4 * scale;
   }
 
   // Dashed rule

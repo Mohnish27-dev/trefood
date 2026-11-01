@@ -25,13 +25,13 @@ const THEME_STORAGE_KEY = "trefood-theme";
 /**
  * Inline script to be injected into <head> before DOM rendering.
  * Prevents Flash of Unstyled Content (FOUC) by immediately applying
- * the saved theme or defaulting to 'light'.
+ * the saved theme or defaulting to 'dark'.
  */
 export const themeInitScript = `
 (function() {
   try {
     var stored = localStorage.getItem('${THEME_STORAGE_KEY}');
-    var theme = stored === 'light' || stored === 'dark' ? stored : 'light';
+    var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
     var root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
@@ -41,8 +41,23 @@ export const themeInitScript = `
 })();
 `;
 
+function applyTheme(next: Theme) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  root.classList.remove("light", "dark");
+  root.classList.add(next);
+  root.setAttribute("data-theme", next);
+  root.style.colorScheme = next;
+
+  // Update browser theme-color meta tag for PWA and mobile status bar
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute("content", next === "dark" ? "#14050A" : "#830020");
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>("dark");
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Sync state with DOM and localStorage on initial mount
@@ -50,11 +65,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
       const initialTheme: Theme =
-        stored === "light" || stored === "dark" ? stored : "light";
+        stored === "light" || stored === "dark" ? stored : "dark";
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Client-only hydration sync with localStorage
       setThemeState(initialTheme);
       applyTheme(initialTheme);
     } catch {
-      applyTheme("light");
+      applyTheme("dark");
     } finally {
       setIsLoaded(true);
     }
@@ -71,20 +87,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
-
-  const applyTheme = (next: Theme) => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(next);
-    root.setAttribute("data-theme", next);
-    root.style.colorScheme = next;
-
-    // Update browser theme-color meta tag for PWA and mobile status bar
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute("content", next === "dark" ? "#14050A" : "#830020");
-    }
-  };
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);

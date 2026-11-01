@@ -70,8 +70,22 @@ export default async function KotPage({
           name: item.name,
           isVeg: item.isVeg,
           quantity: item.quantity,
-          addOns: item.addOns.map((addOn) => addOn.name),
+          unitPricePaise: item.unitPricePaise,
+          lineTotalPaise: item.lineTotalPaise,
+          addOns: item.addOns.map((addOn) => ({
+            name: addOn.name,
+            pricePaise: addOn.pricePaise,
+          })),
         })),
+        pricing: order.pricing
+          ? {
+              subtotalPaise: order.pricing.subtotalPaise,
+              packagingFeePaise: order.pricing.packagingFeePaise,
+              deliveryFeePaise: order.pricing.deliveryFeePaise,
+              discountPaise: order.pricing.discountPaise,
+              grandTotalPaise: order.pricing.grandTotalPaise,
+            }
+          : null,
       }}
     />
   );
