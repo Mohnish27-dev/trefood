@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "seed": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed.ts",
     "seed:coadmin": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-co-admin.ts",
-    "seed:csb":"node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-csb.ts",
+    "seed:csb": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-csb.ts",
     "seed:kolkata": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-kolkata-biryani.ts",
     "seed:wrapchik": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-wrapchik.ts",
     "seed:royal": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-royal-bihar.ts",
@@ -31,7 +31,7 @@
     "db:update-sone-zone-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-sone-zone-images.ts",
     "db:update-wrapchik-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-wrapchik-images.ts",
     "db:update-vrindavan-images": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/update-vrindavan-bhog-images.ts",
-    "seed:vrindavan":"node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-vrindavan-bhog.ts",
+    "seed:vrindavan": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/seed-vrindavan-bhog.ts",
     "db:indexes": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/ensure-indexes.ts",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
@@ -92,5 +92,6 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "license": "MIT"
 }
