@@ -7,6 +7,7 @@ import * as db from "@/server/db/collections";
 import { ACTOR, DEFAULTS, ORDER_STATUS } from "@/lib/constants";
 import { formatINR, rupeesToPaise } from "@/lib/money";
 import { newId } from "@/lib/ids";
+import { menuItemImageUrlSchema } from "@/lib/menu-image-schema";
 import { requireVendor } from "@/server/auth/session";
 import { getCampusById } from "@/server/services/catalog";
 import { getOrder, transitionOrder, isHiddenFromVendor } from "@/server/services/orders";
@@ -71,16 +72,25 @@ export async function acceptOrder(input: unknown): Promise<VendorActionState> {
 
   const { restaurantId, user } = await requireVendor();
 
-  const accepted = await transitionOrder({
-    orderId: parsed.data.orderId,
-    to: ORDER_STATUS.ACCEPTED,
-    actor: ACTOR.VENDOR,
-    actorId: user._id,
-    requireRestaurantId: restaurantId,
-    prepMinutes: parsed.data.prepMinutes,
-    reason: `Accepted with a ${parsed.data.prepMinutes} minute prep time`,
-  });
-  if (!accepted.ok) return { status: "error", message: accepted.message };
+  const order = await scopedOrder(parsed.data.orderId, restaurantId);
+  if (!order) return { status: "error", message: "That order does not exist, or is not yours." };
+  // A lost response can leave the write committed. Retrying must recover the
+  // ACCEPTED -> PREPARING step and must never overwrite the original prep time.
+  if (order.status === ORDER_STATUS.PREPARING) {
+    return { status: "ok", message: `Already accepted — ${order.prepMinutes} min` };
+  }
+  if (order.status !== ORDER_STATUS.ACCEPTED) {
+    const accepted = await transitionOrder({
+      orderId: parsed.data.orderId,
+      to: ORDER_STATUS.ACCEPTED,
+      actor: ACTOR.VENDOR,
+      actorId: user._id,
+      requireRestaurantId: restaurantId,
+      prepMinutes: parsed.data.prepMinutes,
+      reason: `Accepted with a ${parsed.data.prepMinutes} minute prep time`,
+    });
+    if (!accepted.ok) return { status: "error", message: accepted.message };
+  }
 
   const cooking = await transitionOrder({
     orderId: parsed.data.orderId,
@@ -92,14 +102,21 @@ export async function acceptOrder(input: unknown): Promise<VendorActionState> {
   });
   if (!cooking.ok) return { status: "error", message: cooking.message };
 
-  await notifyOrderEvent({
-    order: cooking.order,
-    title: "Order accepted",
-    body: `${cooking.order.restaurantSnapshot.name} is cooking. About ${parsed.data.prepMinutes} minutes.`,
-  });
+  const prepMinutes = cooking.order.prepMinutes;
+  try {
+    await notifyOrderEvent({
+      order: cooking.order,
+      title: "Order accepted",
+      body: `${cooking.order.restaurantSnapshot.name} is cooking. About ${prepMinutes} minutes.`,
+    });
+  } catch (error: unknown) {
+    // Push setup and subscription reads can throw too. Food is already cooking;
+    // a notification failure must not report the acceptance as a failure.
+    console.error("Order acceptance notification failed", cooking.order._id, error);
+  }
 
   revalidatePath("/vendor/orders");
-  return { status: "ok", message: `Accepted — ${parsed.data.prepMinutes} min` };
+  return { status: "ok", message: `Accepted — ${prepMinutes} min` };
 }
 
 const rejectSchema = z.object({
@@ -522,22 +539,6 @@ const vendorAddOnGroupSchema = z.object({
   maxSelect: z.coerce.number().int().min(1),
   options: z.array(vendorAddOnOptionSchema),
 });
-
-export const menuItemImageUrlSchema = z
-  .string()
-  .trim()
-  .refine(
-    (val) =>
-      val === "" ||
-      val.startsWith("/") ||
-      val.startsWith("http://") ||
-      val.startsWith("https://") ||
-      val.startsWith("data:image/"),
-    { message: "Image URL must be a valid web URL or a path starting with '/'" },
-  )
-  .transform((val) => (val === "" ? null : val))
-  .nullable()
-  .optional();
 
 const createVendorItemSchema = z.object({
   categoryId: z.string().min(1, "Select a category"),

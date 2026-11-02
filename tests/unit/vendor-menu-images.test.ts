@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { menuItemImageUrlSchema } from "@/server/actions/vendor";
+import { menuItemImageUrlSchema } from "@/lib/menu-image-schema";
 
 describe("Vendor Menu Image Validation", () => {
   it("accepts valid root-relative image paths", () => {

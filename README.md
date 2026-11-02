@@ -9,7 +9,7 @@
 [![Vitest](https://img.shields.io/badge/Tested%20with-Vitest-6E9F18?logo=vitest)](https://vitest.dev/)
 
 > **Hyperlocal food delivery & campus commerce infrastructure engineered for the physical realities of university environments.**  
-> *Initial pilot deployment: National Institute of Technology (NIT) Patna.*
+> _Initial pilot deployment: National Institute of Technology (NIT) Patna._
 
 ---
 
@@ -64,6 +64,7 @@ Commercial food aggregators (like Zomato and Swiggy) frequently fail within univ
 ## 🏛️ Architecture & Project Structure
 
 TreFood enforces a strict separation of concerns:
+
 > **All core business logic lives exclusively in `src/server/services/`.**  
 > Server actions, route handlers, and UI components are strictly adapters that authenticate, parse, call services, and render.
 
@@ -95,28 +96,34 @@ trefood/
 ### Installation
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/Mohnish27-dev/trefood.git
    cd trefood
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**:
+
    ```bash
    cp .env.local.example .env.local
    ```
+
    Fill in your MongoDB URI, Google OAuth credentials, and notification secrets.
 
 4. **Start MongoDB (Optional via Docker)**:
+
    ```bash
    npm run db:up
    ```
 
 5. **Seed initial vendors & campus data**:
+
    ```bash
    npm run seed
    npm run seed:vendors

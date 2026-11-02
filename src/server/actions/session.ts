@@ -8,9 +8,10 @@ import * as db from "@/server/db/collections";
 import { serverEnv } from "@/lib/env";
 import { COOKIE_MAX_AGE_SECONDS } from "@/lib/cookies";
 import { DEMO_USER_COOKIE, getSession } from "@/server/auth/session";
-import { hashPassword, verifyPassword, VENDOR_SESSION_COOKIE } from "@/server/auth/passwords";
+import { hashPassword, verifyPassword } from "@/server/auth/passwords";
 import { resolveLandingPath } from "@/lib/routes";
 import { isVendorRole } from "@/lib/quick-unlock";
+import { logoutCurrentSession } from "@/server/auth/logout";
 import { buildStudent, needsPasswordSetup } from "@/server/auth/accounts";
 import {
   normaliseEmail,
@@ -21,10 +22,8 @@ import {
 } from "@/server/auth/otp";
 import {
   AUTH_METHOD,
-  authCookieDomain,
   createSession,
   destroyAllSessions,
-  destroyCurrentSession,
 } from "@/server/auth/session-store";
 import { sendMail } from "@/server/mail/mailer";
 import { passwordChangedMessage, welcomeMessage } from "@/server/mail/templates";
@@ -33,7 +32,6 @@ import {
   credentialIdMatches,
   QUICK_UNLOCK_LOCKOUT_MS,
   QUICK_UNLOCK_MAX_ATTEMPTS,
-  QUICK_UNLOCK_SESSION_COOKIE,
   verifyQuickPin,
 } from "@/server/auth/quick-unlock";
 import {
@@ -491,16 +489,11 @@ export async function resetPasswordWithCode(input: unknown): Promise<AuthActionS
 export async function signOut(): Promise<void> {
   const session = await getSession();
   const isVendor = isVendorRole(session?.role);
-  await destroyCurrentSession();
-
-  const store = await cookies();
-  store.delete(DEMO_USER_COOKIE);
-  store.delete(VENDOR_SESSION_COOKIE);
   // The quick-unlock SESSION goes; the device trust cookie stays. Signing out
   // means "stop being signed in", not "forget my phone" — the PIN screen on
   // /signin can then mint a fresh session, which is the whole point of it.
   // "Use a different account" (forgetQuickUnlockDevice) is what forgets.
-  store.delete({ name: QUICK_UNLOCK_SESSION_COOKIE, path: "/", domain: authCookieDomain() });
+  await logoutCurrentSession();
 
   redirect(isVendor ? "/vendor/login" : "/signin");
 }
