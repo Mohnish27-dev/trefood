@@ -15,7 +15,7 @@ import {
   updateMenuCategoryAdmin,
   updateMenuItemAdmin,
 } from "@/server/services/admin-menu";
-import { menuItemImageUrlSchema } from "./vendor";
+import { menuItemImageUrlSchema } from "@/lib/menu-image-schema";
 import type { AddOnGroup } from "@/types/restaurant";
 
 export type AdminMenuActionState =

@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/toast";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { signOut } from "@/server/actions/session";
+import { signOutVendor } from "@/lib/vendor-api";
 import { setRestaurantOpen } from "@/server/actions/vendor";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +81,7 @@ function VendorShellContent({
   const { t } = useVendorLanguage();
   const [open, setOpen] = useState(isOpen);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const { board } = useVendorAlarm();
 
@@ -207,18 +208,33 @@ function VendorShellContent({
             <ThemeToggle />
 
             <form
-              action={async () => {
+              onSubmit={async (event) => {
+                event.preventDefault();
+                if (signingOut) return;
+                setSigningOut(true);
                 // Hand the device back before the session goes: a counter phone
                 // must stop buzzing for this restaurant's orders the moment its
                 // vendor signs out, or the next person to pick it up keeps
                 // getting them. Bounded, so a dead network cannot block a
                 // sign-out.
-                await unsubscribeThisDevice();
-                await signOut();
+                try {
+                  await unsubscribeThisDevice();
+                  const result = await signOutVendor();
+                  if (result.status === "error") {
+                    toast.error(result.message);
+                    return;
+                  }
+                  window.location.replace("/vendor/login");
+                } catch {
+                  toast.error("Could not sign out. Please retry.");
+                } finally {
+                  setSigningOut(false);
+                }
               }}
             >
               <button
                 type="submit"
+                disabled={signingOut}
                 className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-surface-raised hover:text-bone"
                 aria-label={t("signOut")}
               >

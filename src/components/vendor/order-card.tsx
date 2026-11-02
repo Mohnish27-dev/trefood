@@ -71,11 +71,16 @@ export function VendorOrderCard({
 
   const run = async (fn: () => Promise<{ status: string; message?: string }>): Promise<void> => {
     setBusy(true);
-    const result = await fn();
-    if (result.status === "error") toast.error(result.message ?? "That did not work");
-    else if (result.message) toast.success(result.message);
-    setBusy(false);
-    onChanged();
+    try {
+      const result = await fn();
+      if (result.status === "error") toast.error(result.message ?? "That did not work");
+      else if (result.message) toast.success(result.message);
+    } catch {
+      toast.error("Could not update this order. Please retry.");
+    } finally {
+      setBusy(false);
+      onChanged();
+    }
   };
 
   return (
@@ -366,19 +371,23 @@ function AcceptDialog({
 
   const accept = async (prepMinutes: number): Promise<void> => {
     setSubmitting(true);
-    const result = await acceptOrder({ orderId, prepMinutes });
-    setSubmitting(false);
-
-    if (result.status === "error") {
-      toast.error(result.message);
-      return;
+    try {
+      const result = await acceptOrder({ orderId, prepMinutes });
+      if (result.status === "error") {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message ?? "Accepted");
+      setOpen(false);
+    } catch {
+      toast.error("Could not accept this order. Please retry.");
+    } finally {
+      setSubmitting(false);
+      onDone();
     }
-    toast.success(result.message ?? "Accepted");
-    setOpen(false);
-    onDone();
   };
 
-  const customMinutes = Number.parseInt(custom, 10);
+  const customMinutes = Number(custom);
   const customValid =
     Number.isInteger(customMinutes) &&
     customMinutes >= DEFAULTS.prepMinutesMin &&
@@ -425,6 +434,8 @@ function AcceptDialog({
                 inputMode="numeric"
                 min={DEFAULTS.prepMinutesMin}
                 max={DEFAULTS.prepMinutesMax}
+                step={1}
+                disabled={submitting}
                 value={custom}
                 onChange={(event) => setCustom(event.target.value)}
                 placeholder={`${DEFAULTS.prepMinutesMin}–${DEFAULTS.prepMinutesMax}`}
@@ -471,17 +482,21 @@ function RejectDialog({
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);
-    const result = await rejectOrder({ orderId, reason });
-    setSubmitting(false);
-
-    if (result.status === "error") {
-      toast.error(result.message);
-      return;
+    try {
+      const result = await rejectOrder({ orderId, reason });
+      if (result.status === "error") {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(result.message ?? "Rejected");
+      setOpen(false);
+      setReason("");
+    } catch {
+      toast.error("Could not reject this order. Please retry.");
+    } finally {
+      setSubmitting(false);
+      onDone();
     }
-    toast.success(result.message ?? "Rejected");
-    setOpen(false);
-    setReason("");
-    onDone();
   };
 
   return (
