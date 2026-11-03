@@ -5,21 +5,26 @@ import { z } from "zod";
 
 import { ACTOR, ORDER_STATUS, ZONE_TYPE } from "@/lib/constants";
 import { newId } from "@/lib/ids";
+import { rupeesToPaise } from "@/lib/money";
 import { MAX_RESTAURANT_PHONES, PHONE_PATTERN } from "@/lib/restaurant-phones";
 import { requireAdmin } from "@/server/auth/session";
 import {
+  createCampus as createCampusService,
   createVendorDirectly,
   createVendorLoginForExistingRestaurant,
+  deleteCampus as deleteCampusService,
   deleteVendor,
   deleteZone,
   resetVendorPasswordByAdmin,
   reviewKyc,
+  setCampusActive,
   setCommissionOverride,
   setPlatformFee,
   setRestaurantPhones,
   setRestaurantOpenAsAdmin,
   setRestaurantDineIn,
   setZoneActive,
+  updateCampusDetails,
   updateCampusSettings,
   updateGeofence,
   updatePayoutDetails,
@@ -54,6 +59,8 @@ export type AdminActionState =
       status: "ok";
       message: string;
       zoneId?: string | undefined;
+      campusId?: string | undefined;
+      slug?: string | undefined;
       credentials?: {
         restaurantName: string;
         email: string;
@@ -66,6 +73,158 @@ export type AdminActionState =
 /* ══════════════════════════════════════════════════════════════════════
    Campus, zones, pricing
    ══════════════════════════════════════════════════════════════════════ */
+
+const createCampusSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
+  city: z.string().trim().min(2, "City must be at least 2 characters").max(100),
+  slug: z
+    .string()
+    .trim()
+    .min(2, "Slug must be at least 2 characters")
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, "Slug may only contain lowercase letters, numbers, and hyphens"),
+  timezone: z.string().trim().min(1).default("Asia/Kolkata"),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  deliveryFeeRupees: z.number().min(0).max(1_000).optional(),
+  commissionPercent: z.number().min(0).max(30).optional(),
+  transitMinutes: z.number().int().min(1).max(60).optional(),
+  initialGateName: z.string().trim().max(60).optional(),
+  initialGateInstructions: z.string().trim().max(200).optional(),
+});
+
+export async function createCampus(input: unknown): Promise<AdminActionState> {
+  const parsed = createCampusSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid campus details.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const data = parsed.data;
+
+  const result = await createCampusService({
+    name: data.name,
+    city: data.city,
+    slug: data.slug,
+    timezone: data.timezone,
+    center: { lat: data.lat, lng: data.lng },
+    settings: {
+      deliveryFeePaise:
+        typeof data.deliveryFeeRupees === "number"
+          ? rupeesToPaise(data.deliveryFeeRupees)
+          : undefined,
+      commissionBps:
+        typeof data.commissionPercent === "number"
+          ? Math.round(data.commissionPercent * 100)
+          : undefined,
+      transitMinutes: data.transitMinutes,
+    },
+    initialZone:
+      data.initialGateName && data.initialGateName.trim().length > 0
+        ? {
+            name: data.initialGateName.trim(),
+            instructions:
+              data.initialGateInstructions?.trim() ||
+              "Wait at the security barrier at the main gate.",
+          }
+        : undefined,
+    actorId: user._id,
+  });
+
+  if (!result.ok) return { status: "error", message: result.message };
+
+  revalidatePath("/admin/campuses");
+  revalidatePath("/admin/pricing");
+  revalidatePath("/admin/vendors");
+  return {
+    status: "ok",
+    message: `${result.campus.name} campus created successfully`,
+    campusId: result.campus._id,
+    slug: result.campus.slug,
+  };
+}
+
+const updateCampusSchema = z.object({
+  campusId: z.string().min(1),
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
+  city: z.string().trim().min(2, "City must be at least 2 characters").max(100),
+  timezone: z.string().trim().min(1).default("Asia/Kolkata"),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  isActive: z.boolean().optional(),
+});
+
+export async function updateCampus(input: unknown): Promise<AdminActionState> {
+  const parsed = updateCampusSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid campus details.",
+    };
+  }
+
+  const { user } = await requireAdmin();
+  const data = parsed.data;
+
+  const result = await updateCampusDetails({
+    campusId: data.campusId,
+    name: data.name,
+    city: data.city,
+    timezone: data.timezone,
+    center: { lat: data.lat, lng: data.lng },
+    isActive: data.isActive,
+    actorId: user._id,
+  });
+
+  if (!result.ok) return { status: "error", message: result.message };
+
+  revalidatePath("/admin/campuses");
+  revalidatePath(`/admin/campuses/${data.campusId}/zones`);
+  revalidatePath("/admin/pricing");
+  revalidatePath(`/c/${result.campus.slug}`, "layout");
+  return { status: "ok", message: `${result.campus.name} details updated` };
+}
+
+export async function deleteCampus(input: unknown): Promise<AdminActionState> {
+  const parsed = z.object({ campusId: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Invalid campus." };
+
+  const { user } = await requireAdmin();
+  const result = await deleteCampusService({
+    campusId: parsed.data.campusId,
+    actorId: user._id,
+  });
+  if (!result.ok) return { status: "error", message: result.message };
+
+  revalidatePath("/admin/campuses");
+  revalidatePath("/admin/pricing");
+  revalidatePath("/admin/vendors");
+  return { status: "ok", message: "Campus deleted successfully." };
+}
+
+export async function toggleCampusActive(input: unknown): Promise<AdminActionState> {
+  const parsed = z
+    .object({ campusId: z.string().min(1), isActive: z.boolean() })
+    .safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Invalid request." };
+
+  const { user } = await requireAdmin();
+  const updated = await setCampusActive({ ...parsed.data, actorId: user._id });
+  if (!updated) return { status: "error", message: "Campus does not exist." };
+
+  revalidatePath("/admin/campuses");
+  revalidatePath(`/admin/campuses/${parsed.data.campusId}/zones`);
+  revalidatePath(`/c/${updated.slug}`, "layout");
+  return {
+    status: "ok",
+    message: parsed.data.isActive
+      ? `${updated.name} activated`
+      : `${updated.name} deactivated`,
+  };
+}
 
 const settingsSchema = z.object({
   campusId: z.string().min(1),

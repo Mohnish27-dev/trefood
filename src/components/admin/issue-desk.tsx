@@ -200,9 +200,9 @@ export function IssueDeskDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-muted">Rejected</span>
-            <XCircle className="size-4 text-red-400" />
+            <XCircle className="size-4 text-red-600 dark:text-red-400" />
           </div>
-          <span className="mt-2 text-2xl font-bold text-red-400">{rejectedCount}</span>
+          <span className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">{rejectedCount}</span>
         </button>
 
         <button
@@ -218,9 +218,9 @@ export function IssueDeskDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-muted">Not Accepted</span>
-            <AlertTriangle className="size-4 text-amber-400" />
+            <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
           </div>
-          <span className="mt-2 text-2xl font-bold text-amber-400">{vendorNotAcceptedCount}</span>
+          <span className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">{vendorNotAcceptedCount}</span>
         </button>
 
         <button
@@ -236,9 +236,9 @@ export function IssueDeskDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-muted">Delayed</span>
-            <Clock className="size-4 text-blue-400" />
+            <Clock className="size-4 text-blue-600 dark:text-blue-400" />
           </div>
-          <span className="mt-2 text-2xl font-bold text-blue-400">{delayedCount}</span>
+          <span className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">{delayedCount}</span>
         </button>
 
         <button
@@ -254,9 +254,9 @@ export function IssueDeskDashboard({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-muted">Resolved</span>
-            <CheckCircle2 className="size-4 text-emerald-400" />
+            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <span className="mt-2 text-2xl font-bold text-emerald-400">{resolvedCount}</span>
+          <span className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{resolvedCount}</span>
         </button>
       </div>
 
@@ -393,19 +393,19 @@ export function IssueDeskDashboard({
 
                     <div className="flex items-center gap-1.5">
                       {item.isResolved ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                           <CheckCircle2 className="size-3" /> Resolved
                         </span>
                       ) : isRejected ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-[11px] font-semibold text-red-400">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:text-red-400">
                           <XCircle className="size-3" /> Rejected
                         </span>
                       ) : isUnaccepted ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-400">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                           <AlertTriangle className="size-3" /> Unaccepted
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 px-2 py-0.5 text-[11px] font-semibold text-blue-400">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:text-blue-400">
                           <Clock className="size-3" /> Delayed
                         </span>
                       )}
@@ -416,7 +416,7 @@ export function IssueDeskDashboard({
                   <div className="mt-3 rounded-lg bg-surface/60 p-2.5 text-xs text-bone">
                     <p className="font-medium text-bone">{item.issueReason}</p>
                     {item.cancellationReason && (
-                      <p className="mt-1 text-[11px] text-red-300">
+                      <p className="mt-1 text-[11px] font-medium text-red-700 dark:text-red-300">
                         Reason: {item.cancellationReason}
                       </p>
                     )}
@@ -488,7 +488,7 @@ export function IssueDeskDashboard({
 
                   {/* Resolution note if resolved */}
                   {item.isResolved && item.resolutionNote && (
-                    <div className="mt-2 rounded-lg bg-emerald-950/20 p-2 text-[11px] text-emerald-300">
+                    <div className="mt-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-transparent p-2 text-[11px] text-emerald-900 dark:text-emerald-300">
                       <span className="font-semibold">Resolution: </span>
                       {item.resolutionNote}
                     </div>

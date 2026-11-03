@@ -7,7 +7,7 @@ import { CampusRestaurantFeed } from "@/components/student/campus-restaurant-fee
 import { ZonePicker, type ZoneOption } from "@/components/student/zone-picker";
 import { zoneCookieName } from "@/lib/cookies";
 import { getSession } from "@/server/auth/session";
-import { getCampusBySlug, listRestaurantsForZone } from "@/server/services/catalog";
+import { getCampusBySlug, listCampuses, listRestaurantsForZone } from "@/server/services/catalog";
 import {
   checkCampusCurfews,
   curfewMessageWithFallback,
@@ -23,7 +23,7 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
   const campus = await getCampusBySlug(campusSlug);
   if (!campus) notFound();
 
-  const session = await getSession();
+  const [session, allCampuses] = await Promise.all([getSession(), listCampuses()]);
   const favouriteIds = session?.user.favouriteRestaurantIds ?? [];
 
   const cookieStore = await cookies();
@@ -76,6 +76,12 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
         campusName={campus.name}
         zones={zoneOptions}
         selectedZoneId={zoneId}
+        allCampuses={allCampuses.map((c) => ({
+          id: c._id,
+          slug: c.slug,
+          name: c.name,
+          city: c.city,
+        }))}
       />
 
       <div className="px-4 py-4">

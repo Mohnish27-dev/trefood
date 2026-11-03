@@ -88,15 +88,16 @@ export function ZoneEditor({
   const startNew = (): void =>
     setEditing({
       id: "",
-      name: "",
-      zoneType: ZONE_TYPE.HOSTEL_BOYS,
-      curfewMinutes: 22 * 60,
+      name: zones.length === 0 ? "Main Gate" : "",
+      zoneType: zones.length === 0 ? ZONE_TYPE.MAIN_GATE : ZONE_TYPE.HOSTEL_BOYS,
+      curfewMinutes: zones.length === 0 ? null : 22 * 60,
       opensMinutes: 0,
       lat: center.lat,
       lng: center.lng,
-      instructions: "",
+      instructions:
+        zones.length === 0 ? "Wait at the security barrier at the main gate." : "",
       isActive: true,
-      isFallback: false,
+      isFallback: zones.length === 0,
     });
 
   const submitZone = async (): Promise<void> => {
@@ -209,6 +210,8 @@ export function ZoneEditor({
           polygon={drawing ? null : geofence}
           drawing={drawing}
           draftPoints={draft}
+          isPlacingGate={Boolean(editing)}
+          editingCoords={editing ? { lat: editing.lat, lng: editing.lng } : null}
           onMapClick={readOnly ? () => undefined : onMapClick}
           onZoneClick={(zoneId) => {
             if (readOnly) return;

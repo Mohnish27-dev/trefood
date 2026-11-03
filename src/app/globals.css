@@ -241,8 +241,8 @@
   --theme-line-strong: rgba(240, 180, 200, 0.18);
 
   --theme-bone: #fef4f0;             /* Off-white text */
-  --theme-muted: #bfa6b0;
-  --theme-faint: #7d6570;
+  --theme-muted: #c4abb6;
+  --theme-faint: #a6909a;
 
   --theme-saffron: #a3123a;
   --theme-saffron-glow: #be184a;
@@ -288,8 +288,8 @@
   --theme-line-strong: #c4bdbb;      /* Strong structural border */
 
   --theme-bone: #1f201f;             /* Primary text */
-  --theme-muted: #5f5a58;            /* Secondary text */
-  --theme-faint: #9a918e;            /* Subtle text */
+  --theme-muted: #4b4543;            /* Secondary text (darkened for crisp readability) */
+  --theme-faint: #6e6562;            /* Subtle text (improved for clear visibility & WCAG AA contrast) */
 
   /* Primary Brand Action (Royal Maroon) */
   --theme-saffron: #830020;
@@ -328,8 +328,8 @@
   --color-surface-hover: #f6dcd4;
   --color-line: #c4bdbb;
   --color-bone: #1f201f;
-  --color-muted: #5f5a58;
-  --color-faint: #9a918e;
+  --color-muted: #4b4543;
+  --color-faint: #6e6562;
 
   --color-saffron: #830020;
   --color-saffron-glow: #a3123a;
@@ -643,36 +643,80 @@ h3,
 .light .restaurant-hero-card,
 [data-theme="light"] .restaurant-hero-card {
   background-color: #ffffff !important;
-  color: #0f172a !important;
+  color: #000000 !important;
   border-color: rgba(226, 232, 240, 0.9) !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32) !important;
 }
 
 .light .restaurant-hero-card .hero-card-title,
 [data-theme="light"] .restaurant-hero-card .hero-card-title {
-  color: #0f172a !important;
+  color: #000000 !important;
 }
 
 .light .restaurant-hero-card .hero-card-subtext,
 [data-theme="light"] .restaurant-hero-card .hero-card-subtext {
-  color: #475569 !important;
+  color: #27272a !important;
 }
 
 .light .restaurant-hero-card .hero-card-strong,
 [data-theme="light"] .restaurant-hero-card .hero-card-strong {
-  color: #0f172a !important;
+  color: #000000 !important;
 }
 
 .light .restaurant-hero-card .hero-card-divider,
 [data-theme="light"] .restaurant-hero-card .hero-card-divider {
-  border-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
 }
 
 .light .restaurant-hero-card .hero-card-chip,
 [data-theme="light"] .restaurant-hero-card .hero-card-chip {
   background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* ── Campus Night Safety Protocol Box Inside Hero Card ──────────────── */
+.restaurant-hero-card .hero-safety-box,
+.dark .restaurant-hero-card .hero-safety-box,
+[data-theme="dark"] .restaurant-hero-card .hero-safety-box {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #d1fae5 !important;
+}
+
+.restaurant-hero-card .hero-safety-box .hero-safety-title,
+.dark .restaurant-hero-card .hero-safety-box .hero-safety-title,
+[data-theme="dark"] .restaurant-hero-card .hero-safety-box .hero-safety-title {
+  color: #ffffff !important;
+}
+
+.restaurant-hero-card .hero-safety-box .hero-safety-icon,
+.dark .restaurant-hero-card .hero-safety-box .hero-safety-icon,
+[data-theme="dark"] .restaurant-hero-card .hero-safety-box .hero-safety-icon {
+  color: #34d399 !important;
+}
+
+.light .restaurant-hero-card .hero-safety-box,
+[data-theme="light"] .restaurant-hero-card .hero-safety-box {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #000000 !important;
+}
+
+.light .restaurant-hero-card .hero-safety-box p,
+[data-theme="light"] .restaurant-hero-card .hero-safety-box p {
+  color: #000000 !important;
+}
+
+.light .restaurant-hero-card .hero-safety-box .hero-safety-title,
+[data-theme="light"] .restaurant-hero-card .hero-safety-box .hero-safety-title {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+.light .restaurant-hero-card .hero-safety-box .hero-safety-icon,
+[data-theme="light"] .restaurant-hero-card .hero-safety-box .hero-safety-icon {
+  color: #15803d !important;
 }
 
 /* ── Restaurant In-Menu Search Input ─────────────────────────────────── */

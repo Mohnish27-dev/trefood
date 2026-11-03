@@ -6,6 +6,7 @@ import {
   DEFAULTS,
   ORDER_STATUS,
   ROLE,
+  ZONE_TYPE,
   VENDOR_ACTIVE_STATUSES,
   type OrderStatus,
   type StuckReason,
@@ -41,6 +42,231 @@ import type { User } from "@/types/user";
 
 export async function listAllCampuses(): Promise<Campus[]> {
   return (await db.campuses()).find({}).sort({ name: 1 }).toArray();
+}
+
+export async function createCampus(params: {
+  name: string;
+  city: string;
+  slug: string;
+  timezone?: string | undefined;
+  center: { lat: number; lng: number };
+  settings?: {
+    deliveryFeePaise?: Paise | undefined;
+    commissionBps?: number | undefined;
+    transitMinutes?: number | undefined;
+    vendorAckSeconds?: number | undefined;
+    vendorAutoExpireSeconds?: number | undefined;
+    gateGraceSeconds?: number | undefined;
+    curfewBufferMinutes?: number | undefined;
+    stockoutResolutionSeconds?: number | undefined;
+  } | undefined;
+  initialZone?: {
+    name: string;
+    instructions: string;
+  } | undefined;
+  actorId: string;
+}): Promise<{ ok: true; campus: Campus } | { ok: false; message: string }> {
+  const campuses = await db.campuses();
+  const slug = params.slug.toLowerCase().trim();
+
+  const existingSlug = await campuses.findOne({ slug });
+  if (existingSlug) {
+    return { ok: false, message: `A campus with slug "${slug}" already exists.` };
+  }
+
+  const existingName = await campuses.findOne({
+    name: { $regex: new RegExp(`^${params.name.trim()}$`, "i") },
+  });
+  if (existingName) {
+    return { ok: false, message: `A campus with the name "${params.name.trim()}" already exists.` };
+  }
+
+  const campusId = `campus_${slug.replace(/[^a-z0-9]/g, "_")}`;
+  const existingId = await campuses.findOne({ _id: campusId });
+  const finalCampusId = existingId ? newId("campus") : campusId;
+
+  const initialZones: DeliveryZone[] = [];
+  if (params.initialZone && params.initialZone.name.trim()) {
+    initialZones.push({
+      id: newId("zone"),
+      name: params.initialZone.name.trim(),
+      zoneType: ZONE_TYPE.MAIN_GATE,
+      curfewMinutes: null,
+      opensMinutes: 0,
+      lat: params.center.lat,
+      lng: params.center.lng,
+      instructions:
+        params.initialZone.instructions.trim() ||
+        "Wait at the security post at the main gate.",
+      isActive: true,
+      isFallback: true,
+    });
+  }
+
+  const now = new Date();
+  const campus: Campus = {
+    _id: finalCampusId,
+    slug,
+    name: params.name.trim(),
+    city: params.city.trim(),
+    timezone: params.timezone?.trim() || "Asia/Kolkata",
+    center: {
+      lat: Number(params.center.lat),
+      lng: Number(params.center.lng),
+    },
+    geofence: null,
+    zones: initialZones,
+    settings: {
+      deliveryFeePaise: params.settings?.deliveryFeePaise ?? rupeesToPaise(15),
+      commissionBps: params.settings?.commissionBps ?? DEFAULTS.commissionBps,
+      roundingMode: "CEIL",
+      transitMinutes: params.settings?.transitMinutes ?? 8,
+      vendorAckSeconds: params.settings?.vendorAckSeconds ?? DEFAULTS.vendorAckSeconds,
+      vendorAutoExpireSeconds:
+        params.settings?.vendorAutoExpireSeconds ?? DEFAULTS.vendorAutoExpireSeconds,
+      gateGraceSeconds: params.settings?.gateGraceSeconds ?? DEFAULTS.gateGraceSeconds,
+      curfewBufferMinutes:
+        params.settings?.curfewBufferMinutes ?? DEFAULTS.curfewBufferMinutes,
+      stockoutResolutionSeconds:
+        params.settings?.stockoutResolutionSeconds ?? DEFAULTS.stockoutResolutionSeconds,
+    },
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await campuses.insertOne(campus);
+
+  await writeAudit({
+    entity: "CAMPUS",
+    entityId: finalCampusId,
+    from: null,
+    to: "campus:created",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Created new campus: ${campus.name} (${campus.city})`,
+  });
+
+  return { ok: true, campus };
+}
+
+export async function updateCampusDetails(params: {
+  campusId: string;
+  name: string;
+  city: string;
+  timezone: string;
+  center: { lat: number; lng: number };
+  isActive?: boolean | undefined;
+  actorId: string;
+}): Promise<{ ok: true; campus: Campus } | { ok: false; message: string }> {
+  const campuses = await db.campuses();
+  const before = await campuses.findOne({ _id: params.campusId });
+  if (!before) return { ok: false, message: "Campus not found." };
+
+  const updateFields: Partial<Campus> = {
+    name: params.name.trim(),
+    city: params.city.trim(),
+    timezone: params.timezone.trim() || "Asia/Kolkata",
+    center: {
+      lat: Number(params.center.lat),
+      lng: Number(params.center.lng),
+    },
+    updatedAt: new Date(),
+  };
+
+  if (typeof params.isActive === "boolean") {
+    updateFields.isActive = params.isActive;
+  }
+
+  const updated = await campuses.findOneAndUpdate(
+    { _id: params.campusId },
+    { $set: updateFields },
+    { returnDocument: "after" },
+  );
+
+  if (!updated) return { ok: false, message: "Failed to update campus." };
+
+  await writeAudit({
+    entity: "CAMPUS",
+    entityId: params.campusId,
+    from: `${before.name} (${before.city})`,
+    to: `${updated.name} (${updated.city})`,
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Campus details updated`,
+  });
+
+  return { ok: true, campus: updated };
+}
+
+export async function deleteCampus(params: {
+  campusId: string;
+  actorId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const campuses = await db.campuses();
+  const campus = await campuses.findOne({ _id: params.campusId });
+  if (!campus) return { ok: false, message: "Campus does not exist." };
+
+  const restaurantCount = await (await db.restaurants()).countDocuments({
+    campusId: params.campusId,
+  });
+  if (restaurantCount > 0) {
+    return {
+      ok: false,
+      message: `Cannot delete ${campus.name} because it has ${restaurantCount} restaurant(s) attached. You can deactivate it instead.`,
+    };
+  }
+
+  const orderCount = await (await db.orders()).countDocuments({
+    campusId: params.campusId,
+  });
+  if (orderCount > 0) {
+    return {
+      ok: false,
+      message: `Cannot delete ${campus.name} because it has ${orderCount} order record(s). You can deactivate it instead.`,
+    };
+  }
+
+  await campuses.deleteOne({ _id: params.campusId });
+
+  await writeAudit({
+    entity: "CAMPUS",
+    entityId: params.campusId,
+    from: campus.name,
+    to: "campus:deleted",
+    actorId: params.actorId,
+    actorRole: ACTOR.ADMIN,
+    reason: `Deleted campus ${campus.name} (${params.campusId})`,
+  });
+
+  return { ok: true };
+}
+
+export async function setCampusActive(params: {
+  campusId: string;
+  isActive: boolean;
+  actorId: string;
+}): Promise<Campus | null> {
+  const campuses = await db.campuses();
+  const updated = await campuses.findOneAndUpdate(
+    { _id: params.campusId },
+    { $set: { isActive: params.isActive, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+
+  if (updated) {
+    await writeAudit({
+      entity: "CAMPUS",
+      entityId: params.campusId,
+      from: params.isActive ? "campus:inactive" : "campus:active",
+      to: params.isActive ? "campus:active" : "campus:inactive",
+      actorId: params.actorId,
+      actorRole: ACTOR.ADMIN,
+      reason: `Campus ${updated.name} ${params.isActive ? "activated" : "deactivated"}`,
+    });
+  }
+
+  return updated;
 }
 
 export async function updateCampusSettings(params: {

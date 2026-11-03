@@ -212,7 +212,7 @@ export function CartView() {
       ) : null}
 
       <div className="mt-3 flex items-start gap-2 rounded-xl border border-line bg-surface p-2.5 text-xs text-muted">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <p className="leading-relaxed">
           <strong className="text-bone">Campus Safety:</strong> After 7:00 PM, deliveries are handled personally by the restaurant owner or verified co-owner for complete security inside campus.
         </p>

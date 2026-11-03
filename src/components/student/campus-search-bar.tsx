@@ -109,7 +109,7 @@ export function CampusSearchBar({
           showPanel && "rounded-b-none shadow-xl border-b-0",
         )}
       >
-        <Search className="size-4.5 text-slate-400 shrink-0 mr-3" />
+        <Search className="size-4.5 text-slate-500 shrink-0 mr-3" />
         <input
           ref={inputRef}
           type="text"
@@ -136,7 +136,7 @@ export function CampusSearchBar({
           aria-activedescendant={
             activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
           }
-          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-500 outline-none focus:outline-none"
           aria-label="Search food, fruits, vegetables, groceries"
         />
 
@@ -178,7 +178,7 @@ export function CampusSearchBar({
           className="absolute left-0 right-0 top-full z-50 max-h-[min(60vh,26rem)] overflow-y-auto overscroll-contain rounded-b-2xl bg-white shadow-2xl ring-1 ring-black/5"
         >
           {value.trim().length === 0 && rows.length > 0 ? (
-            <p className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <p className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
               <TrendingUp className="size-3 text-tf-maroon" />
               Popular on campus
             </p>
