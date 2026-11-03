@@ -160,7 +160,7 @@ export default async function MenuPage({
             {restaurant.isDineInAvailable ? (
               <>
                 <span className="opacity-40">•</span>
-                <span className="font-semibold text-amber-400">🍽️ Dine-in Available</span>
+                <span className="font-semibold text-amber-700 dark:text-amber-400">🍽️ Dine-in Available</span>
               </>
             ) : null}
           </div>
@@ -181,10 +181,10 @@ export default async function MenuPage({
           </div>
 
           {/* Campus Night Safety Protocol */}
-          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-xs text-emerald-300">
-            <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-400" />
+          <div className="hero-safety-box mt-3 flex items-start gap-2.5 rounded-xl border border-emerald-600/30 bg-emerald-50/90 dark:border-emerald-500/25 dark:bg-emerald-950/30 p-2.5 text-xs text-black dark:text-emerald-100 shadow-2xs">
+            <ShieldCheck className="hero-safety-icon size-4 shrink-0 mt-0.5 text-emerald-700 dark:text-emerald-400" />
             <p className="leading-relaxed">
-              <span className="font-semibold text-white">Campus Night Safety:</span> After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.
+              <span className="hero-safety-title font-bold text-black dark:text-white">Campus Night Safety:</span> After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.
             </p>
           </div>
 
@@ -205,8 +205,8 @@ export default async function MenuPage({
 
           {/* Dine-in offers: redeemed at the counter, never at checkout */}
           {dineInCoupons.length > 0 ? (
-            <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-2.5">
-              <p className="text-xs font-semibold text-amber-400">🍽️ Dine-in offers today</p>
+            <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-50/90 dark:border-amber-400/30 dark:bg-amber-400/10 p-2.5">
+              <p className="text-xs font-semibold text-amber-900 dark:text-amber-300">🍽️ Dine-in offers today</p>
               <ul className="mt-1.5 space-y-1.5">
                 {dineInCoupons.map((coupon) => {
                   const itemNames = (coupon.menuItemNames ?? []).filter(Boolean);

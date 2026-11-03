@@ -179,7 +179,7 @@ export function TreFoodQRCode({
   };
 
   if (!svgData) {
-    return <div className="p-4 text-center text-sm text-red-400">Failed to generate QR code</div>;
+    return <div className="p-4 text-center text-sm font-medium text-red-600 dark:text-red-400">Failed to generate QR code</div>;
   }
 
   const {

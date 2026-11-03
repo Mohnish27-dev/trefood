@@ -1,5 +1,6 @@
 import { ClipboardList, Star } from "lucide-react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
@@ -11,6 +12,8 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { getSession } from "@/server/auth/session";
 import { listOrdersForCustomer } from "@/server/services/orders";
 import { ORDER_STATUS, TERMINAL_STATUSES } from "@/lib/constants";
+import { CAMPUS_COOKIE } from "@/lib/cookies";
+import { DEFAULT_CAMPUS_SLUG } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Your orders" };
 export const dynamic = "force-dynamic";
@@ -18,6 +21,9 @@ export const dynamic = "force-dynamic";
 export default async function OrdersPage() {
   const session = await getSession();
   const orders = session ? await listOrdersForCustomer(session.user._id) : [];
+
+  const cookieStore = await cookies();
+  const campusSlug = cookieStore.get(CAMPUS_COOKIE)?.value ?? DEFAULT_CAMPUS_SLUG;
 
   return (
     <>
@@ -33,7 +39,7 @@ export default async function OrdersPage() {
           description="Once you order, it shows up here — including anything still on its way to your gate."
           action={
             <Button asChild variant="secondary">
-              <Link href="/c/nit-patna">Browse restaurants</Link>
+              <Link href={`/c/${campusSlug}`}>Browse restaurants</Link>
             </Button>
           }
         />

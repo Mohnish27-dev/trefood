@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { EmptyState } from "@/components/shared/states";
 import { SubPageHeader } from "@/components/student/account/sub-page-header";
@@ -11,6 +12,7 @@ import {
   curfewMessageWithFallback,
   formatMinutes,
 } from "@/server/services/curfew";
+import { CAMPUS_COOKIE } from "@/lib/cookies";
 import { DEFAULT_CAMPUS_SLUG } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Pickup location" };
@@ -26,9 +28,9 @@ export const dynamic = "force-dynamic";
  * design, not a duplicate.
  */
 export default async function PickupLocationPage() {
-  // The gate lives in a cookie, not on the user, so this screen works signed
-  // out too — and it is the first thing a new student needs to set.
-  const campus = await getCampusBySlug(DEFAULT_CAMPUS_SLUG);
+  const cookieStore = await cookies();
+  const campusSlug = cookieStore.get(CAMPUS_COOKIE)?.value ?? DEFAULT_CAMPUS_SLUG;
+  const campus = (await getCampusBySlug(campusSlug)) ?? (await getCampusBySlug(DEFAULT_CAMPUS_SLUG));
 
   if (!campus) {
     return (

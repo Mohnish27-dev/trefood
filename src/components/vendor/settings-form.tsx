@@ -252,7 +252,7 @@ export function VendorSettingsForm({
       {/* ── Campus Delivery Safety Directive ───────────────────────── */}
       <Card className="p-4 border-emerald-500/30 bg-emerald-500/5">
         <div className="flex items-start gap-2.5">
-          <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-400" />
+          <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
           <div>
             <h2 className="font-display text-sm font-semibold text-bone">Campus Delivery Protocol (After 7:00 PM)</h2>
             <p className="mt-1 text-xs leading-relaxed text-muted">

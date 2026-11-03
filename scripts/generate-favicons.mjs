@@ -1,8 +1,8 @@
 /**
  * Generate Google-compliant favicons, PWA icons, and OpenGraph social card.
  *
- * Uses public/logo-source.png (the brand artwork) to build public/logo.png,
- * which is then the high-resolution source for everything else.
+ * Uses public/logo.png (the enhanced high-resolution master brand logo)
+ * to build all Google Search favicons, PWA icons, brand images, and OG cards.
  * Run: node scripts/generate-favicons.mjs
  */
 
@@ -16,21 +16,33 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.join(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const ICONS_DIR = path.join(PUBLIC_DIR, 'icons');
+const BRAND_DIR = path.join(PUBLIC_DIR, 'brand');
 const BRAND_ARTWORK = path.join(PUBLIC_DIR, 'logo-source.png');
 const SOURCE_LOGO = path.join(PUBLIC_DIR, 'logo.png');
 
-/** Brand maroon, sampled from the artwork's background. */
-const BRAND_MAROON = { r: 131, g: 17, b: 50, alpha: 1 };
+/** Vibrant brand maroon matching --theme-maroon: #a3123a. */
+const BRAND_MAROON = { r: 163, g: 18, b: 58, alpha: 1 };
 
 if (!fs.existsSync(ICONS_DIR)) {
   fs.mkdirSync(ICONS_DIR, { recursive: true });
 }
+if (!fs.existsSync(BRAND_DIR)) {
+  fs.mkdirSync(BRAND_DIR, { recursive: true });
+}
 
-// 0. Re-centre the wordmark on a full-bleed maroon square. The artwork's
-// wordmark spans ~90% of the width, so Android's circular mask would crop the
-// "T" and the "d"; at 76% it sits inside the maskable 80% safe circle.
+// 0. Use the enhanced master logo (public/logo.png). If missing, generate from artwork.
 async function buildSquareLogo() {
   const SIZE = 1024;
+  if (fs.existsSync(SOURCE_LOGO)) {
+    console.log('✓ Using enhanced master public/logo.png (1024x1024)');
+    fs.copyFileSync(SOURCE_LOGO, path.join(ICONS_DIR, 'logo.png'));
+    await sharp(SOURCE_LOGO)
+      .jpeg({ quality: 96 })
+      .toFile(path.join(BRAND_DIR, 'trefood-brand-logo.jpg'));
+    console.log('✓ Generated public/brand/trefood-brand-logo.jpg (1024x1024)');
+    return;
+  }
+
   const wordmark = await sharp(BRAND_ARTWORK)
     .trim({ threshold: 40 })
     .resize({ width: Math.round(SIZE * 0.76) })
@@ -42,7 +54,10 @@ async function buildSquareLogo() {
     .png({ compressionLevel: 9 })
     .toFile(SOURCE_LOGO);
   fs.copyFileSync(SOURCE_LOGO, path.join(ICONS_DIR, 'logo.png'));
-  console.log('✓ Generated public/logo.png and public/icons/logo.png (1024x1024)');
+  await sharp(SOURCE_LOGO)
+    .jpeg({ quality: 96 })
+    .toFile(path.join(BRAND_DIR, 'trefood-brand-logo.jpg'));
+  console.log('✓ Generated public/logo.png, public/icons/logo.png, and public/brand/trefood-brand-logo.jpg (1024x1024)');
 }
 
 // 1. Multi-resolution ICO builder (16, 32, 48)
@@ -81,7 +96,7 @@ async function buildIco(sizes, srcPath, destPath) {
 
 // 2. Generate standard icon sizes
 async function generateIcons() {
-  console.log('Generating Google-compliant favicons and app icons...');
+  console.log('Generating Google-compliant favicons and app icons from enhanced master logo...');
 
   // Google Search multiples of 48: 48, 96, 144, 192
   // Standard web/PWA: 32, 64, 128, 512, apple-touch-icon (180)

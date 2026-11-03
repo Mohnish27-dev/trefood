@@ -57,7 +57,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
                 "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
                 isHome
                   ? "text-tf-maroon dark:text-rose-400 font-bold"
-                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+                  : "text-muted hover:text-tf-maroon dark:hover:text-bone",
               )}
             >
               <Home
@@ -85,7 +85,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
           href={`/c/${activeCampus}#explore-categories`}
           onClick={handleCategoriesClick}
           className={cn(
-            "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+            "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none text-muted hover:text-tf-maroon dark:hover:text-bone",
           )}
         >
           <LayoutGrid className="size-5 transition-transform hover:scale-110 stroke-[2]" />
@@ -109,7 +109,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
               </span>
             ) : null}
           </Link>
-          <span className="absolute bottom-1.5 text-[10px] sm:text-[11px] font-medium leading-none text-[#7a7472] dark:text-muted">
+          <span className="absolute bottom-1.5 text-[10px] sm:text-[11px] font-medium leading-none text-muted">
             Cart
           </span>
         </div>
@@ -125,7 +125,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
                 "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
                 isOrders
                   ? "text-tf-maroon dark:text-rose-400 font-bold"
-                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+                  : "text-muted hover:text-tf-maroon dark:hover:text-bone",
               )}
             >
               <ClipboardList
@@ -159,7 +159,7 @@ export function BottomNav({ campusSlug }: { campusSlug: string | null }) {
                 "relative flex flex-1 min-h-14 flex-col items-center justify-center gap-1 py-1 transition-all select-none",
                 isAccount
                   ? "text-tf-maroon dark:text-rose-400 font-bold"
-                  : "text-[#7a7472] dark:text-muted hover:text-tf-maroon dark:hover:text-bone",
+                  : "text-muted hover:text-tf-maroon dark:hover:text-bone",
               )}
             >
               <User

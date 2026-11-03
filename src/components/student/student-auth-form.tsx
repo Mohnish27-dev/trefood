@@ -356,9 +356,9 @@ export function StudentAuthForm({
             };
 
   return (
-    <div className="light auth-theme relative w-full max-w-md mx-auto min-h-dvh flex flex-col bg-tf-cream text-tf-ink shadow-2xl">
-      {/* ── Hero artwork: wordmark, tagline, categories and the food spread ── */}
-      <header className="relative">
+    <div className="light auth-theme relative w-full max-w-md mx-auto min-h-dvh flex flex-col justify-between bg-tf-cream text-tf-ink shadow-2xl overflow-x-hidden">
+      {/* ── Hero artwork: wordmark, tagline, categories, food spread and golden wave ── */}
+      <header className="relative w-full">
         <Image
           src="/images/auth/login-hero.webp"
           alt="TreFood, the campus commerce platform. Everything you need in one place: food, fruits, groceries, snacks and dine-out."
@@ -370,7 +370,7 @@ export function StudentAuthForm({
         />
         <Link
           href="/"
-          className="absolute top-3 right-3 inline-flex items-center gap-0.5 rounded-full ring-1 ring-white/25 bg-black/25 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold text-white/90 hover:bg-black/40 transition-colors"
+          className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 inline-flex items-center gap-0.5 rounded-full ring-1 ring-white/25 bg-black/25 backdrop-blur-sm px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-[11px] font-semibold text-white/90 hover:bg-black/40 transition-colors"
         >
           <span>Skip</span>
           <ChevronRight className="size-3" />
@@ -378,31 +378,31 @@ export function StudentAuthForm({
       </header>
 
       {/* ── Form ── */}
-      <section className="flex-1 px-7 pt-1 pb-4">
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-tf-ink">
+      <section className="flex-1 px-5 sm:px-7 pt-2 sm:pt-3 pb-2 flex flex-col justify-center min-h-0">
+        <h1 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight text-tf-ink">
           {heading.lead}
           <span className="text-tf-maroon">{heading.accent}</span>
         </h1>
-        <p className="mt-1 text-[15px] text-[#5a5655]">{heading.sub}</p>
+        <p className="mt-0.5 text-xs sm:text-[13px] text-[#5a5655]">{heading.sub}</p>
 
-        <div className="mt-5 space-y-3">
+        <div className="mt-2 space-y-1.5">
           {/* Reason Alert if redirected */}
           {reason && REASONS[reason] ? (
-            <p className="rounded-xl ring-1 ring-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="rounded-xl ring-1 ring-amber-300 bg-amber-50 p-2 sm:p-2.5 text-xs text-amber-900">
               {REASONS[reason]}
             </p>
           ) : null}
 
           {/* Error / Success Alerts */}
           {error ? (
-            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-red-200 bg-red-50 p-3 text-xs text-red-700">
+            <div className="flex items-start gap-2 rounded-xl ring-1 ring-red-200 bg-red-50 p-2 sm:p-2.5 text-xs text-red-700">
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           ) : null}
 
           {successMessage ? (
-            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+            <div className="flex items-start gap-2 rounded-xl ring-1 ring-emerald-200 bg-emerald-50 p-2 sm:p-2.5 text-xs text-emerald-800">
               <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
               <span>{successMessage}</span>
             </div>
@@ -410,7 +410,7 @@ export function StudentAuthForm({
 
           {/* Stale Profile Alert */}
           {staleProfile ? (
-            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="flex items-start gap-2 rounded-xl ring-1 ring-amber-300 bg-amber-50 p-2 sm:p-2.5 text-xs text-amber-900">
               <KeyRound className="size-4 shrink-0 mt-0.5" />
               <span>Sign in once below to switch your 4-digit PIN back on for this phone.</span>
             </div>
@@ -418,8 +418,8 @@ export function StudentAuthForm({
 
           {/* Quick PIN Banner for Students */}
           {storedProfile && !deviceIsVendor ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-tf-maroon/25 bg-white p-3 text-xs shadow-sm">
-              <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center justify-between gap-2.5 rounded-xl ring-1 ring-tf-maroon/25 bg-white p-2 sm:p-2.5 text-xs shadow-sm">
+              <div className="flex items-center gap-2 min-w-0">
                 <KeyRound className="size-4 shrink-0 text-tf-maroon" />
                 <span className="truncate">
                   Quick PIN is ready for{" "}
@@ -431,7 +431,7 @@ export function StudentAuthForm({
               <button
                 type="button"
                 onClick={() => setShowQuickUnlock(true)}
-                className="shrink-0 rounded-lg bg-tf-maroon px-3 py-1.5 font-semibold text-white hover:bg-tf-maroon-deep transition-colors cursor-pointer"
+                className="shrink-0 rounded-lg bg-tf-maroon px-2.5 py-1 font-semibold text-white hover:bg-tf-maroon-deep transition-colors cursor-pointer"
               >
                 Use PIN
               </button>
@@ -441,9 +441,9 @@ export function StudentAuthForm({
 
         {/* ── Code step: shown instead of the whole student form ── */}
         {codeStep ? (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-start gap-3 rounded-xl ring-1 ring-tf-maroon/20 bg-white p-3.5">
-              <MailCheck className="size-5 shrink-0 text-tf-maroon mt-0.5" />
+          <div className="mt-2 sm:mt-3 space-y-2 sm:space-y-3">
+            <div className="flex items-start gap-2.5 rounded-xl ring-1 ring-tf-maroon/20 bg-white p-2.5">
+              <MailCheck className="size-4 shrink-0 text-tf-maroon mt-0.5" />
               <p className="min-w-0 text-xs leading-relaxed text-[#5a5655]">
                 We sent a 6-digit code to{" "}
                 <strong className="text-tf-ink break-all">{codeStep.email}</strong>.
@@ -455,7 +455,7 @@ export function StudentAuthForm({
                 e.preventDefault();
                 void submitCode(code);
               }}
-              className="space-y-3.5"
+              className="space-y-2 sm:space-y-2.5"
             >
               <OtpCodeInput
                 value={code}
@@ -465,7 +465,7 @@ export function StudentAuthForm({
               />
 
               {codeStep.kind === "reset" ? (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <AuthInput
                     icon={Lock}
                     id="new-password"
@@ -479,7 +479,7 @@ export function StudentAuthForm({
                     disabled={loading}
                     reveal={{ shown: showPassword, toggle: () => setShowPassword(!showPassword) }}
                   />
-                  <p className="pl-1 text-[11px] text-[#7a7472]">
+                  <p className="pl-1 text-[10px] text-[#7a7472]">
                     At least 8 characters, with a letter and a number.
                   </p>
                 </div>
@@ -490,14 +490,14 @@ export function StudentAuthForm({
               </PrimaryButton>
             </form>
 
-            <div className="flex items-center justify-between gap-3 text-sm">
+            <div className="flex items-center justify-between gap-3 text-xs">
               <button
                 type="button"
                 onClick={() => void handleResend()}
                 disabled={resendIn > 0 || loading}
-                className="inline-flex items-center gap-1.5 font-semibold text-tf-maroon hover:underline disabled:text-[#9a918e] disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
+                className="inline-flex items-center gap-1 font-semibold text-tf-maroon hover:underline disabled:text-[#9a918e] disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
               >
-                <RotateCcw className="size-3.5" />
+                <RotateCcw className="size-3" />
                 <span>{resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}</span>
               </button>
 
@@ -512,7 +512,7 @@ export function StudentAuthForm({
           </div>
         ) : (
           <>
-            <form onSubmit={(e) => void handleStudentSubmit(e)} className="mt-4 space-y-3">
+            <form onSubmit={(e) => void handleStudentSubmit(e)} className="mt-2 space-y-1.5 sm:space-y-2">
               {studentMode === "signup" ? (
                 <AuthInput
                   icon={User}
@@ -556,7 +556,7 @@ export function StudentAuthForm({
               ) : null}
 
               {studentMode === "signup" ? (
-                <p className="pl-1 text-[11px] text-[#7a7472]">
+                <p className="pl-1 text-[10px] text-[#7a7472]">
                   At least 8 characters, with a letter and a number.
                 </p>
               ) : null}
@@ -566,14 +566,14 @@ export function StudentAuthForm({
                   <button
                     type="button"
                     onClick={() => switchStudentMode("forgot")}
-                    className="text-[15px] font-medium text-tf-maroon hover:underline cursor-pointer"
+                    className="text-xs font-medium text-tf-maroon hover:underline cursor-pointer"
                   >
                     Forgot Password?
                   </button>
                 </div>
               ) : null}
 
-              <div className="pt-1">
+              <div className="pt-0.5">
                 <PrimaryButton loading={loading}>
                   {studentMode === "signin"
                     ? isAdminRedirect
@@ -588,23 +588,23 @@ export function StudentAuthForm({
 
             {googleEnabled && studentMode !== "forgot" ? (
               <>
-                <div className="my-5 flex items-center gap-4">
+                <div className="my-1.5 sm:my-2 flex items-center gap-3">
                   <div className="h-px flex-1 bg-[#d9cdc9]" />
-                  <span className="text-sm font-medium text-tf-ink/80">OR</span>
+                  <span className="text-[11px] sm:text-xs font-medium text-tf-ink/75">OR</span>
                   <div className="h-px flex-1 bg-[#d9cdc9]" />
                 </div>
 
                 <a
                   href={googleHref}
-                  className="flex h-13 w-full items-center justify-center gap-3 rounded-xl border bg-white text-[15px] font-medium text-tf-ink shadow-[0_4px_14px_rgba(84,0,24,0.08)] hover:bg-[#fffaf8] active:scale-[0.99] transition-all"
+                  className="flex h-10 sm:h-11 w-full items-center justify-center gap-2 rounded-xl border bg-white text-xs sm:text-[13px] font-medium text-tf-ink shadow-[0_2px_6px_rgba(84,0,24,0.05)] hover:bg-[#fffaf8] active:scale-[0.99] transition-all"
                 >
-                  <GoogleIcon className="size-6 shrink-0" />
+                  <GoogleIcon className="size-4.5 sm:size-5 shrink-0" />
                   <span>Continue with Google</span>
                 </a>
               </>
             ) : null}
 
-            <p className="mt-6 text-center text-[15px] text-[#4f4a49]">
+            <p className="mt-1.5 sm:mt-2 text-center text-xs text-[#4f4a49]">
               {studentMode === "signin" ? "Don't have an account? " : "Already have an account? "}
               <button
                 type="button"
@@ -612,7 +612,7 @@ export function StudentAuthForm({
                 className="inline-flex items-center gap-1 font-bold text-tf-maroon hover:underline cursor-pointer"
               >
                 <span>{studentMode === "signin" ? "Sign Up" : "Login"}</span>
-                <ArrowRight className="size-4" />
+                <ArrowRight className="size-3.5" />
               </button>
             </p>
           </>
@@ -622,14 +622,14 @@ export function StudentAuthForm({
       {children}
 
       {/* ── Campus skyline footer ── */}
-      <footer className="mt-auto">
+      <footer className="mt-auto w-full shrink-0 overflow-hidden max-h-[38px] sm:max-h-[52px]">
         <Image
           src="/images/auth/login-footer.webp"
           alt="Powered for campuses"
           width={1376}
           height={318}
           sizes="(max-width: 448px) 100vw, 448px"
-          className="block w-full h-auto select-none"
+          className="block w-full h-auto max-h-[38px] sm:max-h-[52px] object-cover object-bottom select-none"
         />
       </footer>
     </div>
@@ -649,15 +649,15 @@ function AuthInput({
   return (
     <div className="relative flex items-center">
       <Icon
-        className="absolute left-4 size-5 text-[#3d3a39] pointer-events-none"
+        className="absolute left-3.5 size-4 text-[#3d3a39] pointer-events-none"
         strokeWidth={1.75}
       />
       <input
         {...props}
         aria-label={props.placeholder}
         className={cn(
-          "h-13 w-full rounded-xl border bg-white pl-13 text-[15px] text-tf-ink placeholder:text-[#7a7472] focus:outline-none focus:ring-1 focus:ring-tf-maroon disabled:opacity-60 transition-all",
-          reveal ? "pr-12" : "pr-4",
+          "h-10 sm:h-11 w-full rounded-xl border bg-white pl-10 pr-4 text-xs sm:text-[13px] text-tf-ink placeholder:text-[#7a7472] focus:outline-none focus:ring-1 focus:ring-tf-maroon disabled:opacity-60 transition-all",
+          reveal ? "pr-10" : "pr-4",
           className,
         )}
       />
@@ -666,12 +666,12 @@ function AuthInput({
           type="button"
           onClick={reveal.toggle}
           aria-label={reveal.shown ? "Hide password" : "Show password"}
-          className="absolute right-3 p-1 text-[#3d3a39] hover:text-tf-ink focus:outline-none cursor-pointer"
+          className="absolute right-2.5 p-1 text-[#3d3a39] hover:text-tf-ink focus:outline-none cursor-pointer"
         >
           {reveal.shown ? (
-            <Eye className="size-5" strokeWidth={1.75} />
+            <Eye className="size-4" strokeWidth={1.75} />
           ) : (
-            <EyeOff className="size-5" strokeWidth={1.75} />
+            <EyeOff className="size-4" strokeWidth={1.75} />
           )}
         </button>
       ) : null}
@@ -693,14 +693,14 @@ function PrimaryButton({
     <button
       type="submit"
       disabled={loading || disabled}
-      className="relative flex h-13 w-full items-center justify-center rounded-xl bg-tf-maroon text-lg font-semibold text-white shadow-lg shadow-tf-maroon/25 hover:bg-[#6e001b] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer"
+      className="relative flex h-10 sm:h-11 w-full items-center justify-center rounded-xl bg-tf-maroon text-sm sm:text-base font-semibold text-white shadow-md shadow-tf-maroon/25 hover:bg-[#6e001b] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer"
     >
       {loading ? (
-        <Loader2 className="size-5 animate-spin" />
+        <Loader2 className="size-4 animate-spin" />
       ) : (
         <>
           <span>{children}</span>
-          <ArrowRight className="absolute right-5 size-6" />
+          <ArrowRight className="absolute right-3.5 size-4.5" />
         </>
       )}
     </button>

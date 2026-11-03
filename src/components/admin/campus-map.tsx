@@ -55,6 +55,8 @@ export function CampusMap({
   polygon,
   drawing,
   draftPoints,
+  isPlacingGate = false,
+  editingCoords = null,
   onMapClick,
   onZoneClick,
 }: {
@@ -65,11 +67,14 @@ export function CampusMap({
   drawing: boolean;
   /** Points added so far in this drawing session, as [lat, lng]. */
   draftPoints: [number, number][];
+  isPlacingGate?: boolean;
+  editingCoords?: { lat: number; lng: number } | null;
   onMapClick: (lat: number, lng: number) => void;
   onZoneClick: (zoneId: string) => void;
 }) {
   return (
     <MapContainer
+      key={`${center.lat},${center.lng}`}
       center={[center.lat, center.lng]}
       zoom={16}
       scrollWheelZoom
@@ -83,7 +88,7 @@ export function CampusMap({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <ClickCatcher enabled={drawing} onMapClick={onMapClick} />
+      <ClickCatcher enabled={drawing || isPlacingGate} onMapClick={onMapClick} />
 
       {polygon && polygon.length >= 3 ? (
         <Polygon
@@ -122,6 +127,18 @@ export function CampusMap({
           eventHandlers={{ click: () => onZoneClick(zone.id) }}
         />
       ))}
+
+      {editingCoords ? (
+        <Marker
+          position={[editingCoords.lat, editingCoords.lng]}
+          icon={L.divIcon({
+            className: "",
+            html: `<span style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:9999px;background:#e11d48;border:2px solid #ffffff;box-shadow:0 0 10px rgba(225,29,72,0.7)"></span>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          })}
+        />
+      ) : null}
     </MapContainer>
   );
 }

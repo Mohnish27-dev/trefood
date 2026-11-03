@@ -307,7 +307,7 @@ function VendorCard({ vendor, canManage }: { vendor: AdminVendorRow; canManage: 
                   </button>
                 </div>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                   <span>No vendor login linked</span>
                 </span>
               )}
