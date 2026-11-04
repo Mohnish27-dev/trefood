@@ -312,9 +312,10 @@ async function HeroCta() {
       </HeroCtaShell>
     );
   }
+  const isVendor = session.role === "VENDOR_OWNER" || session.role === "VENDOR_STAFF";
   return (
     <HeroCtaShell href={landingForRole(session.role)} icon="app">
-      Start ordering
+      {isVendor ? "Open vendor console" : "Start ordering"}
     </HeroCtaShell>
   );
 }

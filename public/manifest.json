@@ -43,6 +43,12 @@
       "short_name": "Orders",
       "url": "/orders",
       "description": "Track an order on its way to your gate"
+    },
+    {
+      "name": "Vendor Orders",
+      "short_name": "Vendor",
+      "url": "/vendor/orders",
+      "description": "Live vendor kitchen orders"
     }
   ]
 }
