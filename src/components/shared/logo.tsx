@@ -58,7 +58,7 @@ export function BrandLogo({
   size = "md",
   showText = true,
   showTagline = false,
-  tagline = "Food · Fruits · Groceries",
+  tagline = "Campus Marketplace",
   variant = "auto",
   className,
   href,

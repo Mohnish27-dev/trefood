@@ -42,11 +42,11 @@ const siteUrl = "https://www.trefood.in";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "TREFOOD — Campus food, delivered to your gate",
+    default: "TREFOOD — Food, Groceries & Essentials at Your Gate",
     template: "%s · TREFOOD",
   },
   description:
-    "Hyperlocal food delivery built for Indian college campuses. Order from your campus canteens, collect at your hostel gate.",
+    "Hyperlocal campus delivery built for Indian college campuses. Order food, fresh fruits, groceries, and raw chicken from campus vendors, collect at your hostel gate.",
   applicationName: "TREFOOD",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -74,23 +74,23 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: siteUrl,
     siteName: "TREFOOD",
-    title: "TREFOOD — Campus food, delivered to your gate",
+    title: "TREFOOD — Food, Groceries & Essentials at Your Gate",
     description:
-      "Hyperlocal food delivery built for Indian college campuses. Order from your campus canteens, collect at your hostel gate.",
+      "Hyperlocal campus delivery built for Indian college campuses. Order food, fresh fruits, groceries, and raw chicken from campus vendors, collect at your hostel gate.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "TREFOOD — Campus food, delivered to your gate",
+        alt: "TREFOOD — Food, Groceries & Essentials at Your Gate",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TREFOOD — Campus food, delivered to your gate",
+    title: "TREFOOD — Food, Groceries & Essentials at Your Gate",
     description:
-      "Hyperlocal food delivery built for Indian college campuses. Order from your campus canteens, collect at your hostel gate.",
+      "Hyperlocal campus delivery built for Indian college campuses. Order food, fresh fruits, groceries, and raw chicken from campus vendors, collect at your hostel gate.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -120,7 +120,7 @@ const jsonLd = {
       name: "TREFOOD",
       alternateName: ["TreFood", "trefood.in"],
       description:
-        "Hyperlocal campus food delivery built for Indian college campuses. Order from campus canteens and collect at your hostel gate.",
+        "Hyperlocal campus delivery built for Indian college campuses. Order food, fruits, groceries, and raw chicken from campus vendors, collect at your hostel gate.",
     },
     {
       "@type": "Organization",
@@ -129,7 +129,7 @@ const jsonLd = {
       url: siteUrl,
       logo: `${siteUrl}/logo.png`,
       image: `${siteUrl}/og-image.png`,
-      description: "Hyperlocal food delivery built for Indian college campuses.",
+      description: "Hyperlocal campus delivery for food, fruits, groceries, and essentials.",
     },
   ],
 };

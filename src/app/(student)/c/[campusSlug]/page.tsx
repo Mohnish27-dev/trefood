@@ -89,13 +89,13 @@ export default async function RestaurantListPage({ params }: PageProps<"/c/[camp
           <EmptyState
             icon={Store}
             title="Pick your gate first"
-            description="Restaurants declare which gates they deliver to, so choosing yours decides what you can order. Tap “Deliver to” above."
+            description="Vendors declare which gates they deliver to, so choosing yours decides what you can order. Tap “Deliver to” above."
           />
         ) : restaurants.length === 0 ? (
           <EmptyState
             icon={Store}
             title="Nothing reaches this gate yet"
-            description={`No restaurant currently delivers to ${selectedZone.name}. Try the main campus gate, which every restaurant serves.`}
+            description={`No vendor currently delivers to ${selectedZone.name}. Try the main campus gate, which every vendor serves.`}
           />
         ) : (
           <CampusRestaurantFeed

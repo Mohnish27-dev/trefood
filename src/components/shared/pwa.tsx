@@ -364,7 +364,7 @@ export function InstallPrompt() {
                 </span>
               </div>
               <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                Order directly from campus canteens with zero markup and live gate arrival alerts.
+                Order directly from campus vendors with zero markup and live gate arrival alerts.
               </p>
             </div>
             <button

@@ -17,17 +17,17 @@ import { cn } from "@/lib/utils";
 
 const DISHES = [
   "Chicken Biryani",
+  "Fresh Fruits & Juices",
   "Veg Momos",
+  "Daily Groceries",
+  "Fresh Raw Chicken Cuts",
   "Paneer Roll",
-  "Masala Maggi",
-  "Cold Coffee",
-  "Chilli Potato",
-  "Egg Chowmein",
-  "Aloo Paratha",
-  "Cutting Chai",
+  "Fresh Vegetables",
+  "Masala Maggi & Chai",
+  "Dairy & Cold Drinks",
   "Chicken Roll",
+  "Hostel Essentials",
   "Veg Thali",
-  "Samosa",
 ];
 
 export function DishMarquee() {
@@ -60,12 +60,12 @@ export function DishMarquee() {
 /* ── "What are you craving?" rail ────────────────────────────────────── */
 
 const CRAVINGS = [
-  { emoji: "🍛", label: "Biryani", note: "Feast" },
-  { emoji: "🌯", label: "Rolls", note: "Under ₹99" },
-  { emoji: "🍜", label: "Maggi & Chai", note: "Classic" },
-  { emoji: "🥟", label: "Momos", note: "Steamed" },
-  { emoji: "🍗", label: "Chicken", note: "Hostel pick" },
-  { emoji: "🌙", label: "Late night", note: "Curfew safe" },
+  { emoji: "🍔", label: "Hot Meals", note: "Canteens & snacks" },
+  { emoji: "🍎", label: "Fresh Fruits", note: "Juices & seasonal" },
+  { emoji: "🛒", label: "Groceries", note: "Daily essentials" },
+  { emoji: "🥬", label: "Vegetables", note: "Fresh & green" },
+  { emoji: "🍗", label: "Raw Chicken", note: "Fresh cuts & meat" },
+  { emoji: "🌙", label: "Late Night", note: "Curfew safe" },
 ];
 
 export function CravingRail({ href }: { href: string }) {
@@ -224,14 +224,14 @@ export function GateCodePreview() {
         className="absolute -right-4 top-16 animate-float-slow text-3xl drop-shadow-lg sm:-right-8 sm:text-4xl"
         style={{ animationDelay: "1.2s" }}
       >
-        🌯
+        🍎
       </span>
       <span
         aria-hidden
         className="absolute -bottom-5 left-4 animate-float text-3xl drop-shadow-lg sm:text-4xl"
         style={{ animationDelay: "2.4s" }}
       >
-        ☕
+        🛒
       </span>
 
       <div className="relative overflow-hidden rounded-3xl border border-line bg-surface/90 p-5 shadow-2xl shadow-black/30 backdrop-blur-md">
@@ -258,7 +258,7 @@ export function GateCodePreview() {
         <div className="mt-5 space-y-2 border-t border-line pt-4">
           {[
             { name: "Chicken Biryani", qty: "×1", price: "₹120" },
-            { name: "Cutting Chai", qty: "×2", price: "₹30" },
+            { name: "Fresh Fruits & Groceries", qty: "×1", price: "₹30" },
           ].map((line) => (
             <div key={line.name} className="flex items-center justify-between text-xs">
               <span className="text-muted">
@@ -293,7 +293,7 @@ export function SearchTeaser({ href }: { href: string }) {
         🔍
       </span>
       <span className="min-w-0 flex-1 truncate text-sm text-faint">
-        Search biryani, momos, chai…
+        Search food, fruits, groceries, raw chicken…
       </span>
       <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-saffron text-white transition-transform group-hover:translate-x-0.5">
         <ArrowRight className="size-4" />

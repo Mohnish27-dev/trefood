@@ -435,11 +435,11 @@ export function CampusRestaurantFeed({
         ) : hasActiveFilters ? (
           <EmptyState
             icon={Store}
-            title="No matching restaurants"
-            description="Try changing your search keywords or tap reset to browse all campus kitchens."
+            title="No matching vendors"
+            description="Try changing your search keywords or tap reset to browse all campus vendors and stores."
             action={
               <Button variant="secondary" size="sm" onClick={clearAllFilters}>
-                View all restaurants
+                View all vendors
               </Button>
             }
           />
@@ -447,7 +447,7 @@ export function CampusRestaurantFeed({
           <EmptyState
             icon={UtensilsCrossed}
             title="Everything is closed right now"
-            description="Campus kitchens shut for a few hours overnight. The ones below open again later today."
+            description="Campus vendors and kitchens shut for a few hours overnight. The ones below open again later today."
           />
         )}
 

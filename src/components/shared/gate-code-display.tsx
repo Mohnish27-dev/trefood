@@ -58,9 +58,12 @@ export function GateCodeDisplay({
             key={i}
             aria-hidden
             className={cn(
-              "gate-code flex items-center justify-center rounded-2xl",
-              "border-2 border-saffron/40 bg-ink-deep",
-              "shadow-[inset_0_0_30px_-10px] shadow-saffron/40",
+              "gate-code gate-code-cell flex items-center justify-center font-bold tracking-normal select-none transition-all",
+              // Light theme: crisp warm-white gradient surface, clean maroon border, soft elevation shadow, bold maroon digits
+              "bg-gradient-to-b from-white to-[#fff8f5] border-2 border-tf-maroon/20 shadow-md shadow-tf-maroon/5 text-tf-maroon",
+              // Dark theme: deep midnight background with glowing border & inset shadow
+              "dark:from-transparent dark:to-transparent dark:bg-ink-deep dark:border-saffron/40 dark:shadow-[inset_0_0_30px_-10px] dark:shadow-saffron/40 dark:text-saffron-glow",
+              size === "inline" ? "rounded-xl" : "rounded-2xl",
               cell,
             )}
           >
