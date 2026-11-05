@@ -1,12 +1,13 @@
 "use client";
 
-import { BellOff, BellRing, Loader2, Send } from "lucide-react";
+import { BellOff, BellRing, Download, Loader2, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { openInstallPrompt, useIsStandalone } from "@/components/shared/pwa";
 import { useVendorLanguage } from "@/context/vendor-language-context";
 import {
   hasDeviceSubscription,
@@ -25,7 +26,8 @@ import {
  * eating notifications before a real order does.
  */
 export function VendorNotificationSettings() {
-  const { t } = useVendorLanguage();
+  const { t, lang } = useVendorLanguage();
+  const isInstalled = useIsStandalone();
 
   const [state, setState] = useState<"checking" | "on" | "off">("checking");
   const [support, setSupport] = useState<PushSupport>("unsupported");
@@ -156,6 +158,20 @@ export function VendorNotificationSettings() {
             </li>
           ))}
         </ul>
+
+        {!isInstalled ? (
+          <div className="mt-3 pt-3 border-t border-line/60">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openInstallPrompt}
+              className="gap-2 text-xs border-saffron/30 text-saffron hover:bg-saffron/10"
+            >
+              <Download className="size-3.5" />
+              {lang === "hi" ? "ऐप होम स्क्रीन पर इंस्टॉल करें" : "Install App to Home Screen"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </Card>
   );

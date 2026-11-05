@@ -37,6 +37,7 @@ export interface CreateCouponParams {
 export interface CouponCartLine {
   itemId: string;
   lineTotalPaise: Paise;
+  linePackingFeePaise?: Paise | undefined;
 }
 
 export async function createCouponDirectly(
@@ -165,20 +166,27 @@ export function calculateCouponDiscount(coupon: Coupon, subtotalPaise: number): 
 
 /**
  * The part of the cart a coupon may discount. An item-specific coupon only
- * ever sees its own items' lines, so ₹50 off a sandwich cannot leak onto the
- * drink next to it. Returns null when the cart has none of those items.
+ * ever sees its own items' lines (including item packing fees), so ₹50 off a sandwich
+ * cannot leak onto the drink next to it.
+ * When `orderTotalPaise` is provided for order-wide coupons, the discount base
+ * is the final order price including packaging and delivery fees.
+ * Returns null when the cart has none of those items.
  */
 export function couponEligibleSubtotal(
   coupon: Coupon,
   lines: readonly CouponCartLine[],
+  orderTotalPaise?: number,
 ): Paise | null {
   const itemIds = coupon.menuItemIds ?? [];
   if (itemIds.length === 0) {
-    return lines.reduce((sum, l) => sum + l.lineTotalPaise, 0);
+    if (orderTotalPaise !== undefined) {
+      return orderTotalPaise;
+    }
+    return lines.reduce((sum, l) => sum + l.lineTotalPaise + (l.linePackingFeePaise ?? 0), 0);
   }
   const matching = lines.filter((l) => itemIds.includes(l.itemId));
   if (matching.length === 0) return null;
-  return matching.reduce((sum, l) => sum + l.lineTotalPaise, 0);
+  return matching.reduce((sum, l) => sum + l.lineTotalPaise + (l.linePackingFeePaise ?? 0), 0);
 }
 
 /**
@@ -212,7 +220,8 @@ async function studentRedemptions(coupon: Coupon, studentId: string): Promise<nu
 export async function listEligibleCouponsForCart(params: {
   restaurantId: string;
   campusId: string;
-  subtotalPaise: number;
+  subtotalPaise?: number | undefined;
+  orderTotalPaise?: number | undefined;
   lines: readonly CouponCartLine[];
   studentId?: string | null | undefined;
 }): Promise<CouponEligibilityResult[]> {
@@ -235,6 +244,7 @@ export async function listEligibleCouponsForCart(params: {
     .sort({ valuePaise: -1, valueBps: -1 })
     .toArray();
 
+  const effectiveOrderTotalPaise = params.orderTotalPaise ?? params.subtotalPaise ?? 0;
   const results: CouponEligibilityResult[] = [];
 
   for (const coupon of activeCoupons) {
@@ -242,7 +252,7 @@ export async function listEligibleCouponsForCart(params: {
     if (coupon.totalLimit !== null && coupon.usedCount >= coupon.totalLimit) continue;
     if (isPersonLimitReached(coupon, params.studentId)) continue;
 
-    const eligibleSubtotal = couponEligibleSubtotal(coupon, params.lines);
+    const eligibleSubtotal = couponEligibleSubtotal(coupon, params.lines, effectiveOrderTotalPaise);
     if (eligibleSubtotal === null) {
       results.push({
         coupon,
@@ -253,8 +263,8 @@ export async function listEligibleCouponsForCart(params: {
       continue;
     }
 
-    if (params.subtotalPaise < coupon.minOrderPaise) {
-      const shortageRupees = Math.ceil((coupon.minOrderPaise - params.subtotalPaise) / 100);
+    if (effectiveOrderTotalPaise < coupon.minOrderPaise) {
+      const shortageRupees = Math.ceil((coupon.minOrderPaise - effectiveOrderTotalPaise) / 100);
       results.push({
         coupon,
         isEligible: false,
@@ -290,7 +300,8 @@ export async function validateCouponForOrder(params: {
   code: string;
   restaurantId: string;
   campusId: string;
-  subtotalPaise: number;
+  subtotalPaise?: number | undefined;
+  orderTotalPaise?: number | undefined;
   lines: readonly CouponCartLine[];
   studentId?: string | null | undefined;
 }): Promise<
@@ -355,7 +366,8 @@ export async function validateCouponForOrder(params: {
     };
   }
 
-  const eligibleSubtotal = couponEligibleSubtotal(coupon, params.lines);
+  const effectiveOrderTotalPaise = params.orderTotalPaise ?? params.subtotalPaise ?? 0;
+  const eligibleSubtotal = couponEligibleSubtotal(coupon, params.lines, effectiveOrderTotalPaise);
   if (eligibleSubtotal === null) {
     return {
       ok: false,
@@ -363,8 +375,8 @@ export async function validateCouponForOrder(params: {
     };
   }
 
-  // Minimum order check
-  if (params.subtotalPaise < coupon.minOrderPaise) {
+  // Minimum order check (evaluated on final order price including packaging/delivery fees)
+  if (effectiveOrderTotalPaise < coupon.minOrderPaise) {
     const minRupees = Math.ceil(coupon.minOrderPaise / 100);
     return {
       ok: false,

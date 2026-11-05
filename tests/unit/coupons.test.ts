@@ -134,6 +134,62 @@ describe("Item-specific coupons", () => {
       ]),
     ).toBe(350);
   });
+
+  it("includes item packaging fees in item-specific discount calculation", () => {
+    const lines = [
+      { itemId: "item_sandwich", lineTotalPaise: 12000, linePackingFeePaise: 1000 },
+      { itemId: "item_coffee", lineTotalPaise: 8000, linePackingFeePaise: 500 },
+    ];
+    // Sandwich total including packing = 120 + 10 = ₹130 (13000 paise)
+    const eligible = couponEligibleSubtotal(sandwichCoupon, lines);
+    expect(eligible).toBe(13000);
+    // 50% of 13000 = 6500 (₹65)
+    expect(calculateCouponDiscount(sandwichCoupon, eligible ?? 0)).toBe(6500);
+  });
+
+  it("applies coupon on final order price including packaging and delivery fees (WRAP10 photo case)", () => {
+    const wrap10: Coupon = {
+      _id: "cpn_wrap10",
+      code: "WRAP10",
+      description: "10% OFF on all menu items",
+      restaurantId: "rest_wrapchik",
+      campusId: "campus_1",
+      type: "PERCENT",
+      valuePaise: 0,
+      valueBps: 1000, // 10%
+      maxDiscountPaise: 0,
+      minOrderPaise: 39900, // ₹399
+      perStudentLimit: 1,
+      totalLimit: null,
+      usedCount: 0,
+      menuItemIds: [],
+      validFrom: new Date("2026-01-01"),
+      validUntil: new Date("2026-12-31"),
+      isActive: true,
+    };
+
+    const lines = [
+      { itemId: "pizza_veg", lineTotalPaise: 18900, linePackingFeePaise: 1000 },
+      { itemId: "pizza_margherita", lineTotalPaise: 20900, linePackingFeePaise: 1000 },
+    ];
+    const itemSubtotalPaise = 39800; // ₹398
+    const packagingFeePaise = 2000;  // ₹20
+    const finalOrderTotalPaise = itemSubtotalPaise + packagingFeePaise; // ₹418 (41800 paise)
+
+    // With item price alone, ₹398 is below min order ₹399
+    expect(itemSubtotalPaise < wrap10.minOrderPaise).toBe(true);
+
+    // With final order total including packaging, ₹418 meets min order ₹399
+    expect(finalOrderTotalPaise >= wrap10.minOrderPaise).toBe(true);
+
+    // Coupon applies on the final order total ₹418
+    const eligible = couponEligibleSubtotal(wrap10, lines, finalOrderTotalPaise);
+    expect(eligible).toBe(41800);
+
+    // 10% discount on ₹418: 4180 paise rounds/ceils to whole rupee = 4200 paise (₹42)
+    const discount = calculateCouponDiscount(wrap10, eligible ?? 0);
+    expect(discount).toBe(4200);
+  });
 });
 
 describe("Person limit", () => {

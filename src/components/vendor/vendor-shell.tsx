@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/toast";
+import { InstallHeaderButton } from "@/components/shared/pwa";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { signOutVendor } from "@/lib/vendor-api";
 import { setRestaurantOpen } from "@/server/actions/vendor";
@@ -202,6 +203,8 @@ function VendorShellContent({
                 }
               />
             </div>
+
+            <InstallHeaderButton />
 
             <VendorLanguageToggle />
 

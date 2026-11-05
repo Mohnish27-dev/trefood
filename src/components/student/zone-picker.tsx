@@ -103,7 +103,7 @@ export function ZonePicker({
               size="sm"
               showText
               showTagline
-              tagline="CAMPUS COMMERCE PLATFORM"
+              tagline="CAMPUS MARKETPLACE"
             />
           </Link>
 
@@ -170,7 +170,7 @@ export function ZonePicker({
               <Dialog.Description className="mt-1 text-xs text-muted leading-relaxed">
                 {showCampusSelector
                   ? "Select which campus or university you are ordering from."
-                  : "Riders deliver to your campus gate. Selecting your gate shows kitchens that deliver directly to you."}
+                  : "Riders deliver to your campus gate. Selecting your gate shows vendors and stores that deliver directly to you."}
               </Dialog.Description>
             </div>
             <Dialog.Close

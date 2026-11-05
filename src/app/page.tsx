@@ -66,19 +66,19 @@ export default function LandingPage() {
           <div>
             <span className="animate-rise inline-flex items-center gap-2 rounded-full border border-saffron/30 bg-saffron-wash px-3 py-1.5 text-xs font-semibold text-saffron">
               <span className="size-1.5 animate-pulse-ring rounded-full bg-saffron" />
-              Live at NIT Patna · 7 canteens
+              Live at NIT Patna · Campus vendors &amp; stores
             </span>
 
             <h1 className="animate-rise mt-5 font-display text-[2.75rem] font-bold leading-[1.02] tracking-tight text-bone sm:text-6xl lg:text-[4.25rem]">
-              Hungry at 1 AM?
+              Hungry, cooking, or stocking up?
               <br />
-              <span className="text-flame">Food at your gate.</span>
+              <span className="text-flame">Delivered to your gate.</span>
             </h1>
 
             <p className="animate-rise mt-5 max-w-md text-base leading-relaxed text-muted">
-              Order from the canteens you already eat at. Collect at your hostel gate,
-              match the four digits on the packet, done. No rider app, no map to stare
-              at, no ₹90 delivery fee.
+              Order hot meals, fresh fruits, daily groceries, and raw chicken from the
+              campus vendors you already trust. Collect at your hostel gate, match the four
+              digits on the packet, done. No rider app, no map to stare at, zero delivery fee.
             </p>
 
             <div className="animate-rise mt-7 max-w-md">
@@ -105,7 +105,7 @@ export default function LandingPage() {
             </div>
 
             <dl className="mt-9 grid max-w-md grid-cols-2 gap-3">
-              <Stat value="7" label="canteens live" />
+              <Stat value="7+" label="campus vendors live" />
               <Stat value="~20" label="min to your gate" />
             </dl>
           </div>
@@ -119,11 +119,11 @@ export default function LandingPage() {
       {/* ── Dish ticker ──────────────────────────────────────────────── */}
       <DishMarquee />
 
-      {/* ── Cravings ─────────────────────────────────────────────────── */}
+      {/* ── Categories & Cravings ───────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-5 pt-12">
         <SectionHeading
-          eyebrow="Pick a craving"
-          title="What are you eating tonight?"
+          eyebrow="Explore categories"
+          title="Food, groceries, fruits &amp; more"
         />
         <div className="mt-5">
           <CravingRail href={SIGN_IN} />
@@ -145,19 +145,19 @@ export default function LandingPage() {
               index={1}
               emoji="🏠"
               title="Pick your gate"
-              body="Hostel 5, main gate, wherever you will be standing. Restaurants that cannot reach it are hidden, not greyed out."
+              body="Hostel 5, main gate, wherever you will be standing. Vendors and stores that cannot reach it are hidden, not greyed out."
             />
             <Step
               index={2}
               emoji="🧾"
-              title="Order from a canteen"
-              body="The same kitchens you already walk to. Real menus, real prices, and the prep time they actually keep."
+              title="Order from campus vendors"
+              body="Canteens, fruit stalls, grocery stores, and meat vendors. Real campus prices and the prep time they actually keep."
             />
             <Step
               index={3}
               emoji="🛵"
               title="Watch it move"
-              body="Accepted, cooking, out for delivery, at your gate. Live, without you refreshing anything."
+              body="Accepted, prepared, out for delivery, at your gate. Live, without you refreshing anything."
             />
             <Step
               index={4}
@@ -215,14 +215,14 @@ export default function LandingPage() {
             <div className="max-w-lg">
               <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-raised px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-muted">
                 <Store className="size-3" />
-                For canteen owners
+                For campus vendors
               </span>
               <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-bone">
-                Run a canteen on campus?
+                Sell food, groceries, or essentials on campus?
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                One tablet, one order board, daily settlement. Accept, cook, hand over —
-                the same rhythm you already have, with the queue written down.
+                One tablet, one order board, daily settlement. Whether you run a canteen,
+                fruit stall, grocery shop, or fresh meat outlet — manage orders effortlessly.
               </p>
             </div>
             <Link
@@ -246,8 +246,8 @@ export default function LandingPage() {
             Your gate. Twenty minutes.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted">
-            Sign in with your campus email and the canteens open right up. No
-            onboarding, no promo codes to hunt for.
+            Sign in with your campus email to explore hot meals, fresh fruits, groceries,
+            raw chicken, and daily essentials. No onboarding, no surge fees.
           </p>
           <div className="mt-7 flex justify-center">
             <Suspense
@@ -268,7 +268,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-8 sm:flex-row sm:items-center sm:justify-between">
           <BrandLogo size="sm" />
           <p className="text-xs leading-relaxed text-faint">
-            TREFOOD · Hyperlocal campus delivery. Handover at the gate, always.
+            TREFOOD · Hyperlocal campus delivery for food, fruits, groceries &amp; essentials. Handover at the gate, always.
           </p>
         </div>
       </footer>
@@ -312,9 +312,10 @@ async function HeroCta() {
       </HeroCtaShell>
     );
   }
+  const isVendor = session.role === "VENDOR_OWNER" || session.role === "VENDOR_STAFF";
   return (
     <HeroCtaShell href={landingForRole(session.role)} icon="app">
-      Start ordering
+      {isVendor ? "Open vendor console" : "Start ordering"}
     </HeroCtaShell>
   );
 }

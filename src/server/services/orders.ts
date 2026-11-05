@@ -267,8 +267,13 @@ export async function createOrder(params: {
         code: params.couponCode,
         restaurantId: params.restaurantId,
         campusId: rawPreview.campus._id,
+        orderTotalPaise: rawPreview.pricing.commissionBasePaise,
         subtotalPaise: rawPreview.pricing.subtotalPaise,
-        lines: rawPreview.items,
+        lines: rawPreview.items.map((i) => ({
+          itemId: i.itemId,
+          lineTotalPaise: i.lineTotalPaise,
+          linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
+        })),
         studentId: params.customer._id,
       });
       if (couponValidation.ok) {

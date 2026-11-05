@@ -361,7 +361,7 @@ export function StudentAuthForm({
       <header className="relative w-full">
         <Image
           src="/images/auth/login-hero.webp"
-          alt="TreFood, the campus commerce platform. Everything you need in one place: food, fruits, groceries, snacks and dine-out."
+          alt="TreFood, the campus marketplace. Everything you need in one place: food, fruits, groceries, raw chicken, and daily essentials."
           width={1376}
           height={1602}
           priority

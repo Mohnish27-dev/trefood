@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BellRing,
   Download,
   Share,
   Smartphone,
@@ -14,6 +15,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useVendorLanguage } from "@/context/vendor-language-context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -73,7 +75,8 @@ export function isIOSDevice(): boolean {
   return isApple || isMacTouch;
 }
 
-const SESSION_DISMISSED_KEY = "trefood.install.dismissed.session";
+const STUDENT_SESSION_DISMISSED_KEY = "trefood.install.dismissed.session";
+const VENDOR_SESSION_DISMISSED_KEY = "trefood.vendor.install.dismissed.session";
 
 /* ------------------------------------------------------------------ */
 /* External store subscriptions (React 19 sync architecture)           */
@@ -142,18 +145,19 @@ export function usePromptStore(): BeforeInstallPromptEvent | null {
 }
 
 const dismissedListeners = new Set<() => void>();
-let dismissedSnapshot: boolean | null = null;
 
-function getDismissedSnapshot(): boolean {
+function notifyDismissedListeners(): void {
+  dismissedListeners.forEach((cb) => cb());
+}
+
+function getDismissedSnapshot(isVendor: boolean): boolean {
   if (typeof window === "undefined") return false;
-  if (dismissedSnapshot !== null) return dismissedSnapshot;
   try {
-    window.localStorage.removeItem("trefood.install.dismissed");
-    dismissedSnapshot = window.sessionStorage.getItem(SESSION_DISMISSED_KEY) === "1";
+    const key = isVendor ? VENDOR_SESSION_DISMISSED_KEY : STUDENT_SESSION_DISMISSED_KEY;
+    return window.sessionStorage.getItem(key) === "1";
   } catch {
-    dismissedSnapshot = false;
+    return false;
   }
-  return dismissedSnapshot;
 }
 
 function subscribeDismissed(callback: () => void) {
@@ -163,28 +167,32 @@ function subscribeDismissed(callback: () => void) {
   };
 }
 
-export function dismissInstallPrompt(): void {
-  dismissedSnapshot = true;
+export function dismissInstallPrompt(isVendor = false): void {
   if (typeof window !== "undefined") {
     try {
-      window.sessionStorage.setItem(SESSION_DISMISSED_KEY, "1");
+      const key = isVendor ? VENDOR_SESSION_DISMISSED_KEY : STUDENT_SESSION_DISMISSED_KEY;
+      window.sessionStorage.setItem(key, "1");
     } catch {}
   }
-  dismissedListeners.forEach((cb) => cb());
+  notifyDismissedListeners();
 }
 
 export function openInstallPrompt(): void {
-  dismissedSnapshot = false;
   if (typeof window !== "undefined") {
     try {
-      window.sessionStorage.removeItem(SESSION_DISMISSED_KEY);
+      window.sessionStorage.removeItem(STUDENT_SESSION_DISMISSED_KEY);
+      window.sessionStorage.removeItem(VENDOR_SESSION_DISMISSED_KEY);
     } catch {}
   }
-  dismissedListeners.forEach((cb) => cb());
+  notifyDismissedListeners();
 }
 
-export function useIsDismissed(): boolean {
-  return useSyncExternalStore(subscribeDismissed, getDismissedSnapshot, () => false);
+export function useIsDismissed(isVendor = false): boolean {
+  return useSyncExternalStore(
+    subscribeDismissed,
+    () => getDismissedSnapshot(isVendor),
+    () => false,
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,18 +296,21 @@ export function InstallPrompt() {
   const pathname = usePathname();
   const isMounted = useIsMounted();
   const isInstalled = useIsStandalone();
-  const isDismissed = useIsDismissed();
+  const isVendorRoute = pathname.startsWith("/vendor");
+  const isDismissed = useIsDismissed(isVendorRoute);
   const prompt = usePromptStore();
+  const { lang } = useVendorLanguage();
+  const isHindi = isVendorRoute && lang === "hi";
 
   const [showGuide, setShowGuide] = useState(false);
 
-  const isNonStudentRoute =
-    pathname.startsWith("/vendor") ||
+  const isExcludedRoute =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/courier") ||
-    pathname.startsWith("/print");
+    pathname.startsWith("/print") ||
+    pathname.endsWith("/kot");
 
-  if (!isMounted || isInstalled || isDismissed || isNonStudentRoute) return null;
+  if (!isMounted || isInstalled || isDismissed || isExcludedRoute) return null;
 
   const isIOS = isIOSDevice();
   const hasBottomNav =
@@ -314,7 +325,7 @@ export function InstallPrompt() {
         await prompt.prompt();
         const choice = await prompt.userChoice;
         if (choice.outcome === "accepted") {
-          dismissInstallPrompt();
+          dismissInstallPrompt(isVendorRoute);
           return;
         }
       } catch {
@@ -326,13 +337,19 @@ export function InstallPrompt() {
 
   const handleDismiss = (): void => {
     setShowGuide(false);
-    dismissInstallPrompt();
+    dismissInstallPrompt(isVendorRoute);
   };
 
   return (
     <div
       role="region"
-      aria-label="Install TREFOOD App"
+      aria-label={
+        isVendorRoute
+          ? isHindi
+            ? "TREFOOD वेंडर ऐप इंस्टॉल करें"
+            : "Install TREFOOD Vendor Console"
+          : "Install TREFOOD App"
+      }
       className={cn(
         "no-print print:hidden fixed z-50 transition-all duration-300 animate-rise",
         // Mobile layout: centered floating bottom card with safe area margin
@@ -357,14 +374,24 @@ export function InstallPrompt() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="font-display text-sm font-bold text-bone">Install TREFOOD</span>
+                <span className="font-display text-sm font-bold text-bone">
+                  {isVendorRoute
+                    ? isHindi
+                      ? "TREFOOD वेंडर कंसोल"
+                      : "TREFOOD Vendor Console"
+                    : "Install TREFOOD"}
+                </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-saffron/30 bg-saffron-wash px-1.5 py-0.5 text-[0.625rem] font-semibold text-saffron">
                   <span className="size-1 rounded-full bg-saffron animate-pulse" />
-                  PWA
+                  {isVendorRoute ? (isHindi ? "वेंडर PWA" : "Vendor PWA") : "PWA"}
                 </span>
               </div>
               <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                Order directly from campus canteens with zero markup and live gate arrival alerts.
+                {isVendorRoute
+                  ? isHindi
+                    ? "लाइव किचन ऑर्डर संभालें, तुरंत आवाज़ का अलर्ट पाएं, और काउंटर तेज़ी से चलाएं।"
+                    : "Manage live kitchen orders, receive instant order chimes, and run the counter smoothly."
+                  : "Order directly from campus vendors with zero markup and live gate arrival alerts."}
               </p>
             </div>
             <button
@@ -378,17 +405,38 @@ export function InstallPrompt() {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-[0.6875rem] text-faint">
-            <span className="inline-flex items-center gap-1">
-              <Sparkles className="size-3 text-saffron" /> 1-tap ordering
-            </span>
-            <span className="text-faint/40">·</span>
-            <span className="inline-flex items-center gap-1">
-              <Smartphone className="size-3 text-mint" /> No app store needed
-            </span>
-            <span className="text-faint/40">·</span>
-            <span className="inline-flex items-center gap-1">
-              <Download className="size-3 text-sky" /> Fast &amp; lightweight
-            </span>
+            {isVendorRoute ? (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <BellRing className="size-3 text-saffron" />{" "}
+                  {isHindi ? "तुरंत ऑर्डर अलर्ट" : "Instant order chimes"}
+                </span>
+                <span className="text-faint/40">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Smartphone className="size-3 text-mint" />{" "}
+                  {isHindi ? "टैबलेट और फोन तैयार" : "Tablet & counter ready"}
+                </span>
+                <span className="text-faint/40">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Download className="size-3 text-sky" />{" "}
+                  {isHindi ? "तेज़ और हल्का" : "Fast & lightweight"}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <Sparkles className="size-3 text-saffron" /> 1-tap ordering
+                </span>
+                <span className="text-faint/40">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Smartphone className="size-3 text-mint" /> No app store needed
+                </span>
+                <span className="text-faint/40">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Download className="size-3 text-sky" /> Fast &amp; lightweight
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2 pt-1">
@@ -398,7 +446,13 @@ export function InstallPrompt() {
               onClick={() => void handleInstallClick()}
             >
               <Download className="size-4" />
-              {isIOS ? "How to install on iPhone" : "Install App"}
+              {isIOS
+                ? isHindi
+                  ? "iPhone पर कैसे जोड़ें"
+                  : "How to install on iPhone"
+                : isHindi
+                  ? "ऐप इंस्टॉल करें"
+                  : "Install App"}
             </Button>
             <Button
               size="md"
@@ -406,7 +460,7 @@ export function InstallPrompt() {
               onClick={handleDismiss}
               className="px-3 text-xs sm:text-sm text-muted hover:text-bone"
             >
-              Not now
+              {isHindi ? "अभी नहीं" : "Not now"}
             </Button>
           </div>
         </div>
@@ -417,7 +471,13 @@ export function InstallPrompt() {
             <div className="flex items-center gap-2">
               <Smartphone className="size-4 text-saffron" />
               <h3 className="font-display text-sm font-bold text-bone">
-                {isIOS ? "Install on iPhone / iPad" : "Install in Your Browser"}
+                {isIOS
+                  ? isHindi
+                    ? "iPhone / iPad पर जोड़ें"
+                    : "Install on iPhone / iPad"
+                  : isHindi
+                    ? "ब्राउज़र में इंस्टॉल करें"
+                    : "Install in Your Browser"}
               </h3>
             </div>
             <button
@@ -437,8 +497,17 @@ export function InstallPrompt() {
                   1
                 </span>
                 <span className="leading-relaxed">
-                  Tap the <strong className="text-bone">Share button</strong>{" "}
-                  <Share className="inline size-3.5 text-saffron align-text-bottom" /> in Safari&apos;s bottom toolbar.
+                  {isHindi ? (
+                    <>
+                      Safari में नीचे <strong className="text-bone">Share बटन</strong>{" "}
+                      <Share className="inline size-3.5 text-saffron align-text-bottom" /> पर टैप करें।
+                    </>
+                  ) : (
+                    <>
+                      Tap the <strong className="text-bone">Share button</strong>{" "}
+                      <Share className="inline size-3.5 text-saffron align-text-bottom" /> in Safari&apos;s bottom toolbar.
+                    </>
+                  )}
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -446,9 +515,19 @@ export function InstallPrompt() {
                   2
                 </span>
                 <span className="leading-relaxed">
-                  Scroll down and tap{" "}
-                  <strong className="text-bone">&quot;Add to Home Screen&quot;</strong>{" "}
-                  <SquarePlus className="inline size-3.5 text-saffron align-text-bottom" />.
+                  {isHindi ? (
+                    <>
+                      नीचे स्क्रॉल करके{" "}
+                      <strong className="text-bone">&quot;Add to Home Screen&quot;</strong>{" "}
+                      <SquarePlus className="inline size-3.5 text-saffron align-text-bottom" /> चुनें।
+                    </>
+                  ) : (
+                    <>
+                      Scroll down and tap{" "}
+                      <strong className="text-bone">&quot;Add to Home Screen&quot;</strong>{" "}
+                      <SquarePlus className="inline size-3.5 text-saffron align-text-bottom" />.
+                    </>
+                  )}
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -456,7 +535,15 @@ export function InstallPrompt() {
                   3
                 </span>
                 <span className="leading-relaxed">
-                  Tap <strong className="text-bone">&quot;Add&quot;</strong> in the top-right corner.
+                  {isHindi ? (
+                    <>
+                      ऊपर दाईं तरफ <strong className="text-bone">&quot;Add&quot;</strong> पर टैप करें।
+                    </>
+                  ) : (
+                    <>
+                      Tap <strong className="text-bone">&quot;Add&quot;</strong> in the top-right corner.
+                    </>
+                  )}
                 </span>
               </li>
             </ol>
@@ -467,7 +554,15 @@ export function InstallPrompt() {
                   1
                 </span>
                 <span className="leading-relaxed">
-                  Tap the browser menu <strong className="text-bone font-mono">⋮</strong> (three dots).
+                  {isHindi ? (
+                    <>
+                      ब्राउज़र मेन्यू <strong className="text-bone font-mono">⋮</strong> (तीन बिंदु) या एड्रेस बार के इंस्टॉल आइकन पर टैप करें।
+                    </>
+                  ) : (
+                    <>
+                      Tap the browser menu <strong className="text-bone font-mono">⋮</strong> (three dots) or the install icon in the address bar.
+                    </>
+                  )}
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -475,8 +570,17 @@ export function InstallPrompt() {
                   2
                 </span>
                 <span className="leading-relaxed">
-                  Select <strong className="text-bone">&quot;Install app&quot;</strong> or{" "}
-                  <strong className="text-bone">&quot;Add to Home screen&quot;</strong>.
+                  {isHindi ? (
+                    <>
+                      <strong className="text-bone">&quot;Install app&quot;</strong> या{" "}
+                      <strong className="text-bone">&quot;Add to Home screen&quot;</strong> चुनें।
+                    </>
+                  ) : (
+                    <>
+                      Select <strong className="text-bone">&quot;Install app&quot;</strong> or{" "}
+                      <strong className="text-bone">&quot;Add to Home screen&quot;</strong>.
+                    </>
+                  )}
                 </span>
               </li>
             </ol>
@@ -484,10 +588,10 @@ export function InstallPrompt() {
 
           <div className="flex justify-end gap-2 border-t border-line/60 pt-2">
             <Button size="sm" variant="ghost" onClick={() => setShowGuide(false)}>
-              Back
+              {isHindi ? "पीछे" : "Back"}
             </Button>
             <Button size="sm" onClick={handleDismiss}>
-              Got it
+              {isHindi ? "समझ गए" : "Got it"}
             </Button>
           </div>
         </div>
@@ -499,9 +603,13 @@ export function InstallPrompt() {
 /**
  * Sleek header CTA button to install the app or reopen the installation guide.
  */
-export function InstallHeaderButton() {
+export function InstallHeaderButton({ className }: { className?: string } = {}) {
+  const pathname = usePathname();
   const isMounted = useIsMounted();
   const isInstalled = useIsStandalone();
+  const isVendorRoute = pathname.startsWith("/vendor");
+  const { lang } = useVendorLanguage();
+  const isHindi = isVendorRoute && lang === "hi";
 
   if (!isMounted || isInstalled) return null;
 
@@ -509,12 +617,23 @@ export function InstallHeaderButton() {
     <button
       type="button"
       onClick={openInstallPrompt}
-      className="no-print print:hidden inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-95"
-      aria-label="Install TREFOOD App"
+      className={cn(
+        "no-print print:hidden inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-saffron/35 bg-saffron-wash px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-saffron transition-all hover:bg-saffron hover:text-white active:scale-95",
+        className,
+      )}
+      aria-label={
+        isVendorRoute
+          ? isHindi
+            ? "TREFOOD वेंडर ऐप इंस्टॉल करें"
+            : "Install TREFOOD Vendor App"
+          : "Install TREFOOD App"
+      }
     >
       <Download className="size-3.5 shrink-0" />
-      <span className="sm:hidden">Install</span>
-      <span className="hidden sm:inline">Install App</span>
+      <span className="sm:hidden">{isHindi ? "इंस्टॉल" : "Install"}</span>
+      <span className="hidden sm:inline">
+        {isHindi ? "ऐप इंस्टॉल करें" : "Install App"}
+      </span>
     </button>
   );
 }

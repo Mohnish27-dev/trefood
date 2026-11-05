@@ -115,13 +115,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   let appliedCoupon: CartPricingResponse["appliedCoupon"] = null;
   let couponError: string | null = null;
 
+  const couponLines = rawPreview.items.map((i) => ({
+    itemId: i.itemId,
+    lineTotalPaise: i.lineTotalPaise,
+    linePackingFeePaise: (i.packingFeePaise ?? 0) * i.quantity,
+  }));
+
   if (parsed.data.couponCode) {
     const couponValidation = await validateCouponForOrder({
       code: parsed.data.couponCode,
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
+      orderTotalPaise: rawPreview.pricing.commissionBasePaise,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
-      lines: rawPreview.items,
+      lines: couponLines,
       studentId: studentId ?? null,
     });
 
@@ -146,8 +153,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     listEligibleCouponsForCart({
       restaurantId: parsed.data.restaurantId,
       campusId: rawPreview.campus._id,
+      orderTotalPaise: rawPreview.pricing.commissionBasePaise,
       subtotalPaise: rawPreview.pricing.subtotalPaise,
-      lines: rawPreview.items,
+      lines: couponLines,
       studentId: studentId ?? null,
     }),
   ]);

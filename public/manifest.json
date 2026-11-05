@@ -1,7 +1,7 @@
 {
   "name": "TreFood — Campus food, fruits & groceries delivered to your gate",
   "short_name": "TreFood",
-  "description": "Order from your campus canteens and collect at your hostel gate. Match the code on the packet, done.",
+  "description": "Order food, fruits, groceries, and raw chicken from campus vendors and collect at your hostel gate. Match the code on the packet, done.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -43,6 +43,12 @@
       "short_name": "Orders",
       "url": "/orders",
       "description": "Track an order on its way to your gate"
+    },
+    {
+      "name": "Vendor Orders",
+      "short_name": "Vendor",
+      "url": "/vendor/orders",
+      "description": "Live vendor kitchen orders"
     }
   ]
 }
